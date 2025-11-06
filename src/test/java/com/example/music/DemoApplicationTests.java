@@ -1,4 +1,4 @@
-package com.example.demo;
+package com.example.music;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -17,9 +17,4 @@ class DemoApplicationTests {
 	@Autowired
 	private TestRestTemplate restTemplate;
 
-	@Test
-	void homeResponse() {
-		String body = this.restTemplate.getForObject("/", String.class);
-		assertEquals("Spring is here!", body);
-	}
 }

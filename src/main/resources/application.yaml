@@ -1,0 +1,27 @@
+spring:
+  application:
+    name: music
+  #???????
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://8.131.103.29:3306/music
+    username: admin
+    password: PDbsBSMrye75eck7
+  # redis
+  redis:
+    host: 8.131.103.29
+    port: 6379
+    password: AL1234@
+
+  mybatis-plus:
+    configuration:
+      log-impl: org.apache.ibatis.logging.stdout.StdOutImpl # ??SQL
+      map-underscore-to-camel-case: true
+      default-enum-type-handler: com.baomidou.mybatisplus.core.handlers.MybatisEnumTypeHandler
+    type-aliases-package: com.music.domain.entity
+    mapper-locations: classpath:mapper/*.xml
+  logging:
+    level:
+      # ? Mapper ????????????? DEBUG
+      com.future.mapper: DEBUG
+
