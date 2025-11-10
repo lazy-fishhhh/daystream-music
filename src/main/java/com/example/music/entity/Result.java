@@ -57,4 +57,10 @@ public class Result<T> {
     public static <T> Result<T> fail(Integer errCode) {
         return new Result<>(false, null, null, null, errCode);
     }
+    /**
+     * 失败返回（错误码，错误信息）
+     */
+    public static <T> Result<T> fail(Integer errCode,String errorMsg){
+        return new Result<>(false, errorMsg, null, null, errCode);
+    }
 }

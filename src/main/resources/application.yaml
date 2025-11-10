@@ -14,14 +14,22 @@ spring:
       port: 6379
       password: AL1234@
 
-  mybatis-plus:
-    configuration:
-      log-impl: org.apache.ibatis.logging.stdout.StdOutImpl # ??SQL
-      map-underscore-to-camel-case: true
-      default-enum-type-handler: com.baomidou.mybatisplus.core.handlers.MybatisEnumTypeHandler
-    type-aliases-package: com.music.domain.entity
+mybatis-plus:
+  configuration:
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+    map-underscore-to-camel-case: true
+    default-enum-type-handler: com.baomidou.mybatisplus.core.handlers.MybatisEnumTypeHandler
+    type-aliases-package: com.example.music.entity
     mapper-locations: classpath:mapper/*.xml
-  logging:
-    level:
-      com.future.mapper: DEBUG
+---
+minio:
+  endpoint: http://39.96.214.163:9000
+  accessKey: asdfghjkl
+  secretKey: Lz112112!
+  bucketName: file
+servlet:
+  multipart:
+    max-file-size: 10MB  # 单个文件最大10MB
+    max-request-size: 50MB  # 单次请求最大50MB
+
 
