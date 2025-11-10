@@ -76,7 +76,7 @@
 		<dependency>
 			<groupId>com.baomidou</groupId>
 			<artifactId>mybatis-plus-boot-starter</artifactId>
-			<version>3.5.3.1</version>
+			<version>3.5.5</version>
 		</dependency>
 
 		<dependency>
@@ -130,6 +130,12 @@
             <classifier>windows-x86_64</classifier> <!-- Windows 64位系统 -->
         </dependency>
 
+        <!-- MinIO客户端 -->
+        <dependency>
+            <groupId>io.minio</groupId>
+            <artifactId>minio</artifactId>
+            <version>8.5.2</version>
+        </dependency>
 
 	</dependencies>
 	<build>
