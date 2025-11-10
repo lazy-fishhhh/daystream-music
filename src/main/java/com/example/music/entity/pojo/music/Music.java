@@ -1,4 +1,4 @@
-package com.example.music.entity.music;
+package com.example.music.entity.pojo.music;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
