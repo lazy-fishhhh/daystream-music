@@ -7,8 +7,9 @@ import com.example.music.mapper.MusicianMapper;
 import com.example.music.service.IMusicianService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.stereotype.Service;
 
-
+@Service
 @RequiredArgsConstructor
 public class MusicianServiceImpl implements IMusicianService {
     private  final MusicianMapper musicianMapper;

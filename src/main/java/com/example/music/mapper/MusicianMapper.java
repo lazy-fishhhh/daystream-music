@@ -1,10 +1,8 @@
 package com.example.music.mapper;
 
-
-import com.example.music.entity.dto.PlayListDTO;
 import com.example.music.entity.pojo.music.PlayList;
 import org.apache.ibatis.annotations.Insert;
-import org.mapstruct.Mapper;
+import org.apache.ibatis.annotations.Mapper;
 
 @Mapper
 public interface MusicianMapper {
