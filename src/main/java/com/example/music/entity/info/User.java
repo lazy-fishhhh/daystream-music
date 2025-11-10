@@ -16,6 +16,8 @@ public class User {
     private String phone;            // 手机号
     private String email;            // 邮箱
     private String avatar;           // 头像URL
+    private int gender;              // 性别（0-未知，1-男, 2-女）
+    private String introduction;     // 个人简介
     private Integer userStatus;      // 状态（0-封禁，1-正常）
     private String lastLoginIp;      // 最后登录IP
     private Integer totalPoint;      // 累计积分
