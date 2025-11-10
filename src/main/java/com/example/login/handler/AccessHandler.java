@@ -1,7 +1,7 @@
 package com.example.login.handler;
 
 import cn.hutool.json.JSONUtil;
-import com.example.music.entity.Result;
+import com.example.music.entity.pojo.Result;
 import com.example.music.util.WebUtils;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
