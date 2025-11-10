@@ -8,35 +8,53 @@ import lombok.experimental.Accessors;
 import java.util.List;
 
 /**
- * Result 统一返回结果类
- *
+ * 泛型版统一返回结果类
+ * @param <T> 数据字段(data)的类型
  */
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
 @Accessors(chain = true)
-public class Result {
+public class Result<T> {
 
     private Boolean success;
     private String errorMsg;
-    private Object data;
+    private T data;
     private Long total;
     private Integer errCode;
 
-    public static Result ok(){
-        return new Result(true, null, null, null,null);
-    }
-    public static Result ok(Object data){
-        return new Result(true, null, data, null, null);
-    }
-    public static Result ok(List<?> data, Long total){
-        return new Result(true, null, data, total, null);
-    }
-    public static Result fail(String errorMsg){
-        return new Result(false, errorMsg, null, null, null);
+    /**
+     * 成功返回（无数据）
+     */
+    public static <T> Result<T> ok() {
+        return new Result<>(true, null, null, null, null);
     }
 
-    public static Result fail(Integer errCode){
-        return new Result(false, null, null, null, errCode);
+    /**
+     * 成功返回（带单个数据）
+     */
+    public static <T> Result<T> ok(T data) {
+        return new Result<>(true, null, data, null, null);
+    }
+
+    /**
+     * 成功返回（带列表数据和总数）
+     */
+    public static <T> Result<List<T>> ok(List<T> data, Long total) {
+        return new Result<>(true, null, data, total, null);
+    }
+
+    /**
+     * 失败返回（带错误信息）
+     */
+    public static <T> Result<T> fail(String errorMsg) {
+        return new Result<>(false, errorMsg, null, null, null);
+    }
+
+    /**
+     * 失败返回（带错误码）
+     */
+    public static <T> Result<T> fail(Integer errCode) {
+        return new Result<>(false, null, null, null, errCode);
     }
 }
