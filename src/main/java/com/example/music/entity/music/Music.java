@@ -19,7 +19,7 @@ public class Music {
     private Integer bpm;             // 节奏（BPM）
     private String licenseType;      // 版权类型
     private Integer isVip;           // 是否VIP专属（0-否，1-是）
-    private BigDecimal price;        // 单价（元）
+    private BigDecimal price;        // 单价（音浪）
     private Long playCount;          // 播放量
     private Long downloadCount;      // 下载量
     private Integer status;          // 状态（0-待审核，1-上架，2-下架）
