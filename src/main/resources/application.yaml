@@ -1,17 +1,18 @@
 spring:
   application:
     name: music
-  #???????
+  #数据库
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://8.131.103.29:3306/music
+    url: jdbc:mysql://39.96.214.163:3306/music
     username: admin
     password: PDbsBSMrye75eck7
   # redis
-  redis:
-    host: 8.131.103.29
-    port: 6379
-    password: AL1234@
+  data:
+    redis:
+      host: 39.96.214.163
+      port: 6379
+      password: AL1234@
 
   mybatis-plus:
     configuration:
@@ -22,6 +23,5 @@ spring:
     mapper-locations: classpath:mapper/*.xml
   logging:
     level:
-      # ? Mapper ????????????? DEBUG
       com.future.mapper: DEBUG
 
