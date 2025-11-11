@@ -143,6 +143,18 @@
             <artifactId>minio</artifactId>
             <version>8.5.2</version>
         </dependency>
+        <!--测试单元-->
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <version>4.13</version>
+            <scope>test</scope>
+        </dependency>
+        <!-- 引入 Spring Boot 校验 starter（兼容 Jakarta 规范） -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
 
 	</dependencies>
 	<build>
