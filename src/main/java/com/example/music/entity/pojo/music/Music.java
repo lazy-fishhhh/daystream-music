@@ -13,7 +13,7 @@ public class Music {
     private String musicName;        // 歌曲名
     private Long albumId;            // 所属专辑ID
     private Long musicianId;         // 音乐人ID
-    private Integer duration;        // 时长（秒）
+    private Long duration;        // 时长（秒）
     private String lyricUrl;         // 歌词URL
     private String coverUrl;         // 封面URL
     private Integer bpm;             // 节奏（BPM）

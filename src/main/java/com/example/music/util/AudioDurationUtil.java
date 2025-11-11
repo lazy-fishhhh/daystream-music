@@ -22,14 +22,6 @@ public class AudioDurationUtil {
     public static long getAudioDuration(MultipartFile audioFile) {
         // 校验文件是否为空
         if (audioFile.isEmpty()) {
-//            log.warn("音频文件为空，无法解析时长");
-            return -1;
-        }
-
-        // 校验文件类型（可选，增强安全性）
-        String contentType = audioFile.getContentType();
-        if (contentType == null || !isSupportedAudioType(contentType)) {
-//            log.warn("不支持的音频格式：{}", contentType);
             return -1;
         }
 
@@ -42,7 +34,6 @@ public class AudioDurationUtil {
             // 获取时长（FFmpeg返回微秒，转换为秒）
             long durationMicros = grabber.getLengthInTime();
             if (durationMicros < 0) {
-//                log.warn("解析音频时长失败，返回时长为负数");
                 return -1;
             }
 
@@ -85,20 +76,5 @@ public class AudioDurationUtil {
         return String.format("%02d:%02d:%02d", hours, minutes, seconds);
     }
 
-    /**
-     * 校验是否为支持的音频MIME类型
-     * @param contentType 音频文件的MIME类型（如 audio/mpeg 对应MP3）
-     * @return 支持返回true，否则false
-     */
-    private static boolean isSupportedAudioType(String contentType) {
-        // 主流音频MIME类型列表，可根据需要扩展
-        return contentType.startsWith("audio/") 
-                && (contentType.equals("audio/mpeg")      // MP3
-                    || contentType.equals("audio/flac")   // FLAC
-                    || contentType.equals("audio/wav")    // WAV
-                    || contentType.equals("audio/aac")    // AAC
-                    || contentType.equals("audio/ogg")    // OGG
-                    || contentType.equals("audio/m4a"));  // M4A
-    }
 
 }

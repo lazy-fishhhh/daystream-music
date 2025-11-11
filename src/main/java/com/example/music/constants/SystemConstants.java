@@ -25,4 +25,8 @@ public class SystemConstants {
     // 存储相关
     public static final String UNCHECKED_FILE_PRIVATE = "private"; // 未审核文件权限
     public static final String FILE_STORAGE_PREFIX = "audio/"; // 音频存储路径前缀
+
+    //文件大小相关
+    public static final int MAX_PICTURE_SIZE = 1024 * 1024 * 10;
+    public static final int MAX_MUSIC_SIZE = 1024 * 1024 * 100;
 }

@@ -1,8 +1,12 @@
 package com.example.music.service;
 
-import org.springframework.stereotype.Service;
+import com.baomidou.mybatisplus.extension.service.IService;
+import com.example.music.entity.dto.MusicDTO;
+import com.example.music.entity.pojo.Result;
+import com.example.music.entity.pojo.music.Music;
+import org.springframework.web.multipart.MultipartFile;
 
-
-public interface IMusicService {
+public interface IMusicService extends IService<Music> {
+    Result saveMusic(MusicDTO musicDTO, MultipartFile lyric, MultipartFile cover);
 
 }
