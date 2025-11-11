@@ -1,0 +1,200 @@
+package com.future.music.service.impl;
+
+import com.future.music.service.IMinIoService;
+import io.minio.*;
+import io.minio.errors.*;
+import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.UUID;
+
+@Service
+class MinIoServiceImpl implements IMinIoService {
+
+    @Autowired
+    private MinioClient minioClient;
+
+    @Value("${minio.bucket-name}")
+    private String bucketName;
+
+    @Value("${minio.endpoint}")
+    private String endpoint;
+
+    /**
+     * 上传文件
+     */
+    @Override
+    public String uploadFile(MultipartFile file) {
+        try {
+            String fileName = UUID.randomUUID().toString() + "_" + file.getOriginalFilename();
+
+            // 检查桶是否存在，不存在则创建
+            boolean bucketExists = minioClient.bucketExists(BucketExistsArgs.builder().bucket(bucketName).build());
+            if (!bucketExists) {
+                minioClient.makeBucket(MakeBucketArgs.builder().bucket(bucketName).build());
+            }
+
+            // 上传文件
+            minioClient.putObject(
+                    PutObjectArgs.builder()
+                            .bucket(bucketName)
+                            .object(fileName)
+                            .stream(file.getInputStream(), file.getSize(), -1)
+                            .contentType(file.getContentType())
+                            .build()
+            );
+
+            // 返回文件存储路径（格式：桶名/文件名）
+            return  endpoint+ "/"+ bucketName + "/" + fileName;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /**
+     * 下载文件
+     */
+    @Override
+    public void downloadFile(String objectName, HttpServletResponse response) {
+        String s=objectName.substring(objectName.lastIndexOf("/") + 1);
+
+        try (InputStream in = getFileInputStream(objectName);
+             OutputStream out = response.getOutputStream()) {
+
+            // 设置响应头（支持浏览器下载）
+            response.setContentType("application/octet-stream");
+            response.setHeader("Content-Disposition",
+                    "attachment;filename=" + URLEncoder.encode(s, StandardCharsets.UTF_8.name()));
+
+            // 写入响应流
+            byte[] buffer = new byte[1024];
+            int len;
+            while ((len = in.read(buffer)) != -1) {
+                out.write(buffer, 0, len);
+            }
+            in.close();
+            out.flush();
+            out.close();
+        } catch (Exception e) {
+            throw new RuntimeException("文件下载失败：" + e.getMessage());
+        }
+    }
+
+    /**
+     * 删除文件
+     */
+    @Override
+    public boolean deleteFile(String objectName) {
+        try {
+            minioClient.removeObject(
+                    RemoveObjectArgs.builder()
+                            .bucket(bucketName)
+                            .object(objectName.substring(objectName.lastIndexOf("/") + 1))
+                            .build()
+            );
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /**
+     * 获取文件输入流
+     */
+    @Override
+    public InputStream getFileInputStream(String objectName) {
+        try {
+            return minioClient.getObject(
+                    GetObjectArgs.builder()
+                            .bucket(bucketName)
+                            .object(objectName.substring(objectName.lastIndexOf("/") + 1))
+                            .build()
+            );
+        } catch (Exception e) {
+            throw new RuntimeException("获取文件流失败：" + e.getMessage());
+        }
+    }
+
+    //判断文件是否存在
+    @Override
+    public boolean isObjectExists(String objectName) {
+        try {
+            // 调用statObject方法获取文件信息，如果文件不存在会抛出异常
+            minioClient.statObject(
+                    StatObjectArgs.builder()
+                            .bucket(bucketName)
+                            .object(objectName.substring(objectName.lastIndexOf("/") + 1))
+                            .build()
+            );
+            // 没有抛出异常，说明文件存在
+            return true;
+        } catch (ErrorResponseException e) {
+            // 捕获404异常（文件不存在）
+            if (e.errorResponse().code().equals("NoSuchKey")) {
+                return false;
+            }
+            // 其他错误（如桶不存在等）
+            throw new RuntimeException("判断文件存在性失败：" + e.getMessage());
+        } catch (InvalidKeyException | InvalidResponseException | IOException
+                 | NoSuchAlgorithmException | ServerException | InsufficientDataException
+                 | InternalException | XmlParserException e) {
+            // 处理其他异常
+            throw new RuntimeException("判断文件存在性失败：" + e.getMessage());
+        }
+    }
+
+    //获取文件最后修改时间的方法
+    @Override
+    public Instant getObjectLastModified(String bucketName, String objectName) throws Exception {
+        StatObjectResponse stat = minioClient.statObject(
+                StatObjectArgs.builder()
+                        .bucket(bucketName)
+                        .object(objectName)
+                        .build()
+        );
+        return stat.lastModified().toInstant(); // 返回文件最后修改时间
+    }
+
+    //判断是否是正确的格式
+    @Override
+    public boolean isAllowedFile(MultipartFile file, String type) {
+        List<String> allowedExtensions = new ArrayList<>();
+        if (type.equals("music")) { // 新增音乐类型
+            // 常用音乐格式：MP3（主流）、FLAC（无损）、AAC（高清）、WAV（无损）
+            allowedExtensions = Arrays.asList("mp3", "flac", "aac", "wav", "m4a");
+        }else if (type.equals("picture")) {
+            allowedExtensions = Arrays.asList("jpg", "jpeg", "png", "gif");
+        }
+
+        if (file.isEmpty()) {
+            return false;
+        }
+
+        // 获取文件名
+        String originalFilename = file.getOriginalFilename();
+        if (originalFilename == null || !originalFilename.contains(".")) {
+            return false;
+        }
+
+        // 获取文件扩展名
+        String extension = originalFilename.substring(originalFilename.lastIndexOf(".") + 1).toLowerCase();
+
+        return allowedExtensions.contains(extension);
+    }
+
+
+}
