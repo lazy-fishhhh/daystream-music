@@ -19,7 +19,12 @@ public class MusicDTO {
     private String licenseType;      // 版权类型
     private Integer isVip;           // 是否VIP专属（0-否，1-是）
     private BigDecimal price;        // 单价（音浪）
+    private Integer quality;         // 音质
 
+    /**
+     * 将MusicDTO转化为Music
+     * @return Music对象
+     */
     public Music toEntity(){
         Music music = new Music();
         music.setMusicName(musicName);
@@ -64,6 +69,10 @@ public class MusicDTO {
         }
         // 7. 单价：非空、非负数且最多2位小数
         if (price == null || price.compareTo(BigDecimal.ZERO) < 0 || price.scale() > 2) {
+            return false;
+        }
+        // 8. 音质类型：非空且只能是1、2、3、4
+        if (quality == null || !(quality == 1 || quality == 2 || quality == 3 || quality == 4)) {
             return false;
         }
         // 所有校验通过
