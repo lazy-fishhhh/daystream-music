@@ -1,17 +1,17 @@
-package com.example.music.service.impl;
+package com.future.music.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
-import com.example.music.constants.SystemConstants;
-import com.example.music.entity.dto.MusicDTO;
-import com.example.music.entity.pojo.music.Music;
+import com.future.music.constants.SystemConstants;
+import com.future.music.entity.dto.MusicDTO;
+import com.future.music.entity.pojo.music.Music;
 import com.example.music.entity.pojo.music.MusicAudio;
-import com.example.music.entity.pojo.util.Result;
-import com.example.music.mapper.MusicAudioMapper;
-import com.example.music.mapper.MusicMapper;
-import com.example.music.service.IMinIoService;
-import com.example.music.service.IMusicService;
-import com.example.music.util.AudioDurationUtil;
+import com.future.music.entity.pojo.util.Result;
+import com.future.music.mapper.MusicAudioMapper;
+import com.future.music.mapper.MusicMapper;
+import com.future.music.service.IMinIoService;
+import com.future.music.service.IMusicService;
+import com.future.music.util.AudioDurationUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

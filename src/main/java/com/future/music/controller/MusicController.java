@@ -1,8 +1,8 @@
 package com.example.music.controller;
 
-import com.example.music.entity.dto.MusicDTO;
-import com.example.music.entity.pojo.util.Result;
-import com.example.music.service.IMusicService;
+import com.future.music.entity.dto.MusicDTO;
+import com.future.music.entity.pojo.util.Result;
+import com.future.music.service.IMusicService;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import org.springframework.beans.factory.annotation.Autowired;

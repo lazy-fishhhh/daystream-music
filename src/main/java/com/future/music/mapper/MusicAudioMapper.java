@@ -1,4 +1,4 @@
-package com.example.music.mapper;
+package com.future.music.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.example.music.entity.pojo.music.MusicAudio;
