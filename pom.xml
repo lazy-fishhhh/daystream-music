@@ -3,15 +3,25 @@
 	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 
-	<groupId>com.example</groupId>
-	<artifactId>DayStreamMusic</artifactId>
+	<groupId>com.future</groupId>
+	<artifactId>dsm-parent</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
-	<packaging>jar</packaging>
-	<name>demo</name>
-	<description>Demo project for Spring Boot</description>
+	<packaging>pom</packaging>
+	<name>dsm-parent</name>
+
+    <modules>
+        <module>dsm-common</module>
+        <module>dsm-regular-functions</module>
+        <module>dsm-user-security</module>
+        <module>dsm-trade-concurrent</module>
+        <module>dsm-data-ai</module>
+        <module>dsm-social-community</module>
+        <module>dsm-music-player</module>
+        <module>dsm-music-admin</module>
+    </modules>
 
 
-	<parent>
+    <parent>
 		<groupId>org.springframework.boot</groupId>
 		<artifactId>spring-boot-starter-parent</artifactId>
 		<version>3.5.7</version>
