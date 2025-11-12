@@ -1,18 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="Encoding">
-    <file url="file://$PROJECT_DIR$/dsm-common/dsm-social-community/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/dsm-common/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/dsm-data-ai/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/dsm-music-admin/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/dsm-music-player/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/dsm-regular-functions/src/main/java" charset="UTF-8" />
-    <file url="file://$PROJECT_DIR$/dsm-regular-functions/src/main/resources" charset="UTF-8" />
-    <file url="file://$PROJECT_DIR$/dsm-regular-functions/src/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/dsm-social-community/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/dsm-trade-concurrent/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/dsm-user-security/src/main/java" charset="UTF-8" />
-    <file url="file://$PROJECT_DIR$/music-admin/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/src/main/resources" charset="UTF-8" />
   </component>
