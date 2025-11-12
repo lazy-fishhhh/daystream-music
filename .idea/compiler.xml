@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="CompilerConfiguration">
+    <annotationProcessing>
+      <profile default="true" name="Default" enabled="true" />
+      <profile name="Maven default annotation processors profile" enabled="true">
+        <sourceOutputDir name="target/generated-sources/annotations" />
+        <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
+        <outputRelativeToContentRoot value="true" />
+        <module name="dsm-user-security" />
+        <module name="dsm-regular-functions" />
+        <module name="dsm-trade-concurrent" />
+        <module name="dsm-music-admin" />
+        <module name="dsm-social-community" />
+        <module name="dsm-data-ai" />
+        <module name="dsm-music-player" />
+        <module name="dsm-common" />
+      </profile>
+    </annotationProcessing>
+    <bytecodeTargetLevel>
+      <module name="dsm-base" target="17" />
+      <module name="music-admin" target="17" />
+    </bytecodeTargetLevel>
+  </component>
+  <component name="JavacSettings">
+    <option name="ADDITIONAL_OPTIONS_OVERRIDE">
+      <module name="dsm-base" options="-parameters" />
+      <module name="dsm-base.main" options="-parameters" />
+      <module name="dsm-base.test" options="-parameters" />
+      <module name="dsm-common" options="-parameters" />
+      <module name="dsm-data-ai" options="-parameters" />
+      <module name="dsm-music-admin" options="-parameters" />
+      <module name="dsm-music-player" options="-parameters" />
+      <module name="dsm-parent" options="-parameters" />
+      <module name="dsm-regular-functions" options="-parameters" />
+      <module name="dsm-social-community" options="-parameters" />
+      <module name="dsm-trade-concurrent" options="-parameters" />
+      <module name="dsm-user-security" options="-parameters" />
+      <module name="music-admin" options="-parameters" />
+    </option>
+  </component>
+</project>
