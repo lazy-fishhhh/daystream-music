@@ -27,7 +27,7 @@ public class LoginController {
     }
     @ApiOperation("获取图形验证码")
     @GetMapping("/getCaptcha")
-    public Result<CaptchaVO> getCaptcha()
+    public Result<CaptchaVO> Captcha()
     {
         return captchaService.creatCaptcha();
     }
