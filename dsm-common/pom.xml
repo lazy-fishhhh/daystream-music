@@ -29,6 +29,19 @@
         <java.version>17</java.version>
     </properties>
     <dependencies>
+        <!-- 校验规范接口（JSR-303） -->
+        <dependency>
+            <groupId>javax.validation</groupId>
+            <artifactId>validation-api</artifactId>
+            <version>2.0.1.Final</version> <!-- 版本可根据需求调整 -->
+        </dependency>
+
+        <!-- 校验实现（Hibernate Validator） -->
+        <dependency>
+            <groupId>org.hibernate.validator</groupId>
+            <artifactId>hibernate-validator</artifactId>
+            <version>6.2.5.Final</version> <!-- 需与规范接口版本兼容 -->
+        </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
