@@ -26,6 +26,13 @@ public class UserServiceImpl  implements IUserService {
     @Override
     public void createPlayList(PlayListDTO playListDTO) {
 
+        LambdaQueryWrapper<Playlist> lqw = new LambdaQueryWrapper<>();
+        lqw.eq(Playlist::getName, playListDTO.getName());
+        Playlist playlist = playListMapper.selectOne(lqw);
+        if (playlist != null){
+            throw new RuntimeException("歌单名称已存在,不允许重复");
+        }
+
         LoginUserDetails loginUser = (LoginUserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         Long userId = loginUser.getUser().getId();
         Playlist playList = new Playlist();
