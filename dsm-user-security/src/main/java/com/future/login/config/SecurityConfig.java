@@ -1,4 +1,4 @@
-package com.future.login.Config;
+package com.future.login.config;
 
 import com.future.login.filter.JwtFilter;
 import com.future.login.handler.AccessDeniedHandlerImpl;
