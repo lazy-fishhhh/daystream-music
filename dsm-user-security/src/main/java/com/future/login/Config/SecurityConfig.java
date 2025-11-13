@@ -47,7 +47,7 @@ public class SecurityConfig {
                         // 放行
                         .requestMatchers(
                                 "/login/getCaptcha",
-                                "/login/loginByemail").anonymous()
+                                "/login/loginByemail").permitAll()
 
                         // 其他所有请求都必须认证（登录后才能访问）
                         .anyRequest().authenticated()
