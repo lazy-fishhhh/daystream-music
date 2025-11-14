@@ -116,8 +116,11 @@ public class JwtUtil {
         return Base64.getEncoder().encodeToString(key.getEncoded());
     }
 
-   /* public static void main(String[] args){
-        BCryptPasswordEncoder b=new BCryptPasswordEncoder();
-        System.out.println(b.encode("123456Aa@"));
-    }*/
+    /*
+       public static void main(String[] args) {
+            BCryptPasswordEncoder b = new BCryptPasswordEncoder();
+            System.out.println(b.encode("123456Aa@"));
+            // $2a$10$MrfwYY2cFGg/tM5qefy9ROEzFPksUReBLYXB3ML.MhqwnKm9ssDQu
+        }
+    */
 }

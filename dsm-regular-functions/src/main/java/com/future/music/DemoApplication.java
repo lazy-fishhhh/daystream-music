@@ -13,7 +13,8 @@ import org.springframework.web.bind.annotation.*;
 @ComponentScan(basePackages = {
         "com.future.music",  // 当前启动模块的根包
         "config",// dsm-common模块中config包的路径
-		"com.future.login"
+		"com.future.login",
+        "annotation"// dsm-common模块中annotation包的路径
 })
 public class DemoApplication {
 	public static void main(String[] args) {

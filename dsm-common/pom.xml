@@ -7,7 +7,7 @@
         <artifactId>dsm-parent</artifactId>
         <version>0.0.1-SNAPSHOT</version>
     </parent>
-
+    <packaging>jar</packaging>
     <artifactId>dsm-common</artifactId>
     <version>0.0.1-SNAPSHOT</version>
 
@@ -29,6 +29,19 @@
         <java.version>17</java.version>
     </properties>
     <dependencies>
+        <!-- 校验规范接口（JSR-303） -->
+        <dependency>
+            <groupId>javax.validation</groupId>
+            <artifactId>validation-api</artifactId>
+            <version>2.0.1.Final</version> <!-- 版本可根据需求调整 -->
+        </dependency>
+
+        <!-- 校验实现（Hibernate Validator） -->
+        <dependency>
+            <groupId>org.hibernate.validator</groupId>
+            <artifactId>hibernate-validator</artifactId>
+            <version>6.2.5.Final</version> <!-- 需与规范接口版本兼容 -->
+        </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
@@ -168,9 +181,13 @@
 
     <build>
         <plugins>
+            <!-- 禁用 Spring Boot 打可执行 jar -->
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <skip>true</skip>
+                </configuration>
                 <executions>
                     <execution>
                         <id>repackage</id>
@@ -178,8 +195,14 @@
                     </execution>
                 </executions>
             </plugin>
+
+            <!-- 使用 Maven 默认的 jar 打包插件 -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <version>3.4.2</version>
+            </plugin>
+
         </plugins>
     </build>
-
-
 </project>

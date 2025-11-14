@@ -13,11 +13,13 @@ import util.WebUtils;
 
 import java.io.IOException;
 
+import static code.UserErrorCode.LOGIN_FAIL_LOCK;
+
 @Component
 public class AccessDeniedHandlerImpl implements AccessDeniedHandler {
     @Override
     public void handle(HttpServletRequest request, HttpServletResponse response, AccessDeniedException accessDeniedException) throws IOException, ServletException {
-        String jsonStr = JSONUtil.toJsonStr(Result.fail(HttpStatus.FORBIDDEN.value(), "您的权限不足"));
+        String jsonStr = JSONUtil.toJsonStr(Result.fail(LOGIN_FAIL_LOCK.getCode(), "您的权限不足"));
         WebUtils.renderString(response,jsonStr);
     }
 }
