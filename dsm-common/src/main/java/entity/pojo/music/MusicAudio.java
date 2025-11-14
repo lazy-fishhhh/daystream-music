@@ -1,4 +1,4 @@
-package com.example.music.entity.pojo.music;
+package entity.pojo.music;
 
 import lombok.Data;
 

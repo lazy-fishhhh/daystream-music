@@ -86,9 +86,7 @@ class MinIoServiceImpl implements IMinIoService {
             while ((len = in.read(buffer)) != -1) {
                 out.write(buffer, 0, len);
             }
-            in.close();
             out.flush();
-            out.close();
         } catch (Exception e) {
             throw new RuntimeException("文件下载失败：" + e.getMessage());
         }
@@ -106,6 +104,24 @@ class MinIoServiceImpl implements IMinIoService {
                             .object(objectName.substring(objectName.lastIndexOf("/") + 1))
                             .build()
             );
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    // 批量删除桶文件
+    @Override
+    public boolean batchDeleteFiles(List<String> objectNames) {
+        try {
+            for (String objectName : objectNames) {
+                minioClient.removeObject(
+                        RemoveObjectArgs.builder()
+                                .bucket(bucketName)
+                                .object(objectName)
+                                .build()
+                );
+            }
             return true;
         } catch (Exception e) {
             return false;

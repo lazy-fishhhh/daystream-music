@@ -7,6 +7,7 @@ import lombok.NoArgsConstructor;
 
 import java.beans.Transient;
 import java.math.BigDecimal;
+import java.util.List;
 
 @Data
 @NoArgsConstructor
@@ -31,4 +32,6 @@ public class Music {
     private Integer isLike;          //是否点赞（0-未点赞，1-已点赞）
     @TableField(exist = false)
     private Integer isCollection;    //是否收藏（0-未收藏，1-已收藏）
+    @TableField(exist = false)
+    private List<MusicAudio> audioList; // 音频列表
 }
