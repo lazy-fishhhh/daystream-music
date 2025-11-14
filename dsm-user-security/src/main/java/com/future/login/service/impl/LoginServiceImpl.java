@@ -38,6 +38,7 @@ public class LoginServiceImpl implements LoginService {
         return authenticateAndGenerateToken(emailDTO.getEmail(),emailDTO.getPassword());
     }
     private  Result authenticateAndGenerateToken(String number, String password) {
+        // 表单提交
         UsernamePasswordAuthenticationToken us = new UsernamePasswordAuthenticationToken(number, password);
         Authentication authentication;
         try {
@@ -53,9 +54,12 @@ public class LoginServiceImpl implements LoginService {
         catch (AuthenticationException e) {
             return Result.fail("登录失败：" + e.getMessage());
         }
+
+
         //认证成功，获取用户详情
         LoginUserDetails principal = (LoginUserDetails) authentication.getPrincipal();
         Long userId = principal.getUser().getId();
+
         //根据userId生成Jwt
         String jwt = JwtUtil.createJWT(userId.toString());
         stringRedisTemplate.opsForValue().set(
