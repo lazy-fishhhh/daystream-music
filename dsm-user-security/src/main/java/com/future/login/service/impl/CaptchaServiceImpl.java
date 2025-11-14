@@ -34,7 +34,7 @@ public class CaptchaServiceImpl implements CaptchaService {
         //生成4位验证码
         String captcha = RandomUtil.randomString(4);
         //设置图形验证码的长 宽 验证码长度 干扰线数
-        LineCaptcha lineCaptcha=new LineCaptcha(150,50,4,10);
+        LineCaptcha lineCaptcha=new LineCaptcha(110,40,4,10);
         //设置图片颜色
         lineCaptcha.setBackground(new Color(230,244,255));
         //生成图片
@@ -71,7 +71,7 @@ public class CaptchaServiceImpl implements CaptchaService {
             return Result.fail("验证码已过期,请刷新重试");
         }
         //如果查到了
-        if(Objects.equals(captchaDTO.getCaptcha(),captcha))
+        if(!Objects.equals(captchaDTO.getCaptcha(),captcha))
         {
             return Result.fail("请输入正确的验证码");
         }
