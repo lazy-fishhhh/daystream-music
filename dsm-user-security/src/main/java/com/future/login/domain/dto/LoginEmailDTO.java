@@ -5,7 +5,7 @@ import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
 @Data
-public class LoginEmailDTO {
+public class LoginEmailDTO extends CaptchaDTO{
     /**
      * 登录邮箱
      */
@@ -16,9 +16,4 @@ public class LoginEmailDTO {
      */
     @NotNull(message = "登录密码不能为空")
     private String password;
-    /**
-     * 验证码
-     */
-    @NotNull(message = "验证码不能为空")
-    private String captcha;
 }

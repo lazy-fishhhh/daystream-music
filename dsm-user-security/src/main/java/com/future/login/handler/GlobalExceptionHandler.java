@@ -12,6 +12,9 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import static code.SystemErrorCode.SYSTEM_ERROR;
+import static code.UserErrorCode.PARAM_ERROR;
+
 @Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -22,7 +25,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public Result<?> handleJsonParseException(HttpMessageNotReadableException e) {
         log.warn("JSON 解析异常: {}", e.getMessage());
-        return Result.fail(HttpStatus.BAD_REQUEST.value(), "参数 JSON 格式错误");
+        return Result.fail(PARAM_ERROR.getCode(), "参数 JSON 格式错误");
     }
 
     /**
@@ -36,7 +39,7 @@ public class GlobalExceptionHandler {
                 .collect(Collectors.toList());
         String message = "参数校验失败: " + String.join("; ", errorMsgs);
         log.warn(message);
-        return Result.fail(HttpStatus.BAD_REQUEST.value(), message);
+        return Result.fail(PARAM_ERROR.getCode(), message);
     }
 
     /**
@@ -50,7 +53,7 @@ public class GlobalExceptionHandler {
                 .collect(Collectors.toList());
         String message = "参数绑定失败: " + String.join("; ", errorMsgs);
         log.warn(message);
-        return Result.fail(HttpStatus.BAD_REQUEST.value(), message);
+        return Result.fail(PARAM_ERROR.getCode(), message);
     }
     /**
      * 统一兜底：捕获所有其他未处理的异常，避免暴露敏感信息
@@ -58,6 +61,6 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(Exception.class)
     public Result<?> handleException(Exception e) {
         log.error("系统异常: ", e);
-        return Result.fail("服务器内部错误");
+        return Result.fail(SYSTEM_ERROR.getCode(),"服务器内部错误");
     }
 }

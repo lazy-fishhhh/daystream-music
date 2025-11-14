@@ -1,4 +1,4 @@
-package com.future.login.Config;
+package com.future.login.config;
 
 import com.future.login.filter.JwtFilter;
 import com.future.login.handler.AccessDeniedHandlerImpl;
@@ -46,7 +46,8 @@ public class SecurityConfig {
 
                         // 放行
                         .requestMatchers(
-                                "/login/loginByemail").anonymous()
+                                "/login/getCaptcha",
+                                "/login/loginByemail").permitAll()
 
                         // 其他所有请求都必须认证（登录后才能访问）
                         .anyRequest().authenticated()

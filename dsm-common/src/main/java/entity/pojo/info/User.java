@@ -1,5 +1,7 @@
 package entity.pojo.info;
 
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableId;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -11,6 +13,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 public class User {
+    @TableId(type=IdType.AUTO)
     private Long id;                 // 用户ID
     private String username;         // 用户名
     private String password;         // 密码（BCrypt加密）
