@@ -27,8 +27,6 @@ public class CaptchaServiceImpl implements CaptchaService {
     private static final long EXPECT_SECONDS=300L;
     @Autowired
     private StringRedisTemplate stringRedisTemplate;
-    @Autowired
-    private ObjectMapper objectMapper;
     @Override
     public Result<CaptchaVO> creatCaptcha() {
         //生成4位验证码
@@ -78,4 +76,5 @@ public class CaptchaServiceImpl implements CaptchaService {
         stringRedisTemplate.delete(key);
         return Result.ok();
     }
+
 }

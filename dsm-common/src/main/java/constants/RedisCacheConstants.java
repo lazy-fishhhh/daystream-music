@@ -60,8 +60,10 @@ public class RedisCacheConstants {
     public static final int TOKEN_BLACKLIST_TTL = 7200 + 3600;
 
     // ==================== 用户相关缓存 ====================
-    //验证码缓存
+    //图形验证码缓存
     public static final String USER_CAPTCHA="user:captcha";
+    //邮箱验证码缓存
+    public static final String USER_EMAILCAPTCHA="user:emailCaptcha:";
     /** 用户信息缓存前缀（用户ID-用户详情） */
     public static final String USER_INFO_PREFIX = "user:info";
     /** 用户权限缓存前缀（用户ID-权限列表） */

@@ -1,5 +1,6 @@
 package com.future.login.controller;
 
+import com.future.login.domain.dto.FogetDTO;
 import com.future.login.domain.dto.LoginEmailDTO;
 import com.future.login.domain.vo.CaptchaVO;
 import com.future.login.service.CaptchaService;
@@ -10,6 +11,8 @@ import io.swagger.annotations.ApiOperation;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
+
+import java.awt.*;
 
 @Api(tags = "登录管理")
 @RestController
@@ -30,5 +33,17 @@ public class LoginController {
     public Result<CaptchaVO> Captcha()
     {
         return captchaService.creatCaptcha();
+    }
+    @ApiOperation("退出登录")
+    @GetMapping("/loginout")
+    public Result loginOut()
+    {
+        return loginService.LoginOut();
+    }
+    @ApiOperation("忘记密码")
+    @PostMapping("/fogetPassword")
+    public Result fogetPassword(@Valid @RequestBody FogetDTO fogetDTO)
+    {
+        return loginService.fogetPassword(fogetDTO);
     }
 }
