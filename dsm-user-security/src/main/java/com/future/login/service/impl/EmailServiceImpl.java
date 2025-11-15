@@ -33,6 +33,10 @@ public class EmailServiceImpl implements EmailService {
    private static final long  TIME_EXCEPTION=300L;
     @Override
     public Result sendCaptcha(String toEmail) throws MessagingException, IOException {
+        if(toEmail==null||toEmail.trim()==null)
+        {
+            return Result.fail("收件邮箱不能为空");
+        }
         //生成6位验证码
         String captcha = RandomUtil.randomNumbers(6);
         String key=USER_EMAILCAPTCHA+toEmail;
