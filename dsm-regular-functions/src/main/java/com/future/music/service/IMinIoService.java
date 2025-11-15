@@ -5,6 +5,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.InputStream;
 import java.time.Instant;
+import java.util.List;
 
 public interface IMinIoService {
 
@@ -28,6 +29,13 @@ public interface IMinIoService {
      * @return 是否删除成功
      */
     boolean deleteFile(String objectName);
+
+    /**
+     * 删除MinIO中的文件
+     * @param objectNames 文件名
+     * 是否删除成功
+     */
+    boolean batchDeleteFiles(List<String> objectNames);
 
     /**
      * 获取文件输入流

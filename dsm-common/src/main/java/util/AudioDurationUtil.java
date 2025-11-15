@@ -55,23 +55,24 @@ public class AudioDurationUtil {
         return -1;
     }
 
+
     /**
-     * 将秒数转换为 "HH:mm:ss" 格式（如 3661秒 → 01:01:01）
+     * 将秒数转换为 "mm:ss" 格式（如 61秒 → 01:01）
      * @param totalSeconds 总秒数（≥0，-1表示解析失败）
-     * @return 格式化字符串，失败返回 "00:00:00"
+     * @return 格式化字符串，失败返回 "00:00"
      */
-    public static String formatSecondsToHMS(long totalSeconds) {
+    public static String formatSecondsToMS(long totalSeconds) {
         if (totalSeconds < 0) {
-            return "00:00:00";
+            return "00:00";
         }
 
-        long hours = totalSeconds / 3600;
-        long remaining = totalSeconds % 3600;
-        long minutes = remaining / 60;
-        long seconds = remaining % 60;
+        // 计算分钟数（总秒数 ÷ 60）
+        long minutes = totalSeconds / 60;
+        // 计算剩余秒数（总秒数 % 60）
+        long seconds = totalSeconds % 60;
 
-        // 补前导零，确保每位为两位数
-        return String.format("%02d:%02d:%02d", hours, minutes, seconds);
+        // 补前导零，确保分钟和秒均为两位数
+        return String.format("%02d:%02d", minutes, seconds);
     }
 
 
