@@ -1,0 +1,12 @@
+spring:
+  mail:
+    host: smtp.qq.com         # 如果是163邮箱，则为 smtp.163.com
+    port: 465
+    username: 3363261602@qq.com # 发件邮箱
+    password: azglgtnkogdpdcag # 这里是QQ邮箱的授权码
+    protocol: smtps             # QQ邮箱必须用 smtps（即SSL加密）
+    properties:
+      mail:
+        smtp:
+          ssl:
+            enable: true        # 启用SSL

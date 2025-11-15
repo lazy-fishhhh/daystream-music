@@ -11,6 +11,8 @@ import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
+import java.awt.*;
+
 @Api(tags = "登录管理")
 @RestController
 @RequestMapping("/login")
@@ -30,5 +32,11 @@ public class LoginController {
     public Result<CaptchaVO> Captcha()
     {
         return captchaService.creatCaptcha();
+    }
+    @ApiOperation("退出登录")
+    @GetMapping("/loginout")
+    public Result loginOut()
+    {
+        return loginService.LoginOut();
     }
 }

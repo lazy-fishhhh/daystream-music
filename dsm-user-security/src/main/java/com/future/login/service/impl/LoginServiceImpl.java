@@ -9,6 +9,7 @@ import com.future.login.domain.dto.LoginEmailDTO;
 import com.future.login.exception.EmailNoFoundException;
 import com.future.login.service.CaptchaService;
 import com.future.login.service.LoginService;
+import com.future.login.util.SecurityUtil;
 import entity.pojo.util.Result;
 import io.micrometer.common.util.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -43,10 +44,19 @@ public class LoginServiceImpl implements LoginService {
     public Result LoginByEmail(LoginEmailDTO emailDTO) {
         return authenticateAndGenerateToken(emailDTO);
     }
+
+    @Override
+    public Result LoginOut() {
+        Long currentUserId = SecurityUtil.getCurrentUserId();
+        stringRedisTemplate.delete(USER_INFO_PREFIX+currentUserId);
+        stringRedisTemplate.delete(TOKEN_USER_PREFIX+currentUserId);
+
+        return Result.ok("退出成功");
+    }
+
     private  Result authenticateAndGenerateToken(LoginEmailDTO emailDTO) {
       String email=emailDTO.getEmail();
       String password=emailDTO.getPassword();
-      String captcha=emailDTO.getCaptcha();
       if(StringUtils.isBlank(email))
       {
           return Result.fail("邮箱不能为空");
