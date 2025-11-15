@@ -27,7 +27,7 @@ public class RejesterServiceImpl implements RejesterService {
     private UserMapper userMapper;
     @Autowired
     private StringRedisTemplate stringRedisTemplate;
-    @Resource
+    @Autowired
     private BCryptPasswordEncoder bCryptPasswordEncoder;
     @Autowired
     private UserRoleMapper userRoleMapper;
@@ -62,6 +62,10 @@ public class RejesterServiceImpl implements RejesterService {
         if(Objects.isNull(captcha))
         {
             return Result.fail("验证码已过期，请重新获取");
+        }
+        if(!Objects.equals(captcha,rejesterDTO.getCaptcha()))
+        {
+            return Result.fail("请输入正确的验证码");
         }
         //校验成功，生成实体类
         User user1 = new User();

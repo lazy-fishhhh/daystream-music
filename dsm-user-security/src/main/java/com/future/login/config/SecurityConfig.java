@@ -26,7 +26,7 @@ public class SecurityConfig {
 
     //密码加密
     @Bean
-    public PasswordEncoder passwordEncoder() {
+    public BCryptPasswordEncoder bCryptPasswordEncoder() {
         return new BCryptPasswordEncoder();
     }
 
@@ -49,7 +49,8 @@ public class SecurityConfig {
                                 "/login/getCaptcha",
                                 "/login/loginByemail",
                                 "/rejester/getEmailCaptcha",
-                                "/rejester/insertUser").anonymous()
+                                "/rejester/insertUser",
+                                "/login/fogetPassword").anonymous()
 
                         // 其他所有请求都必须认证（登录后才能访问）
                         .anyRequest().authenticated()

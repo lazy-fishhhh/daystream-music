@@ -1,5 +1,6 @@
 package com.future.login.controller;
 
+import com.future.login.domain.dto.FogetDTO;
 import com.future.login.domain.dto.LoginEmailDTO;
 import com.future.login.domain.vo.CaptchaVO;
 import com.future.login.service.CaptchaService;
@@ -38,5 +39,11 @@ public class LoginController {
     public Result loginOut()
     {
         return loginService.LoginOut();
+    }
+    @ApiOperation("忘记密码")
+    @PostMapping("/fogetPassword")
+    public Result fogetPassword(@Valid @RequestBody FogetDTO fogetDTO)
+    {
+        return loginService.fogetPassword(fogetDTO);
     }
 }
