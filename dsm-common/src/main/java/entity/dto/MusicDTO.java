@@ -6,8 +6,10 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.springframework.util.StringUtils;
+import org.w3c.dom.stylesheets.LinkStyle;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 @Data
 @AllArgsConstructor
@@ -20,7 +22,7 @@ public class MusicDTO {
     private String licenseType;      // 版权类型
     private Integer isVip;           // 是否VIP专属（0-否，1-是）
     private BigDecimal price;        // 单价（音浪）
-    private Integer quality;         // 音质
+    private List<Long> tags;         // 标签
 
     /**
      * 将MusicDTO转化为Music
@@ -72,9 +74,14 @@ public class MusicDTO {
         if (price == null || price.compareTo(BigDecimal.ZERO) < 0 || price.scale() > 2) {
             return false;
         }
-        // 8. 音质类型：非空且只能是1、2、3、4
-        if (quality == null || !(quality == 1 || quality == 2 || quality == 3 || quality == 4)) {
-            return false;
+        // 8. 标签列表校验：非空、元素非空且为正数
+        if (tags == null || tags.isEmpty()) {
+            return false; // 标签列表不能为空
+        }
+        for (Long tagId : tags) {
+            if (tagId == null || tagId <= 0) {
+                return false; // 标签ID不能为null或小于等于0
+            }
         }
         // 所有校验通过
         return true;

@@ -2,15 +2,16 @@ package com.future.music.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
-import com.future.music.mapper.MusicAudioMapper;
-import com.future.music.mapper.MusicMapper;
+import com.future.login.util.SecurityUtil;
+import com.future.music.domain.vo.MusicDetailVO;
+import com.future.music.mapper.*;
 import com.future.music.service.IMinIoService;
 
 import com.future.music.service.IMusicService;
 import constants.SystemConstants;
 import entity.dto.MusicDTO;
-import entity.pojo.music.Music;
-import entity.pojo.music.MusicAudio;
+import entity.pojo.music.*;
+import entity.pojo.social.LikeRecord;
 import entity.pojo.util.Result;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,7 +22,9 @@ import org.springframework.web.multipart.MultipartFile;
 import util.AudioDurationUtil;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 音乐服务实现类
@@ -42,6 +45,24 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
     @Autowired
     private MusicMapper musicMapper;
 
+    @Autowired
+    private LikeRecordMapper likeRecordMapper;
+
+    @Autowired
+    private UserCollectionMapper userCollectionMapper;
+
+    @Autowired
+    private AlbumMapper albumMapper;
+
+    @Autowired
+    private MusicianMapper musicianMapper;
+
+    @Autowired
+    private MusicTagMapper musicTagMapper;
+
+    @Autowired
+    private MusicTagRelationMapper musicTagRelationMapper;
+
     /**
      * 保存音乐信息（包含音乐主信息、音频、歌词、封面）
      * 标注 @Transactional 确保所有数据库操作在同一事务中，保证数据一致性
@@ -49,82 +70,127 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
      * @param musicDTO 音乐基本信息DTO（包含歌名、歌手等非文件信息）
      * @param lyric    歌词文件
      * @param cover    封面图片文件
-     * @param audio    音频文件
+     * @param audioMap    音频文件
      * @return 处理结果（成功/失败信息）
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public Result saveMusic(MusicDTO musicDTO, MultipartFile lyric, MultipartFile cover, MultipartFile audio) {
-        List<String> uploadedFilePaths = new ArrayList<>(); // 用于存储已上传文件路径，供回滚删除
+    public Result saveMusic(MusicDTO musicDTO, MultipartFile lyric, MultipartFile cover, Map<Integer, MultipartFile> audioMap) {
+        List<String> uploadedFilePaths = new ArrayList<>(); // 用于回滚删除的文件路径
 
         try {
-            // 1. 校验音乐DTO参数合法性（如必填字段是否为空等）
+            // 1. 基础参数校验
             if (!musicDTO.validate()) {
                 return Result.fail("音乐参数有错");
             }
 
-            // 2. 校验文件格式（歌词需符合音乐文件格式，封面需符合图片格式）
-            if (!minIoService.isAllowedFile(lyric, "music") || !minIoService.isAllowedFile(cover, "picture")) {
+            // 2. 校验歌词和封面文件
+            if (!minIoService.isAllowedFile(lyric, "com/future/music") || !minIoService.isAllowedFile(cover, "picture")) {
                 return Result.fail("文件格式不正确");
             }
-
-            // 3. 校验文件大小（歌词不超过音乐文件上限，封面不超过图片上限）
-            if (lyric.getSize() > SystemConstants.MAX_MUSIC_SIZE || cover.getSize() > SystemConstants.MAX_PICTURE_SIZE) {
+            if (lyric.getSize() > SystemConstants.MAX_LYRIC_SIZE || cover.getSize() > SystemConstants.MAX_PICTURE_SIZE) {
                 return Result.fail("文件大小超出限制");
             }
 
-            // 4. 上传文件到MinIO存储（歌词、封面、音频）
+            // 3. 校验音频文件集合（非空+格式+大小）+ 合并上传/时长校验/URL记录
+            if (audioMap == null || audioMap.isEmpty()) {
+                return Result.fail("至少需上传一个音质的音频文件");
+            }
+
+            Map<Integer, String> audioUrlMap = new HashMap<>(); // 音质→音频URL映射
+            Map<Integer, Long> audioFileSizeMap = new HashMap<>(); // 音质→文件大小映射（新增，替代后续重复get）
+            Long baseDuration = null; // 基准时长（替代audioDurationMap，简化逻辑）
+
+            // 合并循环：一次循环完成 校验→上传→时长校验→URL/大小记录
+            for (Map.Entry<Integer, MultipartFile> entry : audioMap.entrySet()) {
+                Integer quality = entry.getKey();
+                MultipartFile audio = entry.getValue();
+
+                // 3.1 校验音质类型（1-4）
+                if (quality == null || !(quality == 1 || quality == 2 || quality == 3 || quality == 4)) {
+                    return Result.fail("音质类型不合法：" + quality);
+                }
+
+                // 3.2 校验音频文件格式和大小
+                if (!minIoService.isAllowedFile(audio, "com/future/music") || audio.getSize() > SystemConstants.MAX_MUSIC_SIZE) {
+                    return Result.fail("音频文件（音质：" + quality + "）格式或大小不符合要求");
+                }
+
+                // 3.3 上传音频文件
+                String audioName = minIoService.uploadFile(audio);
+                if (audioName == null) {
+                    return Result.fail("音频文件（音质：" + quality + "）上传失败");
+                }
+                uploadedFilePaths.add(audioName);
+                audioUrlMap.put(quality, audioName); // 记录URL
+                audioFileSizeMap.put(quality, audio.getSize()); // 记录文件大小（后续直接使用）
+
+                // 3.4 计算并校验音频时长（同一音乐所有音质需一致）
+                long duration = AudioDurationUtil.getAudioDuration(audio);
+                if (duration == -1) {
+                    return Result.fail("音频（音质：" + quality + "）时长计算错误");
+                }
+                if (baseDuration == null) {
+                    baseDuration = duration; // 首次计算作为基准时长
+                } else if (!baseDuration.equals(duration)) {
+                    return Result.fail("不同音质的音频时长不一致");
+                }
+            }
+
+            // 4. 上传歌词和封面
             String lyricName = minIoService.uploadFile(lyric);
-            if (lyricName != null) uploadedFilePaths.add(lyricName);
+            if (lyricName == null) return Result.fail("歌词上传失败");
+            uploadedFilePaths.add(lyricName);
+
             String coverName = minIoService.uploadFile(cover);
-            if (coverName != null) uploadedFilePaths.add(coverName);
-            String audioName = minIoService.uploadFile(audio);
-            if (audioName != null) uploadedFilePaths.add(audioName);
+            if (coverName == null) return Result.fail("封面上传失败");
+            uploadedFilePaths.add(coverName);
 
-            // 校验文件上传是否成功
-            if (lyricName == null || coverName == null || audioName == null) {
-                return Result.fail("文件上传失败");
-            }
+            // 5. 构建音乐实体（使用基准时长）
+            Music music = musicDTO.toEntity();
+            music.setCoverUrl(coverName);
+            music.setLyricUrl(lyricName);
+            music.setDuration(AudioDurationUtil.formatSecondsToMS(baseDuration)); // 直接用基准时长
 
-            // 5. 计算音频时长
-            long duration = AudioDurationUtil.getAudioDuration(audio);
-            if (duration == -1) {
-                return Result.fail("音乐时长计算错误");
-            }
-
-            // 6. 构建音乐实体并设置关联文件路径
-            Music music = musicDTO.toEntity();  // 将DTO转换为实体对象
-            music.setCoverUrl(coverName);       // 设置封面图片路径
-            music.setLyricUrl(lyricName);       // 设置歌词文件路径
-            music.setDuration(AudioDurationUtil.formatSecondsToMS(duration));        // 设置音频时长
-
-            // 7. 保存音乐主信息到数据库
-            // 调用MyBatis-Plus的save方法保存，失败则抛异常触发回滚
+            // 6. 保存音乐主信息
             if (!this.save(music)) {
                 throw new RuntimeException("音乐保存失败");
             }
 
-            // 8. 构建音乐音频关联实体（一个音乐可对应多个音质的音频）
-            MusicAudio musicAudio = new MusicAudio();
-            musicAudio.setAudioUrl(audioName);         // 设置音频文件路径
-            musicAudio.setMusicId(music.getId());      // 关联音乐主键ID
-            musicAudio.setQualityType(musicDTO.getQuality());  // 设置音频音质类型
-            musicAudio.setFileSize(audio.getSize());   // 设置音频文件大小
+            // 7. 保存所有音质的音频关联信息（使用提前记录的size，无需重复get(audio)）
+            for (Map.Entry<Integer, String> entry : audioUrlMap.entrySet()) {
+                Integer quality = entry.getKey();
+                String audioUrl = entry.getValue();
 
-            // 9. 保存音乐音频关联信息到数据库
-            // 插入成功返回受影响行数，若不为1则抛异常触发回滚
-            if (musicAudioMapper.insert(musicAudio) != 1) {
-                throw new RuntimeException("音乐音频保存失败");
+                MusicAudio musicAudio = new MusicAudio();
+                musicAudio.setAudioUrl(audioUrl);
+                musicAudio.setMusicId(music.getId());
+                musicAudio.setQualityType(quality);
+                musicAudio.setFileSize(audioFileSizeMap.get(quality)); // 直接取记录的大小，避免重复操作
+
+                if (musicAudioMapper.insert(musicAudio) != 1) {
+                    throw new RuntimeException("音频（音质：" + quality + "）关联信息保存失败");
+                }
             }
-        }catch (Exception e) {
-            // 事务回滚时，删除MinIO中已上传的文件（核心新增逻辑）
+
+            // 8. 关联音乐与标签
+            for (Long tagId : musicDTO.getTags()) {
+                MusicTagRelation musicTagRelation = new MusicTagRelation();
+                musicTagRelation.setMusicId(music.getId());
+                musicTagRelation.setTagId(tagId);
+                if (musicTagRelationMapper.insert(musicTagRelation) == 0) {
+                    throw new RuntimeException("标签关联失败");
+                }
+            }
+
+        } catch (Exception e) {
+            // 回滚：删除已上传的所有文件
             if (!uploadedFilePaths.isEmpty()) {
                 minIoService.batchDeleteFiles(uploadedFilePaths);
             }
-            return Result.fail("保存音乐失败，请稍后重试");
+            return Result.fail("保存音乐失败，请稍后重试：" + e.getMessage());
         }
 
-        // 所有操作成功，返回成功结果
         return Result.ok();
     }
 
@@ -145,15 +211,22 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
                 return Result.fail("该音乐已被删除");
             }
 
-            // 1. 先删除关联的音频信息（根据音乐ID查询并删除）
-            QueryWrapper<MusicAudio> queryWrapper = new QueryWrapper<>();
-            queryWrapper.eq("music_id", musicId);  // 条件：music_id = 传入的音乐ID
+            // 1. 删除关联的音频信息（根据音乐ID查询并删除）
+            QueryWrapper<MusicAudio> musicAudioQueryWrapper = new QueryWrapper<>();
+            musicAudioQueryWrapper.eq("music_id", musicId);  // 条件：music_id = 传入的音乐ID
             // 执行删除并校验结果，若受影响行数为0则抛异常
-            if (musicAudioMapper.delete(queryWrapper) == 0) {
+            if (musicAudioMapper.delete(musicAudioQueryWrapper) == 0) {
                 throw new RuntimeException("音乐音频删除失败");
             }
 
-            // 2. 再删除音乐主信息
+            // 2. 删除关联的标签信息
+            QueryWrapper<MusicTagRelation> musicTagRelationQueryWrapper = new QueryWrapper<>();
+            musicTagRelationQueryWrapper.eq("music_id", musicId);
+            if (musicTagRelationMapper.delete(musicTagRelationQueryWrapper) == 0) {
+                throw new RuntimeException("音乐标签关联删除失败");
+            }
+
+            //  删除音乐主信息
             if (musicMapper.deleteById(musicId) == 0) {
                 throw new RuntimeException("音乐删除失败");
             }
@@ -167,25 +240,34 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
         return Result.ok();
     }
 
+    /**
+     * 根据音乐ID和音质类型，从MinIO下载音频文件并返回给前端，同时更新下载量
+     * @param musicId 音乐主键ID（必填）
+     * @param quality 音频音质类型（对应MusicAudio表的quality_type字段）
+     * @param response HTTP响应对象，用于返回文件流和状态信息
+     */
     @Override
     public void downloadMusic(Long musicId, Integer quality, HttpServletResponse response) {
-
         try {
+            // 1. 校验音乐ID有效性
             if (musicId == null) {
-                response.setStatus(400);
+                response.setStatus(400); // 参数错误状态码
                 response.setHeader("msg", "无效的ID");
                 return;
             }
+
+            // 2. 查询音乐主信息，判断是否存在
             Music music = getById(musicId);
             if (music == null) {
-                response.setStatus(404);
+                response.setStatus(404); // 资源不存在状态码
                 response.setHeader("msg", "音乐不存在");
                 return;
             }
 
+            // 3. 根据音乐ID和音质查询对应的音频记录
             QueryWrapper<MusicAudio> queryWrapper = new QueryWrapper<>();
-            queryWrapper.eq("music_id", musicId)
-                    .eq("quality_type", quality);
+            queryWrapper.eq("music_id", musicId) // 关联音乐ID
+                    .eq("quality_type", quality); // 匹配音质类型
             MusicAudio musicAudio = musicAudioMapper.selectOne(queryWrapper);
             if (musicAudio == null) {
                 response.setStatus(400);
@@ -193,51 +275,90 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
                 return;
             }
 
+            // 4. 校验MinIO中音频文件是否存在
             if (!minIoService.isObjectExists(musicAudio.getAudioUrl())){
                 response.setStatus(404);
                 response.setHeader("msg","音频文件不存在或已被删除");
+                return; // 文件不存在，直接返回，避免后续操作
             }
 
+            // 5. 设置响应状态和提示信息
             response.setStatus(200); // 成功状态码
-            response.setHeader("msg", "下载成功"); // 响应头携带信息
+            response.setHeader("msg", "下载成功"); // 响应头携带成功信息
 
+            // 6. 从MinIO下载文件并写入响应流（前端触发下载）
             minIoService.downloadFile(musicAudio.getAudioUrl(), response);
 
+            // 7. 更新音乐下载量（自增1）
             music.setDownloadCount(music.getDownloadCount() + 1);
-            if (!this.updateById(music))
-                throw new RuntimeException("更新音乐下载数失败");
+            if (!this.updateById(music)) {
+                throw new RuntimeException("更新音乐下载数失败"); // 抛出异常，触发后续异常处理
+            }
 
         } catch (Exception e) {
-            response.setStatus(500);
+            // 8. 异常处理：返回服务器错误状态和异常信息
+            response.setStatus(500); // 服务器内部错误状态码
             response.setHeader("msg", "下载过程出错：" + e.getMessage());
         }
     }
 
+    /**
+     * 音乐基础详情回显（内部复用接口）
+     * 查询音乐主信息及关联的音频列表（多音质），封装为MusicDetailVO返回
+     * @param musicId 音乐主键ID
+     * @return Result<MusicDetailVO> 基础详情VO（含音乐主信息、音频列表）
+     */
     @Override
-    public Result<Music> echoMusic(Long musicId) {
+    public Result<MusicDetailVO> echoMusic(Long musicId) {
+        // 1. 校验音乐ID有效性（非空且大于0）
         if (musicId == null || musicId <= 0) {
             return Result.fail("音乐ID无效");
         }
+
+        // 2. 查询音乐主信息
         Music music = this.getById(musicId);
         if (music == null) {
             return Result.fail("音乐不存在");
         }
 
-        QueryWrapper<MusicAudio> wrapper = new QueryWrapper<>();
-        wrapper.eq("music_id", musicId);
-        List<MusicAudio> audioList = musicAudioMapper.selectList(wrapper);
-        music.setAudioList(audioList); // 关联的音频列表（含音质、文件大小）
+        // 3. 初始化VO并复制音乐主信息
+        MusicDetailVO musicDetailVO = new MusicDetailVO();
+        musicDetailVO.copyFrom(music); // 调用自定义copyFrom方法，复制核心属性
 
-        return Result.ok(music);
+        // 4. 查询该音乐关联的所有音频记录（多音质）
+        QueryWrapper<MusicAudio> wrapper = new QueryWrapper<>();
+        wrapper.eq("music_id", musicId); // 按音乐ID关联
+        List<MusicAudio> audioList = musicAudioMapper.selectList(wrapper);
+        musicDetailVO.setAudioList(audioList); // 给VO设置音频列表（含音质、文件大小等信息）
+
+        // 5. 查询标签
+        List<String> tags = musicTagMapper.getTagNamesByMusicId(musicId);
+        musicDetailVO.setTags(tags);
+
+        // 返回成功结果（基础详情VO）
+        return Result.ok(musicDetailVO);
     }
 
+    /**
+     * 音乐信息更新接口（支持文件更新）
+     * 支持音乐基础信息、歌词、封面、音频的部分或全量更新，含事务回滚和文件清理逻辑
+     * @param musicId 待更新音乐的主键ID
+     * @param musicDTO 音乐更新参数DTO（含基础信息、音质等）
+     * @param lyric 新上传的歌词文件（可选，为null则不更新）
+     * @param cover 新上传的封面文件（可选，为null则不更新）
+     * @param audioMap 新上传的音频文件（可选，为null则不更新）
+     * @return Result 操作结果（成功/失败提示）
+     */
     @Override
-    @Transactional(rollbackFor = Exception.class)
+    @Transactional(rollbackFor = Exception.class) // 事务注解：任何异常触发回滚
     public Result updateMusic(Long musicId, MusicDTO musicDTO,
-                              MultipartFile lyric, MultipartFile cover, MultipartFile audio) {
-        // 存储新上传的文件（用于回滚）和待删除的旧文件
+                              MultipartFile lyric, MultipartFile cover, Map<Integer, MultipartFile> audioMap) {
+        // 存储新上传的文件路径（用于事务回滚时删除）
         List<String> newUploadedFiles = new ArrayList<>();
+        // 存储待删除的旧文件路径（事务成功后删除，避免提前删除导致回滚后文件丢失）
         List<String> oldFilesToDelete = new ArrayList<>();
+        // 存储新音频的时长（同一音乐不同音质时长需一致）
+        Long newDuration = null;
 
         try {
             // 1. 校验音乐ID和原始音乐是否存在
@@ -249,34 +370,29 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
                 return Result.fail("音乐不存在");
             }
 
-            // 2. 校验DTO参数（复用新增时的validate，但允许部分字段更新）
-            // 注意：修改时DTO的非空校验可放宽（如仅校验传入的字段），此处简化为全量校验
+            // 2. 校验DTO参数合法性（复用新增时的校验规则）
             if (!musicDTO.validate()) {
                 return Result.fail("音乐参数有误");
             }
 
-            // 3. 处理文件更新（歌词、封面、音频，支持部分更新）
-            String newLyricUrl = oldMusic.getLyricUrl(); // 默认沿用旧文件
+            // 3. 初始化文件路径（默认沿用旧文件路径）
+            String newLyricUrl = oldMusic.getLyricUrl();
             String newCoverUrl = oldMusic.getCoverUrl();
-            String newAudioUrl = null;
-            long newDuration = -1; // 新音频时长（仅音频更新时有效）
 
-            // 3.1 处理歌词文件更新（若上传了新歌词）
+            // 3.1 处理歌词文件更新（仅上传新文件时）
             if (lyric != null && !lyric.isEmpty()) {
-                // 校验文件格式和大小
-                if (!minIoService.isAllowedFile(lyric, "music") || lyric.getSize() > SystemConstants.MAX_MUSIC_SIZE) {
+                if (!minIoService.isAllowedFile(lyric, "com/future/music") || lyric.getSize() > SystemConstants.MAX_LYRIC_SIZE) {
                     return Result.fail("歌词文件格式或大小不符合要求");
                 }
-                // 上传新文件
                 newLyricUrl = minIoService.uploadFile(lyric);
                 if (newLyricUrl == null) {
                     throw new RuntimeException("歌词文件上传失败");
                 }
-                newUploadedFiles.add(newLyricUrl); // 记录新文件（回滚用）
-                oldFilesToDelete.add(oldMusic.getLyricUrl()); // 记录旧文件（后续删除）
+                newUploadedFiles.add(newLyricUrl);
+                oldFilesToDelete.add(oldMusic.getLyricUrl());
             }
 
-            // 3.2 处理封面文件更新（若上传了新封面）
+            // 3.2 处理封面文件更新（仅上传新文件时）
             if (cover != null && !cover.isEmpty()) {
                 if (!minIoService.isAllowedFile(cover, "picture") || cover.getSize() > SystemConstants.MAX_PICTURE_SIZE) {
                     return Result.fail("封面文件格式或大小不符合要求");
@@ -289,82 +405,93 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
                 oldFilesToDelete.add(oldMusic.getCoverUrl());
             }
 
-            // 3.3 处理音频文件更新（若上传了新音频）
-            if (audio != null && !audio.isEmpty()) {
-                // 校验音频格式
-                if (!minIoService.isAllowedFile(audio, "music")) {
-                    return Result.fail("音频文件格式不符合要求");
-                }
-                // 上传新音频
-                newAudioUrl = minIoService.uploadFile(audio);
-                if (newAudioUrl == null) {
-                    throw new RuntimeException("音频文件上传失败");
-                }
-                newUploadedFiles.add(newAudioUrl);
-                // 计算新音频时长
-                newDuration = AudioDurationUtil.getAudioDuration(audio);
-                if (newDuration == -1) {
-                    throw new RuntimeException("新音频时长计算错误");
-                }
-                // 记录旧音频文件（后续删除）
-                QueryWrapper<MusicAudio> audioWrapper = new QueryWrapper<>();
-                audioWrapper.eq("music_id", musicId)
-                        .eq("quality_type", musicDTO.getQuality());
-                MusicAudio oldAudio = musicAudioMapper.selectOne(audioWrapper);
-                if (oldAudio != null) {
-                    oldFilesToDelete.add(oldAudio.getAudioUrl());
+            // 3.3 处理多音质音频更新（audioMap非空时）
+            if (audioMap != null && !audioMap.isEmpty()) {
+                // 校验每个音频的格式、大小，同时上传并记录信息
+                for (Map.Entry<Integer, MultipartFile> entry : audioMap.entrySet()) {
+                    Integer quality = entry.getKey();
+                    MultipartFile audio = entry.getValue();
+
+                    // 校验音质类型合法性（1-4）
+                    if (quality == null || !(quality == 1 || quality == 2 || quality == 3 || quality == 4)) {
+                        return Result.fail("音质类型不合法：" + quality);
+                    }
+                    // 校验音频文件格式和大小
+                    if (!minIoService.isAllowedFile(audio, "com/future/music") || audio.getSize() > SystemConstants.MAX_MUSIC_SIZE) {
+                        return Result.fail("音频文件（音质：" + quality + "）格式或大小不符合要求");
+                    }
+
+                    // 上传新音频文件
+                    String newAudioUrl = minIoService.uploadFile(audio);
+                    if (newAudioUrl == null) {
+                        throw new RuntimeException("音频文件（音质：" + quality + "）上传失败");
+                    }
+                    newUploadedFiles.add(newAudioUrl);
+
+                    // 计算并校验音频时长（同一音乐所有音质时长需一致）
+                    long duration = AudioDurationUtil.getAudioDuration(audio);
+                    if (duration == -1) {
+                        throw new RuntimeException("音频（音质：" + quality + "）时长计算错误");
+                    }
+                    if (newDuration == null) {
+                        newDuration = duration; // 首次计算时长，作为基准
+                    } else if (!newDuration.equals(duration)) {
+                        return Result.fail("不同音质的音频时长不一致");
+                    }
+
+                    // 查询该音质对应的旧音频记录（用于删除旧文件和更新关联表）
+                    QueryWrapper<MusicAudio> audioWrapper = new QueryWrapper<>();
+                    audioWrapper.eq("music_id", musicId)
+                            .eq("quality_type", quality);
+                    MusicAudio oldAudio = musicAudioMapper.selectOne(audioWrapper);
+
+                    // 记录旧音频文件（待删除）
+                    if (oldAudio != null) {
+                        oldFilesToDelete.add(oldAudio.getAudioUrl());
+                    }
+
+                    // 构建并保存音频关联信息（更新或新增）
+                    MusicAudio updateAudio = new MusicAudio();
+                    updateAudio.setAudioUrl(newAudioUrl);
+                    updateAudio.setMusicId(musicId);
+                    updateAudio.setQualityType(quality);
+                    updateAudio.setFileSize(audio.getSize());
+
+                    if (oldAudio != null) {
+                        // 存在旧记录：执行更新
+                        updateAudio.setId(oldAudio.getId());
+                        if (musicAudioMapper.updateById(updateAudio) != 1) {
+                            throw new RuntimeException("音频（音质：" + quality + "）信息更新失败");
+                        }
+                    } else {
+                        // 不存在旧记录：执行新增
+                        if (musicAudioMapper.insert(updateAudio) != 1) {
+                            throw new RuntimeException("新增音频（音质：" + quality + "）记录失败");
+                        }
+                    }
                 }
             }
 
             // 4. 构建更新后的音乐实体
-            Music updateMusic = musicDTO.toEntity(); // 从DTO复制基础字段
-            updateMusic.setId(musicId); // 绑定ID，确保更新而非新增
-            updateMusic.setLyricUrl(newLyricUrl); // 更新歌词路径（可能是旧的）
-            updateMusic.setCoverUrl(newCoverUrl); // 更新封面路径
-            updateMusic.setDuration(oldMusic.getDuration()); // 默认沿用旧时长
-            updateMusic.setStatus(0); //更新状态(待审核)
-            // 若音频更新，同步更新时长
-            if (newDuration != -1) {
-                updateMusic.setDuration(AudioDurationUtil.formatSecondsToMS(newDuration));
-            }
-            // 保留不变的字段（播放量、下载量、状态等由系统维护，不允许手动修改）
+            Music updateMusic = musicDTO.toEntity();
+            updateMusic.setId(musicId);
+            updateMusic.setLyricUrl(newLyricUrl);
+            updateMusic.setCoverUrl(newCoverUrl);
+            updateMusic.setStatus(0); // 重置为待审核状态
+            // 音频更新时同步更新时长，未更新则沿用旧时长
+            updateMusic.setDuration(newDuration != null
+                    ? AudioDurationUtil.formatSecondsToMS(newDuration)
+                    : oldMusic.getDuration());
+            // 保留系统维护字段（播放量、下载量不允许修改）
             updateMusic.setPlayCount(oldMusic.getPlayCount());
             updateMusic.setDownloadCount(oldMusic.getDownloadCount());
 
-            // 5. 更新音乐主表
+            // 5. 更新音乐主表信息
             if (!this.updateById(updateMusic)) {
                 throw new RuntimeException("音乐主信息更新失败");
             }
 
-            // 6. 处理音频关联表（MusicAudio）
-            if (newAudioUrl != null) {
-                // 查询对应音质的旧音频记录
-                QueryWrapper<MusicAudio> wrapper = new QueryWrapper<>();
-                wrapper.eq("music_id", musicId)
-                        .eq("quality_type", musicDTO.getQuality());
-                MusicAudio oldAudio = musicAudioMapper.selectOne(wrapper);
-
-                MusicAudio updateAudio = new MusicAudio();
-                updateAudio.setAudioUrl(newAudioUrl);
-                updateAudio.setMusicId(musicId);
-                updateAudio.setQualityType(musicDTO.getQuality());
-                updateAudio.setFileSize(audio.getSize());
-
-                if (oldAudio != null) {
-                    // 存在旧记录则更新
-                    updateAudio.setId(oldAudio.getId());
-                    if (musicAudioMapper.updateById(updateAudio) != 1) {
-                        throw new RuntimeException("音频信息更新失败");
-                    }
-                } else {
-                    // 不存在则新增（如首次添加该音质）
-                    if (musicAudioMapper.insert(updateAudio) != 1) {
-                        throw new RuntimeException("新增音频记录失败");
-                    }
-                }
-            }
-
-            // 7. 事务成功后，删除旧文件（避免提前删除导致回滚后文件丢失）
+            // 6. 事务成功后，删除所有旧文件（歌词、封面、旧音频）
             if (!oldFilesToDelete.isEmpty()) {
                 minIoService.batchDeleteFiles(oldFilesToDelete);
             }
@@ -372,25 +499,59 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
             return Result.ok();
 
         } catch (Exception e) {
-            // 回滚：删除本次新上传的文件（避免垃圾文件）
+            // 7. 异常回滚：删除新上传的所有文件，避免垃圾文件
             if (!newUploadedFiles.isEmpty()) {
                 minIoService.batchDeleteFiles(newUploadedFiles);
             }
-            return Result.fail("修改音乐失败，请稍后重试");
+            return Result.fail("修改音乐失败，请稍后重试：" + e.getMessage());
         }
     }
 
+    /**
+     * 音乐完整详情查询接口（面向前端）
+     * 在基础详情（echoMusic）之上，补充专辑名称、音乐人名称、标签列表、用户点赞状态
+     * @param musicId 音乐主键ID
+     * @return Result<MusicDetailVO> 完整详情VO（含关联信息和用户交互状态）
+     */
     @Override
-    public Result<Music> getOneMusic(Long musicId){
-        Result<Music> result= echoMusic(musicId);
+    public Result<MusicDetailVO> getOneMusic(Long musicId){
+        // 1. 复用基础详情接口，获取音乐主信息和音频列表
+        Result<MusicDetailVO> result = echoMusic(musicId);
+        // 2. 若基础查询失败（如ID无效、音乐不存在），直接返回失败结果
         if (result.getErrorMsg() != null) {
             return result;
         }
 
-        Music music = result.getData();
+        // 3. 从基础结果中获取VO，补充关联信息
+        MusicDetailVO musicDetailVO = result.getData();
 
+        // 3.1 补充专辑名称（通过专辑ID关联查询）
+        Album album = albumMapper.selectById(musicDetailVO.getAlbumId());
+        if (album != null) {
+            musicDetailVO.setAlbumName(album.getAlbumName());
+        }
 
-        return Result.ok(music);
+        // 3.2 补充音乐人名称（通过音乐人ID关联查询，取艺名）
+        Musician musician = musicianMapper.selectById(musicDetailVO.getMusicianId());
+        if (musician != null) {
+            musicDetailVO.setMusicianName(musician.getStageName());
+        }
+
+        // 3.4 补充当前用户的点赞状态（默认未点赞：0）
+        musicDetailVO.setIsLike(0);
+        // 查询当前用户对该音乐的点赞记录（target_type=1表示音乐类型）
+        QueryWrapper<LikeRecord> wrapper = new QueryWrapper<>();
+        wrapper.eq("user_id", SecurityUtil.getCurrentUserId()) // 获取当前登录用户ID
+                .eq("target_type", 1) // 目标类型：1=音乐（系统定义）
+                .eq("target_id", musicId); // 目标ID：音乐ID
+        LikeRecord likeRecord = likeRecordMapper.selectOne(wrapper);
+        // 若存在未取消的点赞记录，设置为已点赞（1）
+        if (likeRecord != null && likeRecord.getIsCanceled() == 0){
+            musicDetailVO.setIsLike(1);
+        }
+
+        // 4. 返回完整详情结果
+        return Result.ok(musicDetailVO);
     }
 
 }
