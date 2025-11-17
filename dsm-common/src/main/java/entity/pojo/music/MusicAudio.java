@@ -1,8 +1,10 @@
 package entity.pojo.music;
 
+import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 
 @Data
+@TableName("music_audio_relation")
 public class MusicAudio {
     private Long id;
     private Long musicId;           //音乐id
