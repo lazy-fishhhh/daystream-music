@@ -29,13 +29,13 @@ public enum LikeEnum {
         return null;
     }
 
-    public static LikeEnum getLikeEnumByvalue(Integer value)
+    public static LikeEnum getLikeEnumByvalue(Integer va)
     {
-        for(LikeEnum va:values())
+        for(LikeEnum value:values())
         {
-            if(va.getDes().equals(value))
+            if(value.getValue().equals(va))
             {
-                return va;
+                return value;
             }
         }
         return null;

@@ -25,6 +25,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.interceptor.TransactionAspectSupport;
 import org.springframework.web.multipart.MultipartFile;
+import social.mapper.LikeRecord1Mapper;
 import util.AudioDurationUtil;
 
 import java.util.ArrayList;
@@ -52,7 +53,7 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
     private MusicMapper musicMapper;
 
     @Autowired
-    private LikeRecordMapper likeRecordMapper;
+    private LikeRecord1Mapper likeRecordMapper;
 
     @Autowired
     private UserCollectionMapper userCollectionMapper;

@@ -7,16 +7,16 @@ import entity.pojo.social.Comment;
 import entity.pojo.social.LikeRecord;
 import entity.pojo.social.Playlist;
 import entity.pojo.util.Result;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import social.domain.LikeEnum;
 import social.domain.dto.LikeDTO;
 import social.mapper.CommentMapper;
-import social.mapper.LikeRecordMapper;
-import social.mapper.MusicMapper;
-import social.mapper.PlayListMapper;
+import social.mapper.LikeRecord1Mapper;
+import social.mapper.Music2Mapper;
+import social.mapper.PlayList2Mapper;
 import social.service.UserBaseService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -26,15 +26,15 @@ import java.util.Objects;
 @Service
 public class UserBaseServiceImpl implements UserBaseService {
     @Autowired
-    private LikeRecordMapper likeRecordMapper;
+    private LikeRecord1Mapper likeRecordMapper;
     @Autowired
     private CommentMapper commentMapper;
     @Autowired
-    private MusicMapper musicMapper;
+    private Music2Mapper music2Mapper;
     @Autowired
-    private PlayListMapper playListMapper;
+    private PlayList2Mapper playList2Mapper;
     //点赞/取消点赞功能
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     @Override
     public Result likeandUnlike(LikeDTO likeDTO) {
         //获取用户的id
@@ -54,7 +54,7 @@ public class UserBaseServiceImpl implements UserBaseService {
             LambdaQueryWrapper<Music> musicWrapper = new LambdaQueryWrapper();
             musicWrapper.eq(Music::getId, targetId)
                     .eq(Music::getStatus, 1);
-            Music music = musicMapper.selectOne(musicWrapper);
+            Music music = music2Mapper.selectOne(musicWrapper);
             if (music == null) {
                 return Result.fail("音乐暂未上架");
             }
@@ -69,7 +69,7 @@ public class UserBaseServiceImpl implements UserBaseService {
         } else if (targetType == LikeEnum.PLAYLIST.getValue()) {
             LambdaQueryWrapper<Playlist> playListWrapper = new LambdaQueryWrapper();
             playListWrapper.eq(Playlist::getId, targetId);
-            Playlist playlist = playListMapper.selectOne(playListWrapper);
+            Playlist playlist = playList2Mapper.selectOne(playListWrapper);
             if (playlist == null) {
                 return Result.fail("歌单不存在");
             }
@@ -95,8 +95,9 @@ public class UserBaseServiceImpl implements UserBaseService {
                 //取消
                 likeRecord.setIsCanceled(1);
                 likeRecord.setUpdatedTime(LocalDateTime.now());
+                likeRecordMapper.updateById(likeRecord);
                 Long count = updateCount(true, targetId, targetType);
-                likevo.put("isLike",1L);
+                likevo.put("isLike",0L);
                 likevo.put("likecount",count);
                 return Result.ok(likevo);
             }
@@ -106,8 +107,9 @@ public class UserBaseServiceImpl implements UserBaseService {
                 //恢复
                 likeRecord.setIsCanceled(0);
                 likeRecord.setUpdatedTime(LocalDateTime.now());
+                likeRecordMapper.updateById(likeRecord);
                 Long count = updateCount(false, targetId, targetType);
-                likevo.put("isLike",0L);
+                likevo.put("isLike",1L);
                 likevo.put("likecount",count);
                 return Result.ok(likevo);
             }
@@ -133,15 +135,15 @@ public class UserBaseServiceImpl implements UserBaseService {
         {
             LambdaQueryWrapper<Music> musicWrapper=new LambdaQueryWrapper();
             musicWrapper.eq(Music::getId,targetId);
-            Music music = musicMapper.selectOne(musicWrapper);
+            Music music = music2Mapper.selectOne(musicWrapper);
             Long likeCount = music.getLikeCount();
             if(isCancle) {
-
                 count = likeCount - 1;
             }else {
                 count = likeCount + 1;
             }
             music.setLikeCount(count);
+            music2Mapper.updateById(music);
         }else if(targetType==LikeEnum.COMMENT.getValue())
         {
             LambdaQueryWrapper<Comment> commentWrapper=new LambdaQueryWrapper();
@@ -155,10 +157,11 @@ public class UserBaseServiceImpl implements UserBaseService {
                 count = likeCount + 1;
             }
             comment.setLikeCount(count);
+            commentMapper.updateById(comment);
         }else if(targetType==LikeEnum.PLAYLIST.getValue()) {
             LambdaQueryWrapper<Playlist> playListWrapper = new LambdaQueryWrapper();
             playListWrapper.eq(Playlist::getId, targetId);
-            Playlist playlist = playListMapper.selectOne(playListWrapper);
+            Playlist playlist = playList2Mapper.selectOne(playListWrapper);
             Long likeCount = playlist.getLikeCount();
             if(isCancle) {
 
@@ -167,6 +170,7 @@ public class UserBaseServiceImpl implements UserBaseService {
                 count = likeCount + 1;
             }
             playlist.setLikeCount(count);
+            playList2Mapper.updateById(playlist);
         }
        return count;
     }
