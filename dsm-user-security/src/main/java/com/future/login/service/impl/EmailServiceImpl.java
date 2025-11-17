@@ -55,7 +55,7 @@ public class EmailServiceImpl implements EmailService {
         helper.setTo(toEmail);                     // 收件人
         helper.setSubject("【白昼音流】您的邮箱验证码"); // 邮件标题
         // 4. 加载 Logo 图片并嵌入邮件（CID 方式）
-        ClassPathResource logoResource = new ClassPathResource("static/images/logo.jpg");
+        ClassPathResource logoResource = new ClassPathResource("static/images/logo.png");
         helper.addInline("logo", logoResource);
         String htmlContent = buildHtmlEmailContentWithLogo(captcha);
         helper.setText(htmlContent, true); // true 表示是 HTML

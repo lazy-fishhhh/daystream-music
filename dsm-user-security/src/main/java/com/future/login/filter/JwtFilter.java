@@ -2,6 +2,7 @@ package com.future.login.filter;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.future.login.domain.LoginUserDetails;
+import com.future.login.util.RefreshUtil;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -28,6 +29,8 @@ public class JwtFilter extends OncePerRequestFilter {
     private StringRedisTemplate stringRedisTemplate;
     @Autowired
     private ObjectMapper objectMapper;
+    @Autowired
+    private RefreshUtil refreshUtil;
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
         //获取token,从请求头中获取token
@@ -62,7 +65,13 @@ public class JwtFilter extends OncePerRequestFilter {
             filterChain.doFilter(request, response);
             return;
         }
-
+        //刷新token
+        String newtoken = refreshUtil.cheak(userId, token);
+        if(newtoken!=null)
+        {
+            response.setHeader("Authorization",newtoken);
+            response.setHeader("Token-Refreshed","true");
+        }
         // 5. 从redis中获取权限信息封装到Authentication中
         String redisKey = USER_INFO_PREFIX + userId;
         String loginUserJson = stringRedisTemplate.opsForValue().get(redisKey);

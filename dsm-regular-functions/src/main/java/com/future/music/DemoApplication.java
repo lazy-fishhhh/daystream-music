@@ -8,13 +8,14 @@ import org.springframework.web.bind.annotation.*;
 
 @SpringBootApplication
 @RestController
-@MapperScan({"com.future.music.mapper","com.future.login.mapper"})
+@MapperScan({"com.future.music.mapper","com.future.login.mapper","social.mapper"})
 // 扫描当前包 + common模块的配置包（替换为你MinioConfig的实际包路径）
 @ComponentScan(basePackages = {
-        "com.future.music",  // 当前启动模块的根包
+        "com.future.music", // 当前启动模块的根包
         "config",// dsm-common模块中config包的路径
 		"com.future.login",
-        "annotation"// dsm-common模块中annotation包的路径
+        "annotation",// dsm-common模块中annotation包的路径
+		"social"
 })
 public class DemoApplication {
 	public static void main(String[] args) {
