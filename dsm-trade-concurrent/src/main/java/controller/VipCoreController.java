@@ -1,35 +1,28 @@
 package controller;
 
+import entity.pojo.util.Result;
+import entity.vo.VipStatusVO;
 import io.swagger.annotations.ApiOperation;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-
-import java.time.Duration;
+import service.Impl.VipCoreService;
 
 
 @ApiOperation("VIP核心服务")
 @RestController
 @RequestMapping("/vip/core")
+@RequiredArgsConstructor
 public class VipCoreController {
+
+    private final StringRedisTemplate stringRedisTemplate;
+    private final VipCoreService vipCoreService;
 
     /**
      * 检查用户VIP状态
      */
-//    public boolean isUserVip(Long userId) {
-//        // 先查缓存
-//        String cacheKey = "user_vip:" + userId;
-//        Boolean isVip = (Boolean) redisTemplate.opsForValue().get(cacheKey);
-//        if (isVip != null) {
-//            return isVip;
-//        }
-//
-//        // 查数据库
-//        UserVip userVip = userVipMapper.selectByUserId(userId);
-//        boolean vip = userVip != null && userVip.getStatus() == 1 && userVip.getEndTime().after(new Date());
-//
-//        // 写入缓存
-//        redisTemplate.opsForValue().set(cacheKey, vip, Duration.ofMinutes(10));
-//
-//        return vip;
-//    }
+    public Result<VipStatusVO> isUserVip() {
+        return Result.ok(vipCoreService.checkAndUpdateVipStatus());
+    }
 }

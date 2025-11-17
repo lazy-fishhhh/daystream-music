@@ -1,7 +1,9 @@
 package service;
 
-public interface IVipCoreService {
-    void checkAndUpdateVipStatus(Long userId);
+import entity.pojo.util.Result;
+import entity.vo.VipStatusVO;
 
+public interface IVipCoreService {
+    VipStatusVO checkAndUpdateVipStatus();
     void processAutoRenewal();
 }
