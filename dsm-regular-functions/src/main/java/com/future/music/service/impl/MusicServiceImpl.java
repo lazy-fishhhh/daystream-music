@@ -1,6 +1,8 @@
 package com.future.music.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.future.login.util.SecurityUtil;
 import com.future.music.domain.vo.MusicDetailVO;
@@ -10,10 +12,14 @@ import com.future.music.service.IMinIoService;
 import com.future.music.service.IMusicService;
 import constants.SystemConstants;
 import entity.dto.MusicDTO;
+import entity.dto.SearchDTO;
 import entity.pojo.music.*;
 import entity.pojo.social.LikeRecord;
+import entity.pojo.social.UserCollection;
+import entity.pojo.util.PageResp;
 import entity.pojo.util.Result;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -515,15 +521,24 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
      */
     @Override
     public Result<MusicDetailVO> getOneMusic(Long musicId){
-        // 1. 复用基础详情接口，获取音乐主信息和音频列表
-        Result<MusicDetailVO> result = echoMusic(musicId);
-        // 2. 若基础查询失败（如ID无效、音乐不存在），直接返回失败结果
-        if (result.getErrorMsg() != null) {
-            return result;
+        // 1. 校验音乐ID有效性（非空且大于0）
+        if (musicId == null || musicId <= 0) {
+            return Result.fail("音乐ID无效");
         }
 
-        // 3. 从基础结果中获取VO，补充关联信息
-        MusicDetailVO musicDetailVO = result.getData();
+        //  查询音乐主信息
+        Music music = this.getById(musicId);
+        if (music == null) {
+            return Result.fail("音乐不存在");
+        }
+
+        //  初始化VO并复制音乐主信息
+        MusicDetailVO musicDetailVO = new MusicDetailVO();
+        musicDetailVO.copyFrom(music); // 调用自定义copyFrom方法，复制核心属性
+
+        //  查询标签
+        List<String> tags = musicTagMapper.getTagNamesByMusicId(musicId);
+        musicDetailVO.setTags(tags);
 
         // 3.1 补充专辑名称（通过专辑ID关联查询）
         Album album = albumMapper.selectById(musicDetailVO.getAlbumId());
@@ -537,21 +552,106 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
             musicDetailVO.setMusicianName(musician.getStageName());
         }
 
-        // 3.4 补充当前用户的点赞状态（默认未点赞：0）
-        musicDetailVO.setIsLike(0);
-        // 查询当前用户对该音乐的点赞记录（target_type=1表示音乐类型）
+        // 3.4 判断是否点赞
         QueryWrapper<LikeRecord> wrapper = new QueryWrapper<>();
         wrapper.eq("user_id", SecurityUtil.getCurrentUserId()) // 获取当前登录用户ID
                 .eq("target_type", 1) // 目标类型：1=音乐（系统定义）
                 .eq("target_id", musicId); // 目标ID：音乐ID
         LikeRecord likeRecord = likeRecordMapper.selectOne(wrapper);
-        // 若存在未取消的点赞记录，设置为已点赞（1）
-        if (likeRecord != null && likeRecord.getIsCanceled() == 0){
-            musicDetailVO.setIsLike(1);
-        }
+        musicDetailVO.setIsLiked(likeRecord != null ? 1 : 0);
+
+        // 3.4 判断是否收藏
+        QueryWrapper<UserCollection> collectionWrapper = new QueryWrapper<>();
+        collectionWrapper.eq("user_id", SecurityUtil.getCurrentUserId())
+                .eq("target_type", 1)
+                .eq("target_id", musicId);
+        UserCollection userCollection = userCollectionMapper.selectOne(collectionWrapper);
+        musicDetailVO.setIsCollected(userCollection != null ? 1 : 0);
 
         // 4. 返回完整详情结果
         return Result.ok(musicDetailVO);
+    }
+
+    //搜索单曲
+    @Override
+    public PageResp<MusicDetailVO> searchMusic(SearchDTO dto) {
+        // 1. 校验关键词
+        if (dto.getKeyword() == null || dto.getKeyword().trim().isEmpty()) {
+            return new PageResp<>();
+        }
+        String keyword = "%" + dto.getKeyword().trim() + "%"; // 模糊匹配前缀后缀
+
+        // 2. 构建分页参数
+        Page<Music> page = new Page<>(dto.getPageNum(), dto.getPageSize());
+
+        // 3. 构建多条件查询（音乐名、标签名、音乐人名字 模糊匹配）
+        QueryWrapper<Music> queryWrapper = new QueryWrapper<>();
+        // 条件1：音乐名模糊匹配
+        queryWrapper.like("m.music_name", keyword)
+                // 条件2：音乐人名字模糊匹配（关联musician表）
+                .or().like("mu.name", keyword)
+                // 条件3：标签名模糊匹配（关联music_tag表）
+                .or().like("mt.tag_name", keyword)
+                // 过滤音乐状态（仅查询上架状态，按需调整）
+                .eq("m.status", 1);
+
+        // 4. 执行多表联查+分页+排序（SQL已含ORDER BY play_count DESC）
+        IPage<Music> musicPage = musicMapper.searchMusicByMultiCondition(page, queryWrapper);
+
+        // 5. 转换为MusicDetailVO并填充关联信息（专辑名、点赞状态、音频列表等）
+        List<MusicDetailVO> voList = new ArrayList<>();
+        for (Music music : musicPage.getRecords()) {
+            MusicDetailVO vo = new MusicDetailVO();
+            BeanUtils.copyProperties(music, vo);
+
+            // 5.1 关联专辑名称（通过albumId查album表）
+            Album album = albumMapper.selectById(music.getAlbumId());
+            if (album != null) {
+                vo.setAlbumName(album.getAlbumName());
+            }
+
+            // 5.2 关联点赞、收藏状态
+            if (SecurityUtil.getCurrentUserId() != null) {
+                QueryWrapper<LikeRecord> likeWrapper = new QueryWrapper<>();
+                likeWrapper.eq("target_id", music.getId())
+                        .eq("target_type", 1)
+                        .eq("user_id", SecurityUtil.getCurrentUserId());
+                LikeRecord likeRecord = likeRecordMapper.selectOne(likeWrapper);
+                vo.setIsLiked(likeRecord != null ? 1 : 0);
+
+                QueryWrapper<UserCollection> collectionWrapper = new QueryWrapper<>();
+                collectionWrapper.eq("user_id", SecurityUtil.getCurrentUserId())
+                        .eq("target_type", 1)
+                        .eq("target_id", music.getId());
+                UserCollection userCollection = userCollectionMapper.selectOne(collectionWrapper);
+                vo.setIsCollected(userCollection != null ? 1 : 0);
+            } else {
+                vo.setIsLiked(0); // 未登录默认未点赞
+                vo.setIsCollected(0);
+            }
+
+            // 5.3 关联音频列表（通过musicId查music_audio表）
+//            QueryWrapper<MusicAudio> audioWrapper = new QueryWrapper<>();
+//            audioWrapper.eq("music_id", music.getId());
+//            List<MusicAudio> audioList = musicAudioMapper.selectList(audioWrapper);
+//            vo.setAudioList(audioList);
+
+            // 5.4 关联音乐人名字（通过musicianId查musician表）
+            Musician musician = musicianMapper.selectById(music.getMusicianId());
+            if (musician != null) {
+                vo.setMusicianName(musician.getStageName());
+            }
+
+            voList.add(vo);
+        }
+
+        // 6. 封装分页结果
+        PageResp<MusicDetailVO> pageResult = new PageResp<>();
+        pageResult.setRecords(voList);
+        pageResult.setTotal(musicPage.getTotal());
+        pageResult.setPages((int) musicPage.getPages());
+
+        return pageResult;
     }
 
 }

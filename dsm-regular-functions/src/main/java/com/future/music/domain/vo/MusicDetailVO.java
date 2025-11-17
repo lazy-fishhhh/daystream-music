@@ -1,6 +1,5 @@
 package com.future.music.domain.vo;
 
-import com.baomidou.mybatisplus.annotation.TableField;
 import entity.pojo.music.Music;
 import entity.pojo.music.MusicAudio;
 import lombok.Data;
@@ -20,10 +19,12 @@ public class MusicDetailVO {
     private Integer bpm;                // 节奏（BPM）
     private Integer isVip;              // 是否VIP专属（0-否，1-是）
     private BigDecimal price;           // 单价（音浪）
+
     private List<MusicAudio> audioList; // 音频列表
     private List<String> tags;          // 歌曲标签（需关联标签表）
 
-    private Integer isLike;             //是否点赞（0-未点赞，1-已点赞）
+    private Integer isLiked;             //是否点赞（0-未点赞，1-已点赞）
+    private Integer isCollected;          //是否收藏
     private String albumName;           // 所属专辑名字
     private String musicianName;        // 作者名字（音乐人名称）
 
