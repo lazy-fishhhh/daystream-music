@@ -1,0 +1,43 @@
+package social.domain;
+
+import lombok.AllArgsConstructor;
+@AllArgsConstructor
+public enum LikeEnum {
+    MUSIC(1,"音乐"),
+    COMMENT(2,"评论"),
+    PLAYLIST(3,"歌单");
+
+    private final Integer value;
+    private final String des;
+    public Integer getValue()
+    {
+        return value;
+    }
+    public String getDes()
+    {
+        return des;
+    }
+    public static LikeEnum getLikeEnumBydes(String des)
+    {
+        for(LikeEnum value:values())
+        {
+            if(value.getDes().equals(des))
+            {
+                return value;
+            }
+        }
+        return null;
+    }
+
+    public static LikeEnum getLikeEnumByvalue(Integer value)
+    {
+        for(LikeEnum va:values())
+        {
+            if(va.getDes().equals(value))
+            {
+                return va;
+            }
+        }
+        return null;
+    }
+}

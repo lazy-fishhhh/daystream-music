@@ -18,7 +18,7 @@ public class JwtUtil {
     // 有效期为
     public static final Long JWT_TTL = 60 * 60 * 1000*7L; // 1小时
 
-    // 使用 generateKey() 方法生成的密钥，替换为你的实际密钥
+    // 使用 generateKey() 方法生成的密钥
     public static final String JWT_KEY = "tO9rN+5QZ8e7wF3pL2mK5jR8sT1vU4xY7iH0kG3fJ6h";
 
     public static String getUUID() {
@@ -58,7 +58,7 @@ public class JwtUtil {
         return Jwts.builder()
                 .setId(getUUID())
                 .setSubject(subject)
-                .setIssuer("sg")
+                .setIssuer("lee")
                 .setIssuedAt(now)
                 .setExpiration(expDate)
                 .signWith(secretKey, signatureAlgorithm)
