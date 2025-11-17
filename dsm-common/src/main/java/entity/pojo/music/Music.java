@@ -17,7 +17,7 @@ public class Music {
     private String musicName;        // 歌曲名
     private Long albumId;            // 所属专辑ID
     private Long musicianId;         // 音乐人ID
-    private String duration;        // 时长（秒）
+    private String duration;        // 时长
     private String lyricUrl;         // 歌词URL
     private String coverUrl;         // 封面URL
     private Integer bpm;             // 节奏（BPM）
@@ -31,9 +31,9 @@ public class Music {
     private Long collectCount;        //收藏量
     private Long commentCount;        //评论量
     @TableField(exist = false)
-    private Integer isLike;          //是否点赞（0-未点赞，1-已点赞）
-    @TableField(exist = false)
-    private Integer isCollection;    //是否收藏（0-未收藏，1-已收藏）
+    private Integer isLike = 0;          //是否点赞（0-未点赞，1-已点赞）
     @TableField(exist = false)
     private List<MusicAudio> audioList; // 音频列表
+    @TableField(exist = false)
+    private String albumName;            // 所属专辑名字
 }
