@@ -30,4 +30,7 @@ public class SystemConstants {
     public static final int MAX_PICTURE_SIZE = 1024 * 1024 * 10;
     public static final int MAX_MUSIC_SIZE = 1024 * 1024 * 100;
     public static final int MAX_LYRIC_SIZE = 1024 * 1024;
+
+    //音乐统计时长
+    public static final double MIN_PLAY_RATIO = 0.3;
 }

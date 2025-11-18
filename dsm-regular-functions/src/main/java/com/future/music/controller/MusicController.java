@@ -1,7 +1,9 @@
 package com.future.music.controller;
 
 
+import com.future.music.domain.dto.MusicPlayReportDTO;
 import com.future.music.domain.vo.MusicDetailVO;
+import com.future.music.domain.vo.MusicPlayVO;
 import com.future.music.service.IMusicService;
 import entity.dto.MusicDTO;
 import entity.dto.SearchDTO;
@@ -27,16 +29,20 @@ public class MusicController {
 
     @ApiOperation(value = "上传音乐")
     @PostMapping
-    public Result saveMusic(@RequestPart("musicDTO") MusicDTO musicDTO,
+    public Result<Void> saveMusic(@RequestPart("musicDTO") MusicDTO musicDTO,
                             @RequestPart("lyric") MultipartFile lyric,
                             @RequestPart("cover") MultipartFile cover,
-                            @RequestPart("audioMap") Map<Integer, MultipartFile> audioMap) {
-        return iMusicService.saveMusic(musicDTO, lyric, cover, audioMap);
+                            @RequestPart(value = "audio_1", required = false) MultipartFile audio1,  // 音质1：标准
+                            @RequestPart(value = "audio_2", required = false) MultipartFile audio2,  // 音质2：高清
+                            @RequestPart(value = "audio_3", required = false) MultipartFile audio3,  // 音质3：无损
+                            @RequestPart(value = "audio_4", required = false) MultipartFile audio4   // 音质4：空间
+                            ) {
+        return iMusicService.saveMusic(musicDTO, lyric, cover, audio1, audio2, audio3, audio4);
     }
 
     @ApiOperation(value = "删除音乐")
     @DeleteMapping("/{musicId}") // 路径参数定位资源，语义更清晰
-    public Result removeMusic(@PathVariable Long musicId) { // 配合路径参数，而非@RequestParam
+    public Result<Void> removeMusic(@PathVariable Long musicId) { // 配合路径参数，而非@RequestParam
         return iMusicService.removeMusic(musicId);
     }
 
@@ -48,7 +54,7 @@ public class MusicController {
 
     @ApiOperation(value = "修改音乐")
     @PostMapping("/update/{musicId}") // POST支持文件+JSON混合参数
-    public Result updateMusic(
+    public Result<Void> updateMusic(
             @PathVariable("musicId") Long musicId, // 路径参数，必选（确保修改目标明确）
             @RequestPart("musicDTO") MusicDTO musicDTO, // JSON参数（需用@RequestPart接收混合参数）
             @RequestPart(value = "lyric", required = false) MultipartFile lyric, // 可选文件
@@ -66,7 +72,7 @@ public class MusicController {
 
     @ApiOperation(value = "下载音乐")
     @GetMapping("/downloadMusic")
-    public Result downloadMusic(@RequestParam Long musicId,
+    public Result<Void> downloadMusic(@RequestParam Long musicId,
                             @RequestParam Integer quality,
                             HttpServletResponse response) {
         try {
@@ -76,4 +82,18 @@ public class MusicController {
             return Result.fail("下载失败：" + e.getMessage());
         }
     }
+
+    @ApiOperation(value = "播放音乐（获取播放链接）")
+    @PostMapping("/play")
+    public Result<MusicPlayVO> playMusic(@RequestParam Long musicId,
+                                         @RequestParam Integer quality) {
+        return iMusicService.playMusic(musicId, quality);
+    }
+
+    @ApiOperation(value = "上报播放状态（统计播放量）")
+    @PostMapping("/play/report")
+    public Result<Void> reportPlayStatus(@RequestBody MusicPlayReportDTO dto) {
+        return iMusicService.reportPlayStatus(dto);
+    }
+
 }

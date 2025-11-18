@@ -10,14 +10,13 @@ import java.io.InputStream;
  */
 public class AudioDurationUtil {
 
-//    private static final Logger log = LoggerFactory.getLogger(AudioDurationUtil.class);
 
     /**
      * 解析音频文件时长（单位：秒）
      * @param audioFile 上传的音频文件（MultipartFile）
      * @return 时长（秒），解析失败返回 -1
      */
-    public static long getAudioDuration(MultipartFile audioFile) {
+    public static int getAudioDuration(MultipartFile audioFile) {
         // 校验文件是否为空
         if (audioFile.isEmpty()) {
             return -1;
@@ -35,24 +34,22 @@ public class AudioDurationUtil {
                 return -1;
             }
 
-            return durationMicros / 1000000; // 1秒 = 1,000,000微秒
+            return (int) durationMicros / 1000000; // 1秒 = 1,000,000微秒
 
         } catch (FFmpegFrameGrabber.Exception e) {
-//            log.error("FFmpeg解析音频时长失败（格式不支持或文件损坏）", e);
+            return -1;
         } catch (Exception e) {
-//            log.error("解析音频时长时发生未知错误", e);
+            return -1;
         } finally {
             // 确保资源关闭
             if (grabber != null) {
                 try {
                     grabber.stop();
                 } catch (FFmpegFrameGrabber.Exception e) {
-//                    log.error("关闭FFmpeg解析器失败", e);
+                    return -1;
                 }
             }
         }
-
-        return -1;
     }
 
 
