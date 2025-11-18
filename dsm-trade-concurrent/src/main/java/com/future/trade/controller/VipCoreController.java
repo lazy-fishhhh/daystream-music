@@ -8,6 +8,7 @@ import io.swagger.annotations.ApiOperation;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import com.future.trade.service.Impl.VipCoreService;
 
@@ -26,11 +27,18 @@ public class VipCoreController {
      */
     @ApiOperation("检查用户VIP状态")
     @GetMapping("/vipStatus")
-    public Result<VipStatusVO> isUserVip() {
-        try {
+    public Result<VipStatusVO> isUserVip() throws JsonProcessingException {
             return Result.ok(vipCoreService.checkAndUpdateVipStatus());
-        } catch (JsonProcessingException e) {
-            return Result.fail("检查用户VIP状态失败");
-        }
+
+    }
+
+
+    /**
+     * 购买 VIP
+     */
+    @ApiOperation("购买 VIP")
+    @GetMapping("/buyVip")
+    public Result<String> buyVip(@RequestParam String packageName)  {
+        return vipCoreService.buyVip(packageName);
     }
 }

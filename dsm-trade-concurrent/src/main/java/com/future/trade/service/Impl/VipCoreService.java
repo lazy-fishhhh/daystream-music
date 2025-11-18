@@ -6,8 +6,11 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.future.login.util.SecurityUtil;
+import com.future.trade.entity.Order;
 import com.future.trade.entity.Vip;
 import com.future.trade.entity.vo.VipStatusVO;
+import entity.enums.VipPackageEnum;
+import entity.pojo.util.Result;
 import lombok.RequiredArgsConstructor;
 
 
@@ -16,8 +19,10 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import com.future.trade.service.IVipCoreService;
 
+import javax.transaction.Transactional;
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 import static com.future.trade.constants.VipRedisConstant.*;
@@ -66,7 +71,7 @@ public class VipCoreService implements IVipCoreService {
         String vipInfoJson = stringRedisTemplate.opsForValue().get(USER_VIP_INFO_PREFIX + userId);
 
         if (vipInfoJson == null) {
-            //  缓存未命中，redis没有数据，从数据库查询
+            // 缓存未命中，redis没有数据，从数据库查询
             // 从数据库查询用户最新的VIP记录（优先查生效中的，无则查历史记录）
             Vip vip = vipMapper.selectOne(new LambdaQueryWrapper<Vip>()
                     .eq(Vip::getUserId, userId)
@@ -111,6 +116,8 @@ public class VipCoreService implements IVipCoreService {
                         cacheExpireSeconds, // 动态设置过期时间
                         TimeUnit.SECONDS
                 );
+
+
             } catch (Exception e) {
                 throw new RuntimeException("VIP信息序列化失败", e);
             }
@@ -142,6 +149,89 @@ public class VipCoreService implements IVipCoreService {
     }
 
 
+    @Transactional
+    @Override
+    public Result<String> buyVip(String packageName) {
+        Long userId = SecurityUtil.getCurrentUserId();
+        if (userId == null) {
+            throw new RuntimeException("尚未登陆");
+        }
+        Optional<VipPackageEnum> vipPackageEnumOptional = VipPackageEnum.getByPackageName(packageName);
+        if (vipPackageEnumOptional.isEmpty()) {
+            throw new RuntimeException("VIP套餐不存在");
+        }
+        VipPackageEnum vipPackageEnum = vipPackageEnumOptional.get();
+
+
+        // 1. 获取用户当前VIP状态
+        VipStatusVO vipStatusVO;
+        try {
+             vipStatusVO = checkAndUpdateVipStatus();// 自调用？
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException("获取用户VIP状态失败");
+        }
+
+        // 2. 检查用户是否已经是VIP了
+        // 2.1.1 是VIP，续时长
+        if (vipStatusVO.getIsVip() == 1) {
+            // 续时长
+            Vip vip = vipMapper.selectOne(new LambdaQueryWrapper<Vip>()
+                    .eq(Vip::getUserId, userId)
+                    .orderByDesc(Vip::getEndTime) // 取最新的一条记录, 避免仅查询id查到过期vip
+                    .last("LIMIT 1"));
+            if (vip == null) {
+                throw new RuntimeException("用户VIP记录不存在");
+            }
+
+
+            // 2.1.2 更新数据库，删redis
+            vip.setEndTime(vip.getEndTime().plusDays(vipPackageEnum.getDurationDays()));
+            vipMapper.updateById(vip);
+            stringRedisTemplate.delete(USER_VIP_INFO_PREFIX + userId);
+
+            // 2.1.3调用订单服务创建订单
+
+            return Result.ok("VIP续期成功");
+        }
+
+        // 2.2. 不是VIP 插入新记录 并将VipStatus写入redis
+        Vip vip = new Vip();
+        vip.setUserId(userId);
+        vip.setEndTime(LocalDateTime.now().plusDays(vipPackageEnum.getDurationDays()));
+        vip.setStatus(Vip.VipStatus.ACTIVE);
+        vip.setPackageId(Long.valueOf(vipPackageEnum.getId()));
+        vip.setSource(Vip.VipSource.PURCHASE);
+        vip.setCreatedTime(LocalDateTime.now());
+        vip.setUpdatedTime(LocalDateTime.now());
+        vip.setAutoRenew(false);
+        vip.setRenewalCount(0);
+        vip.setLevel(vipPackageEnum.getLevel());
+        vip.setOrderId(null);
+        vipMapper.insert(vip);
+
+        VipStatusVO vipStatusVO2 = new VipStatusVO();
+        vipStatusVO2.setIsVip(1);
+        vipStatusVO2.setRemainingDays(vipPackageEnum.getDurationDays());
+        vipStatusVO2.setVipExpireTime(vip.getEndTime());
+        vipStatusVO2.setVipLevel(vipPackageEnum.getLevel());
+//        vipStatusVO2.setVipPermissions(vipPackageEnum.getVipPermissions());
+        vipStatusVO2.setFreeVipUsed(0);
+        vipStatusVO2.setLastPackageName(vipPackageEnum.getPackageName());
+        try {
+            stringRedisTemplate.opsForValue().set(USER_VIP_INFO_PREFIX + userId,
+                    objectMapper.writeValueAsString(vipStatusVO2),
+                    VIP_CACHE_USER_INFO_24H,
+                    TimeUnit.SECONDS);
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException(e);
+        }
+
+        // 2.2.3 调用订单服务创建订单
+
+        return Result.ok("VIP购买成功");
+    }
+
+
 
     /**
      * 验证用户是否享有特定VIP权益
@@ -165,6 +255,8 @@ public class VipCoreService implements IVipCoreService {
         // 4. 发送续费成功/失败通知
         // 5. 记录续费操作日志
     }
+
+
 
 //    /**
 //     * 升级用户VIP等级
