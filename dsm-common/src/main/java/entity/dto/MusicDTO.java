@@ -61,9 +61,9 @@ public class MusicDTO {
         if (bpm == null || bpm < 60 || bpm > 200) {
             return false;
         }
-        // 5. 版权类型：非空且只能是「原创」「翻唱」「授权」
+        // 5. 版权类型：非空且只能是CC-BY(署名即可免费使用（商用也可）),CC-BY-NC(署名 + 非商用（不能用于盈利场景）),CC-BY-SA(（修改后作品需用同一协议）),CC-BY-ND(署名 + 禁止演绎（不能修改原作品）)
         if (!StringUtils.hasText(licenseType)
-                || !("原创".equals(licenseType) || "翻唱".equals(licenseType) || "授权".equals(licenseType))) {
+                || !("CC-BY".equals(licenseType) || "CC-BY-NC".equals(licenseType) || "CC-BY-SA".equals(licenseType) || "CC-BY-ND".equals(licenseType))) {
             return false;
         }
         // 6. 是否VIP：非空且只能是0或1
