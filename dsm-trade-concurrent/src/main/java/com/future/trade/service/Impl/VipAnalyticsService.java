@@ -1,7 +1,7 @@
-package service.Impl;
+package com.future.trade.service.Impl;
 
 import org.springframework.stereotype.Service;
-import service.IVipAnalyticsService;
+import com.future.trade.service.IVipAnalyticsService;
 
 /**
  *  数据分析服务

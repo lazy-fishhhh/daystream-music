@@ -1,26 +1,26 @@
-package service.Impl;
+package com.future.trade.service.Impl;
 
 
 import cn.hutool.core.bean.BeanUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.future.login.util.SecurityUtil;
-import constants.VipRedisConstant;
-import entity.Vip;
-import entity.vo.VipStatusVO;
+import com.future.trade.entity.Vip;
+import com.future.trade.entity.vo.VipStatusVO;
 import lombok.RequiredArgsConstructor;
 
 
-import mapper.VipMapper;
+import com.future.trade.mapper.VipMapper;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
-import service.IVipCoreService;
+import com.future.trade.service.IVipCoreService;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.concurrent.TimeUnit;
 
-import static constants.VipRedisConstant.*;
+import static com.future.trade.constants.VipRedisConstant.*;
 
 
 /**
@@ -36,11 +36,28 @@ public class VipCoreService implements IVipCoreService {
     private final StringRedisTemplate stringRedisTemplate;
     private final ObjectMapper objectMapper;
 
+
+    /**
+     * 创建默认的VIP状态（未开通VIP时使用）
+     */
+    private VipStatusVO defaultVipStatus() {
+        VipStatusVO defaultStatus = new VipStatusVO();
+        defaultStatus.setIsVip(0); // 非VIP
+        defaultStatus.setVipExpireTime(LocalDateTime.MIN); // 初始化为最小时间，避免null
+        defaultStatus.setRemainingDays(0); // 剩余天数为0
+        defaultStatus.setVipLevel(0); // 等级为0
+        defaultStatus.setVipPermissions(null); // 无权限
+        defaultStatus.setFreeVipUsed(0); // 未使用免费VIP
+        defaultStatus.setLastPackageName(null); // 无套餐名称
+        return defaultStatus;
+    }
+
+
     /**
      * 检查并更新用户VIP状态
      */
     @Override
-    public VipStatusVO checkAndUpdateVipStatus() {
+    public VipStatusVO checkAndUpdateVipStatus() throws JsonProcessingException {
         // 1. 查询用户的VIP记录
         Long userId = SecurityUtil.getCurrentUserId();
         if (userId == null) {
@@ -58,17 +75,10 @@ public class VipCoreService implements IVipCoreService {
 
             if (vip == null) {
                 // 2.1 数据库无记录（从未开通VIP）：缓存空值
-                //  缓存穿透 -> 解决方法：缓存空值
-                stringRedisTemplate.opsForValue().set(USER_VIP_INFO_PREFIX + userId, "", CACHE_NULL_EXPIRE_TIME, TimeUnit.SECONDS);
-                VipStatusVO defaultStatus = new VipStatusVO();
-                defaultStatus.setIsVip(0);
-                defaultStatus.setVipExpireTime(LocalDateTime.MIN);
-                defaultStatus.setRemainingDays(0);
-                defaultStatus.setVipLevel(0);
-                defaultStatus.setVipPermissions(null);
-                defaultStatus.setFreeVipUsed(0);
-                defaultStatus.setLastPackageName(null);
-                return defaultStatus;
+                // 缓存穿透 -> 解决方法：缓存空值
+                // 缓存序列化后的空对象
+                stringRedisTemplate.opsForValue().set(USER_VIP_INFO_PREFIX + userId, objectMapper.writeValueAsString(defaultVipStatus()), CACHE_NULL_EXPIRE_TIME, TimeUnit.SECONDS);
+                return defaultVipStatus();
             }
 
             // 2.2 数据库有记录：检查是否过期，更新状态后缓存

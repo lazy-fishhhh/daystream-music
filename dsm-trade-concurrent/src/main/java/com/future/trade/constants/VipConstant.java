@@ -1,4 +1,4 @@
-package constants;
+package com.future.trade.constants;
 
 /**
  * VIP业务核心常量（聚合套餐、会员相关枚举+基础配置）

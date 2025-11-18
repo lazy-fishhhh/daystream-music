@@ -1,4 +1,4 @@
-package entity;
+package com.future.trade.entity;
 
 import lombok.Data;
 import lombok.EqualsAndHashCode;

@@ -1,7 +1,7 @@
-package mapper;
+package com.future.trade.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import entity.Vip;
+import com.future.trade.entity.Vip;
 import org.mapstruct.Mapper;
 
 

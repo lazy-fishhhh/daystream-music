@@ -1,4 +1,4 @@
-package constants;
+package com.future.trade.constants;
 
 /**
  * VIP Redis缓存前缀常量（单独一类，便于缓存管理）

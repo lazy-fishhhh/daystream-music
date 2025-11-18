@@ -1,8 +1,8 @@
-package service.Impl;
+package com.future.trade.service.Impl;
 
 import entity.pojo.util.Result;
 import org.springframework.stereotype.Service;
-import service.IVipPromotionService;
+import com.future.trade.service.IVipPromotionService;
 
 
 

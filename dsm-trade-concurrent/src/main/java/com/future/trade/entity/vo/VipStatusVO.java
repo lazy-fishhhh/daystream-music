@@ -1,4 +1,4 @@
-package entity.vo;
+package com.future.trade.entity.vo;
 
 import lombok.Data;
 

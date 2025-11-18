@@ -1,6 +1,6 @@
-package service;
+package com.future.trade.service;
 
-import entity.Order;
+import com.future.trade.entity.Order;
 import entity.pojo.util.Result;
 
 import javax.transaction.Transactional;

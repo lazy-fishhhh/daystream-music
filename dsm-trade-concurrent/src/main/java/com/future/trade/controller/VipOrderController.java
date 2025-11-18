@@ -1,4 +1,4 @@
-package controller;
+package com.future.trade.controller;
 
 
 import io.swagger.annotations.ApiOperation;
