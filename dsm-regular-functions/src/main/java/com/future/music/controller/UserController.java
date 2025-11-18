@@ -10,10 +10,7 @@ import io.swagger.annotations.ApiOperation;
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.validation.annotation.Validated;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RequiredArgsConstructor
 @RestController
@@ -50,7 +47,23 @@ public class UserController {
         return Result.ok(playList);
     }
 
+    @ApiOperation("删除歌单")
+    @PostMapping("/playList/deletePlayList")
+    public Result<Void> deletePlayList(long playListId) {
+        userService.deletePlayList(playListId);
+        return Result.ok();
+    }
 
+    @ApiOperation("签到功能")
+    @GetMapping("/checkIn")
+    public Result<String> checkIn() {
+        return userService.checkIn();
+    }
 
+    @ApiOperation(value = "获取连续签到天数", notes = "从当前日期开始计算（不包含当天），返回连续签到的天数")
+    @GetMapping("/checkIn/getContinuousSignInDays")
+    public Result<Integer> getContinuousSignInDays() {
+        return userService.getContinuousSignInDays();
+    }
 
 }

@@ -43,7 +43,6 @@ public class Result<T> {
     public static <T> Result<List<T>> ok(List<T> data, Long total) {
         return new Result<>(true, null, data, total, null);
     }
-
     /**
      * 失败返回（带错误信息）
      */
