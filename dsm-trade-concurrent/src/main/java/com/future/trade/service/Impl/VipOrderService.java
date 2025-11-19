@@ -1,21 +1,25 @@
 package com.future.trade.service.Impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.future.login.mapper.UserMapper;
 import com.future.login.util.SecurityUtil;
-import com.future.trade.entity.Order;
-import com.future.trade.entity.OrderItem;
-import com.future.trade.entity.Vip;
-import com.future.trade.entity.VipPackage;
+import com.future.trade.entity.*;
 import com.future.trade.entity.enums.VipPackageEnum;
 import com.future.trade.entity.vo.VipStatusVO;
 import com.future.trade.mapper.OrderItemMapper;
 import com.future.trade.mapper.OrderMapper;
 import com.future.trade.mapper.VipMapper;
 import com.future.trade.mapper.VipPackageMapper;
+import entity.pojo.info.User;
+import entity.pojo.util.PageReq;
+import entity.pojo.util.PageResp;
 import entity.pojo.util.Result;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import com.future.trade.service.IVipOrderService;
@@ -23,13 +27,11 @@ import util.RedisTemplateWorker;
 
 import javax.transaction.Transactional;
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicLong;
-import org.springframework.scheduling.annotation.Scheduled;
 
 import static com.future.trade.constants.VipRedisConstant.*;
 
@@ -40,6 +42,7 @@ import static com.future.trade.constants.VipRedisConstant.*;
  *  订单处理
  *  支付集成
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class VipOrderService implements IVipOrderService {
@@ -52,12 +55,17 @@ public class VipOrderService implements IVipOrderService {
     private final ObjectMapper objectMapper;
     private final RedisTemplateWorker redisTemplateWorker;
     private final VipPackageMapper vipPackageMapper;
-
+    private final UserMapper userMapper;
 
     /**
-     * 订单服务
-     * 提供订单创建、查询、支付、退款等核心功能
+     * 生成唯一订单号
+     * 使用RedisTemplateWorker的全局唯一ID生成器
      */
+    private String generateOrderNo() {
+        // 使用RedisTemplateWorker生成订单ID，前缀为"vip_order"
+        long id = redisTemplateWorker.createId(VIP_ORDER_INFO_PREFIX);
+        return String.valueOf(id);
+    }
 
 
 
@@ -154,23 +162,14 @@ public class VipOrderService implements IVipOrderService {
         return Result.ok("VIP购买成功");
     }
 
-    /**
-     * 生成唯一订单号
-     * 使用RedisTemplateWorker的全局唯一ID生成器
-     */
-    private String generateOrderNo() {
-        // 使用RedisTemplateWorker生成订单ID，前缀为"vip_order"
-        long id = redisTemplateWorker.nextId(VIP_ORDER_INFO_PREFIX);
-        return String.valueOf(id);
-    }
+
     
     /**
      * 创建VIP购买订单
      */
-    @Transactional
-    @Override                                   //这里就不传数量了
-    public Order createVipOrder(Long packageId) {// 默认VIP只能购买一个套餐
-
+    @Transactional  // TODO 这里也有自调用啊 先沉淀一波再解决
+    public Order createVipOrder(Long packageId) {
+        // 默认VIP只能购买一个套餐这里就不传数量了
         // 1. 验证用户和套餐信息的有效性
         Long userId = SecurityUtil.getCurrentUserId();
         if (userId == null || userId <= 0) {
@@ -196,6 +195,8 @@ public class VipOrderService implements IVipOrderService {
         order.setPayAmount(vipPackage.getCurrentPrice()); // 暂不考虑优惠
         order.setOrderType(Order.OrderType.VIP_SUBSCRIBE.getCode());
         order.setStatus(Order.OrderStatus.PENDING_PAYMENT.getCode());
+        // TODO 这里是模拟支付 实际支付会有异步回调 这里先设置为已支付
+        order.setPayTime(LocalDateTime.now());
         order.setCreatedTime(LocalDateTime.now());
         order.setUpdatedTime(LocalDateTime.now());
         
@@ -210,18 +211,34 @@ public class VipOrderService implements IVipOrderService {
         orderItem.setProductName(vipPackage.getPackageName());
         orderItem.setPrice(vipPackage.getCurrentPrice());
         orderItem.setQuantity(1);
-
+        orderItem.setEffectiveTime(LocalDateTime.now());
+        orderItem.setExpireTime(LocalDateTime.now().plusDays(vipPackage.getDurationDays()));
         
         // 5. 保存订单详情
         orderItemMapper.insert(orderItem);
-        
-        // 6. 设置订单详情关联
+
+        // 6. 扣减用户余额
+        // TODO 这个支付后续看看能不能优化到消息队列
+        LambdaQueryWrapper<User> lqw1 = new LambdaQueryWrapper<>();
+            lqw1.eq(User::getId, userId);
+            User user = userMapper.selectOne(lqw1);
+            if (user == null) {
+                throw new IllegalArgumentException("用户不存在");
+            }
+            if (user.getWalletBalance() < vipPackage.getCurrentPrice()) {
+                throw new IllegalArgumentException("余额不足");
+            }
+            // 扣减用户余额
+            user.setWalletBalance(user.getWalletBalance() - vipPackage.getCurrentPrice());
+            userMapper.updateById(user);
+
+        // 7. 设置订单详情关联
         List<OrderItem> orderItems = new ArrayList<>();
         orderItems.add(orderItem);
         // TODO 这里是订单详情关联 看后续有没有必要
         order.setOrderItems(orderItems);
         
-        // 7. 返回创建的订单
+        // 8. 返回创建的订单
         return order;
     }
 
@@ -230,34 +247,48 @@ public class VipOrderService implements IVipOrderService {
      * 查询用户VIP订单历史
      */
     @Override
-    public Result<List<Order>> getUserOrderHistory(Long userId) {
-        if (userId == null || userId <= 0) {
-            return Result.fail("无效的用户ID");
-        }
-        
+    public Result<PageResp<OrderDetailVO>> getUserOrderHistory(PageReq pageReq) {
         try {
-            // 1. 构建查询条件：查询用户的VIP订单
-            LambdaQueryWrapper<Order> queryWrapper = new LambdaQueryWrapper<Order>()
-                    .eq(Order::getUserId, userId)
-                    .eq(Order::getOrderType, Order.OrderType.VIP_SUBSCRIBE.getCode())
-                    .orderByDesc(Order::getCreatedTime);
-            
-            // 2. 查询订单列表
-            List<Order> orders = orderMapper.selectList(queryWrapper);
-            
-            // 3. 为每个订单加载详情信息
-            for (Order order : orders) {
-                LambdaQueryWrapper<OrderItem> itemQueryWrapper = new LambdaQueryWrapper<OrderItem>()
-                        .eq(OrderItem::getOrderId, order.getId());
-                List<OrderItem> orderItems = orderItemMapper.selectList(itemQueryWrapper);
-                order.setOrderItems(orderItems);
+            // 1. 校验用户ID
+            Long userId = SecurityUtil.getCurrentUserId();
+            if (userId == null) {
+                log.warn("查询VIP订单历史失败：用户未登录（userId为空）");
+                return Result.fail("用户未登录，请先登录");
             }
-            
-            return Result.ok(orders);
+            if (userId <= 0) {
+                log.warn("查询VIP订单历史失败：无效的用户ID（userId={}）", userId);
+                return Result.fail("无效的用户ID，请重试");
+            }
+
+            // 2. 查询订单前记录日志（便于追踪）
+            log.info("用户[{}]开始查询VIP订单历史", userId);
+
+            // 3. 执行分页查询
+            Page<OrderDetailVO> page = new Page<>(pageReq.getPageNum(), pageReq.getPageSize());
+            IPage<OrderDetailVO> orders = orderMapper.selectOrderDetailVOList(page, userId);
+
+            // 4. 检查分页结果是否为空
+            if (orders.getRecords().isEmpty()) {
+                log.info("用户[{}]无VIP订单历史（分页查询结果为空）", userId);
+                return Result.ok(new PageResp<>());
+            }
+
+            // 5. 构建分页响应对象
+            PageResp<OrderDetailVO> pageResp = new PageResp<>();
+            pageResp.setRecords(orders.getRecords());
+            pageResp.setTotal(orders.getTotal());
+            pageResp.setSize(orders.getSize());
+            pageResp.setCurrent(orders.getCurrent());
+            pageResp.setPages(orders.getPages());
+
+            log.info("用户[{}]查询VIP订单历史成功，共{}条记录", userId, orders.getSize());
+            return Result.ok(pageResp);
+
         } catch (Exception e) {
-            // 记录错误日志
-            e.printStackTrace();
-            return Result.fail("查询订单历史失败：" + e.getMessage());
+            // 5. 全局异常捕获（避免接口直接抛出异常）
+            log.error("查询用户VIP订单历史时发生异常", e);
+            // 6. 抛给全局异常处理器处理
+            throw new RuntimeException("查询用户VIP订单历史失败，请稍后重试");
         }
     }
 
@@ -293,7 +324,7 @@ public class VipOrderService implements IVipOrderService {
                 return Result.fail("订单详情不存在");
             }
             
-            // 4. 查询用户的VIP信息（用于计算退款比例）
+            // 4. 查询用户的VIP信息
             LambdaQueryWrapper<Vip> vipQueryWrapper = new LambdaQueryWrapper<Vip>()
                     .eq(Vip::getUserId, order.getUserId())
                     .eq(Vip::getPackageId, orderItem.getProductId())

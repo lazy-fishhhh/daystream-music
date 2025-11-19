@@ -3,6 +3,7 @@ package com.future.trade.entity;
 import lombok.Data;
 
 import javax.persistence.*;
+import java.time.LocalDateTime;
 
 /**
  * 订单详情表实体类
@@ -35,6 +36,11 @@ public class OrderItem {
     @Column(name = "quantity", nullable = false)
     private Integer quantity = 1; // 购买数量（默认1）
 
+    @Column(name = "effective_time")
+    private LocalDateTime effectiveTime;
+
+    @Column(name = "expire_time")
+    private LocalDateTime expireTime;
 
     /**
      * 商品类型枚举

@@ -25,7 +25,7 @@ public class User {
     private Integer userStatus;      // 状态（0-封禁，1-正常）
     private String lastLoginIp;      // 最后登录IP
     private Integer totalPoint;      // 累计积分
-    private BigDecimal walletBalance;// 钱包余额（元）
+    private Integer walletBalance;// 钱包余额（元）
     private LocalDateTime vipExpireTime; // VIP过期时间
     private LocalDateTime lastCheckinTime; // 最近签到日期
     private String referralCode;     // 邀请码

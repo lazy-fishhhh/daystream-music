@@ -8,9 +8,7 @@ import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 
 
-/**
- * 全局唯一ID生成器
- */
+//  封装的 Redis 工具类
 @RequiredArgsConstructor
 @Component
 public class RedisTemplateWorker {
@@ -22,7 +20,10 @@ public class RedisTemplateWorker {
     public static final long COUNT_BITS = 32;
     private final StringRedisTemplate stringRedisTemplate;
 
-    public long nextId(String keyPrefix) {
+    /**
+     * 全局唯一ID生成器
+     */
+    public long createId(String keyPrefix) {
         // 1.生成时间戳
         LocalDateTime now = LocalDateTime.now();
         long epochSecond = now.toEpochSecond(ZoneOffset.UTC);
