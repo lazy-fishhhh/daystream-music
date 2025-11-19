@@ -31,18 +31,16 @@ public class VipStatusVO {
      */
     private Integer vipLevel;
     
-    /**
-     * VIP权限列表，如无损音质、VIP皮肤等
-     */
-    private List<String> vipPermissions;
-    
+
+
     /**
      * 是否已使用过免费会员（0-否，1-是）
      */
-    private Integer freeVipUsed;
-    
+    // TODO 单开一个KEY来存储是否使用过免费会员
+
+
     /**
      * 上次开通VIP的套餐名称
      */
-    private String lastPackageName;
+    private String currentPackageName;
 }

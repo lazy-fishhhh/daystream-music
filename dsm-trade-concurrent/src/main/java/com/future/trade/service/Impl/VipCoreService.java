@@ -8,8 +8,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.future.login.util.SecurityUtil;
 import com.future.trade.entity.Order;
 import com.future.trade.entity.Vip;
+import com.future.trade.entity.enums.VipPackageEnum;
 import com.future.trade.entity.vo.VipStatusVO;
-import entity.enums.VipPackageEnum;
+
 import entity.pojo.util.Result;
 import lombok.RequiredArgsConstructor;
 
@@ -51,9 +52,7 @@ public class VipCoreService implements IVipCoreService {
         defaultStatus.setVipExpireTime(LocalDateTime.MIN); // 初始化为最小时间，避免null
         defaultStatus.setRemainingDays(0); // 剩余天数为0
         defaultStatus.setVipLevel(0); // 等级为0
-        defaultStatus.setVipPermissions(null); // 无权限
-        defaultStatus.setFreeVipUsed(0); // 未使用免费VIP
-        defaultStatus.setLastPackageName(null); // 无套餐名称
+        defaultStatus.setCurrentPackageName(null); // 无套餐名称
         return defaultStatus;
     }
 
@@ -99,13 +98,28 @@ public class VipCoreService implements IVipCoreService {
                 vip.setStatus(Vip.VipStatus.EXPIRED);
                 vipMapper.updateById(vip);
                 vipStatusVO.setIsVip(0);
+                vipStatusVO.setVipExpireTime(LocalDateTime.MIN);
+                vipStatusVO.setVipLevel(0);
                 vipStatusVO.setRemainingDays(0);
             } else {
                 // 未过期：缓存过期时间 = VIP剩余有效期（秒），最多不超过24小时（避免缓存时间过长）
                 long remainingSeconds = Duration.between(now, vip.getEndTime()).getSeconds();
                 cacheExpireSeconds = Math.min(remainingSeconds, VIP_CACHE_USER_INFO_24H); // 24小时上限
                 vipStatusVO.setIsVip(1);
-                vipStatusVO.setRemainingDays(Math.toIntExact(Duration.between(now, vip.getEndTime()).toDays()));
+                vipStatusVO.setVipExpireTime(vip.getEndTime());
+                vipStatusVO.setVipLevel(vip.getLevel());
+
+                // 计算剩余天数（不满1天按1天算，刚好1天及以上按实际天数算）
+                long fullDays = Duration.between(now, vip.getEndTime()).toDays(); // 完整天数（向下取整）
+                long remainingDays;
+                if (fullDays > 0) {
+                    // 超过1天：直接用完整天数（例如1天1小时 → 1天）
+                    remainingDays = fullDays;
+                } else {
+                    // 不足1天：按1天算（但需确保未过期）
+                    remainingDays = remainingSeconds > 0 ? 1 : 0;
+                }
+                vipStatusVO.setRemainingDays(Math.toIntExact(remainingDays));
             }
 
             // 缓存处理后的状态（使用计算出的过期时间）
@@ -116,7 +130,6 @@ public class VipCoreService implements IVipCoreService {
                         cacheExpireSeconds, // 动态设置过期时间
                         TimeUnit.SECONDS
                 );
-
 
             } catch (Exception e) {
                 throw new RuntimeException("VIP信息序列化失败", e);
@@ -135,6 +148,7 @@ public class VipCoreService implements IVipCoreService {
             stringRedisTemplate.delete(USER_VIP_INFO_PREFIX + userId);
             throw new RuntimeException("VIP信息解析失败", e);
         }
+
 
         // 2. 检查VIP是否已过期
         if (vipStatusVO.getVipExpireTime().isBefore(LocalDateTime.now())) {
@@ -197,6 +211,7 @@ public class VipCoreService implements IVipCoreService {
         // 2.2. 不是VIP 插入新记录 并将VipStatus写入redis
         Vip vip = new Vip();
         vip.setUserId(userId);
+        vip.setStartTime(LocalDateTime.now());
         vip.setEndTime(LocalDateTime.now().plusDays(vipPackageEnum.getDurationDays()));
         vip.setStatus(Vip.VipStatus.ACTIVE);
         vip.setPackageId(Long.valueOf(vipPackageEnum.getId()));
@@ -214,9 +229,7 @@ public class VipCoreService implements IVipCoreService {
         vipStatusVO2.setRemainingDays(vipPackageEnum.getDurationDays());
         vipStatusVO2.setVipExpireTime(vip.getEndTime());
         vipStatusVO2.setVipLevel(vipPackageEnum.getLevel());
-//        vipStatusVO2.setVipPermissions(vipPackageEnum.getVipPermissions());
-        vipStatusVO2.setFreeVipUsed(0);
-        vipStatusVO2.setLastPackageName(vipPackageEnum.getPackageName());
+        vipStatusVO2.setCurrentPackageName(String.valueOf(vipPackageEnum.getPackageName()));
         try {
             stringRedisTemplate.opsForValue().set(USER_VIP_INFO_PREFIX + userId,
                     objectMapper.writeValueAsString(vipStatusVO2),
