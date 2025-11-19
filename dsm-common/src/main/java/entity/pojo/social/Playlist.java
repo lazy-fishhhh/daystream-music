@@ -20,7 +20,6 @@ public class Playlist {
     private Long playCount;          // 播放量
     private LocalDateTime createdTime; // 创建时间
     private LocalDateTime updatedTime; // 更新时间
-    private Long likeCount;             //点赞量
     private Long collectCount;          //收藏量
     private Long commentCount;          //评论量
 }

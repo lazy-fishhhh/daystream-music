@@ -70,6 +70,10 @@ public class RedisCacheConstants {
     public static final String USER_PERMISSION_PREFIX = "user:permission";
     /** 用户签到缓存前缀（用户ID-年度签到记录） */
     public static final String USER_SIGN_IN_PREFIX = "user:signIn";
+    /**用户收藏缓存前缀*/
+    public static final String USER_COLLECTION="user:collect";
+    /**用户点赞缓存前缀*/
+    public static final String USER_LIKE="user:like";
 
     // ==================== 音乐相关缓存 ====================
     /** 音乐元数据缓存前缀（音乐ID-元数据） */

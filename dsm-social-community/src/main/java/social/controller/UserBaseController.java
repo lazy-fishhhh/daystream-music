@@ -24,7 +24,7 @@ public class UserBaseController {
     {
         return userBaseService.likeandUnlike(likeDTO);
     }
-    @ApiOperation(value = "收藏/取消收藏",notes = "收藏和取消收藏一个接口，收藏之后再点击就取消收藏")
+    @ApiOperation(value = "收藏/取消收藏")
     @PostMapping("/collect")
     public Result<CollectionVO> collection(@Valid @RequestBody CollectionDTO collectionDTO)
     {

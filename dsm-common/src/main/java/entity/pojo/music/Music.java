@@ -28,7 +28,6 @@ public class Music {
     private Long downloadCount;      // 下载量
     private Integer status;          // 状态（0-待审核，1-上架，2-下架）
     private Long likeCount;          //点赞量
-    private Long collectCount;        //收藏量
     private Long commentCount;        //评论量
     @TableField(exist = false)
     private Integer isLike = 0;          //是否点赞（0-未点赞，1-已点赞）

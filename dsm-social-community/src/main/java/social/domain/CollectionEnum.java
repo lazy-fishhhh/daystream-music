@@ -2,12 +2,11 @@ package social.domain;
 
 
 import lombok.AllArgsConstructor;
-import org.springframework.security.core.parameters.P;
 
 @AllArgsConstructor
 public enum CollectionEnum {
-    MUSIC(1,"音乐"),
-    PLAYLIST(2,"歌单");
+    PLAYLIST(1,"歌单"),
+    AlBUM(2,"专辑");
     private Integer value;
     private String des;
     public Integer getValue()
