@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="social.mapper.Album2Mapper">
+    <select id="selectAlbumList" resultType="social.domain.vo.CollectioAlbumVO">
+        select a.id,a.album_name,a.musician_id,u.username,
+            a.cover_url,a.release_date,a.status
+        from
+            album as a
+        left join user as u on a.musician_id=u.id
+        where
+            a.id=#{targetId}
+    </select>
+</mapper>

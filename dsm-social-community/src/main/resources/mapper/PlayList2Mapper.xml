@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="social.mapper.PlayList2Mapper">
+    <select id="selectLikeMusicVO" resultType="social.domain.vo.CollectonLIstVO">
+        select p.id,p.playlist_name,p.cover_url,p.is_public,p.music_count,p.play_count,
+        p.description,p.user_id,u.username
+        from
+            playlist as p
+        left join user as u on p.user_id=u.id
+        where p.id=#{targetId}
+    </select>
+</mapper>
+

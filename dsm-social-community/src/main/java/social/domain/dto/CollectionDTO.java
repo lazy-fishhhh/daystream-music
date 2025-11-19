@@ -11,7 +11,7 @@ public class CollectionDTO {
     @NotNull(message = "收藏目标id不为空")
     private String targetId;
     /**
-     * 收藏类型 1-音乐 2 歌单
+     * 收藏类型 1-歌单 2-专辑
      */
     @NotNull(message = "收藏类型不为空")
     private Integer targetType;
