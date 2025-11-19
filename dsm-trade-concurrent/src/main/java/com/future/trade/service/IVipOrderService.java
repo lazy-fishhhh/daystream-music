@@ -9,11 +9,13 @@ import java.util.List;
 public interface IVipOrderService {
 
     @Transactional
-    Result<Void> activateVip(Long userId, Long planId);
+    Result<String> buyVip(String packageName);
 
-    Order createVipOrder(Long userId, Long packageId);
+    Order createVipOrder(Long packageId);
 
     Result<List<Order>> getUserOrderHistory(Long userId);
 
     Result<Void> processOrderRefund(Long orderId);
+
+
 }

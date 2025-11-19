@@ -21,7 +21,6 @@ import entity.pojo.social.UserCollection;
 import entity.pojo.util.PageResp;
 import entity.pojo.util.Result;
 import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

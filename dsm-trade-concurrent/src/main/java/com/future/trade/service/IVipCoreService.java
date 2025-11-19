@@ -8,5 +8,4 @@ public interface IVipCoreService {
     VipStatusVO checkAndUpdateVipStatus() throws JsonProcessingException;
     void processAutoRenewal();
 
-    Result<String> buyVip(String packageName);
 }

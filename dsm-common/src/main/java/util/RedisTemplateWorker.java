@@ -46,10 +46,9 @@ public class RedisTemplateWorker {
         return timestamp<< COUNT_BITS |  COUNT_BITS;
     }
 
-
-    public static void main(String[] args) {
-        LocalDateTime then = LocalDateTime.of(2021, 4, 3,21, 30, 30);
-        long epochSecond = then.toEpochSecond(ZoneOffset.UTC);
-        System.out.println(epochSecond);
-    }
+//    public static void main(String[] args) {
+//        LocalDateTime then = LocalDateTime.of(2021, 4, 3,21, 30, 30);
+//        long epochSecond = then.toEpochSecond(ZoneOffset.UTC);
+//        System.out.println(epochSecond);
+//    }
 }

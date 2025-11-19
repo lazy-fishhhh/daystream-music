@@ -29,16 +29,7 @@ public class VipCoreController {
     @GetMapping("/vipStatus")
     public Result<VipStatusVO> isUserVip() throws JsonProcessingException {
             return Result.ok(vipCoreService.checkAndUpdateVipStatus());
-
     }
 
 
-    /**
-     * 购买 VIP
-     */
-    @ApiOperation("购买 VIP")
-    @GetMapping("/buyVip")
-    public Result<String> buyVip(@RequestParam String packageName)  {
-        return vipCoreService.buyVip(packageName);
-    }
 }

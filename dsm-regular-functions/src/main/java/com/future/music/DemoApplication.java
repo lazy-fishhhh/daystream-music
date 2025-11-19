@@ -21,7 +21,8 @@ import org.springframework.web.bind.annotation.*;
         "com.future.trade.controller",
         "social",
         "config",
-        "annotation"
+        "annotation",
+        "util"
 })
 public class DemoApplication {
 	public static void main(String[] args) {
