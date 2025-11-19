@@ -1,10 +1,9 @@
-package service.Impl;
+package com.future.trade.service.Impl;
 
-import entity.Order;
+import com.future.trade.entity.Order;
 import entity.pojo.util.Result;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
-import service.IVipOrderService;
+import com.future.trade.service.IVipOrderService;
 
 import javax.transaction.Transactional;
 import java.util.List;

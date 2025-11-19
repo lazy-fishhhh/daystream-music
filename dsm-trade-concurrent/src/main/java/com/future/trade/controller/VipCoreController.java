@@ -1,0 +1,36 @@
+package com.future.trade.controller;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import entity.pojo.util.Result;
+import com.future.trade.entity.vo.VipStatusVO;
+import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiOperation;
+import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+import com.future.trade.service.Impl.VipCoreService;
+
+
+@Api("VIP核心服务")
+@RestController
+@RequestMapping("/vip/core")
+@RequiredArgsConstructor
+public class VipCoreController {
+
+
+    private final VipCoreService vipCoreService;
+
+    /**
+     * 检查用户VIP状态
+     */
+    @ApiOperation("检查用户VIP状态")
+    @GetMapping("/vipStatus")
+    public Result<VipStatusVO> isUserVip() {
+        try {
+            return Result.ok(vipCoreService.checkAndUpdateVipStatus());
+        } catch (JsonProcessingException e) {
+            return Result.fail("检查用户VIP状态失败");
+        }
+    }
+}

@@ -5,7 +5,9 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.future.login.util.SecurityUtil;
+import com.future.music.domain.dto.MusicPlayReportDTO;
 import com.future.music.domain.vo.MusicDetailVO;
+import com.future.music.domain.vo.MusicPlayVO;
 import com.future.music.mapper.*;
 import com.future.music.service.IMinIoService;
 
@@ -27,6 +29,7 @@ import org.springframework.transaction.interceptor.TransactionAspectSupport;
 import org.springframework.web.multipart.MultipartFile;
 import util.AudioDurationUtil;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -69,6 +72,12 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
     @Autowired
     private MusicTagRelationMapper musicTagRelationMapper;
 
+    @Autowired
+    private MusicPlayStatMapper musicPlayStatMapper;
+
+    @Autowired
+    private UserListenHistoryMapper userListenHistoryMapper;
+
     /**
      * 保存音乐信息（包含音乐主信息、音频、歌词、封面）
      * 标注 @Transactional 确保所有数据库操作在同一事务中，保证数据一致性
@@ -76,12 +85,29 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
      * @param musicDTO 音乐基本信息DTO（包含歌名、歌手等非文件信息）
      * @param lyric    歌词文件
      * @param cover    封面图片文件
-     * @param audioMap    音频文件
+     * @param audio1    音频文件
      * @return 处理结果（成功/失败信息）
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public Result saveMusic(MusicDTO musicDTO, MultipartFile lyric, MultipartFile cover, Map<Integer, MultipartFile> audioMap) {
+    public Result<Void> saveMusic(MusicDTO musicDTO, MultipartFile lyric, MultipartFile cover,
+                            MultipartFile audio1,  // 音质1：标准
+                            MultipartFile audio2,  // 音质2：高清
+                            MultipartFile audio3,  // 音质3：无损
+                            MultipartFile audio4   // 音质4：空间
+                            ) {
+        // 1. 校验至少上传一个音质
+        if (audio1 == null && audio2 == null && audio3 == null && audio4 == null) {
+            return Result.fail("至少需上传一个音质的音频文件");
+        }
+
+        // 2. 处理每个音质（示例：循环判断并上传）
+        Map<Integer, MultipartFile> audioMap = new HashMap<>();
+        if (audio1 != null && !audio1.isEmpty()) audioMap.put(1, audio1);
+        if (audio2 != null && !audio2.isEmpty()) audioMap.put(2, audio2);
+        if (audio3 != null && !audio3.isEmpty()) audioMap.put(3, audio3);
+        if (audio4 != null && !audio4.isEmpty()) audioMap.put(4, audio4);
+
         List<String> uploadedFilePaths = new ArrayList<>(); // 用于回滚删除的文件路径
 
         try {
@@ -91,7 +117,7 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
             }
 
             // 2. 校验歌词和封面文件
-            if (!minIoService.isAllowedFile(lyric, "com/future/music") || !minIoService.isAllowedFile(cover, "picture")) {
+            if (!minIoService.isAllowedFile(lyric, "lyric") || !minIoService.isAllowedFile(cover, "picture")) {
                 return Result.fail("文件格式不正确");
             }
             if (lyric.getSize() > SystemConstants.MAX_LYRIC_SIZE || cover.getSize() > SystemConstants.MAX_PICTURE_SIZE) {
@@ -99,13 +125,13 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
             }
 
             // 3. 校验音频文件集合（非空+格式+大小）+ 合并上传/时长校验/URL记录
-            if (audioMap == null || audioMap.isEmpty()) {
+            if (audioMap.isEmpty()) {
                 return Result.fail("至少需上传一个音质的音频文件");
             }
 
             Map<Integer, String> audioUrlMap = new HashMap<>(); // 音质→音频URL映射
             Map<Integer, Long> audioFileSizeMap = new HashMap<>(); // 音质→文件大小映射（新增，替代后续重复get）
-            Long baseDuration = null; // 基准时长（替代audioDurationMap，简化逻辑）
+            Integer baseDuration = null; // 基准时长
 
             // 合并循环：一次循环完成 校验→上传→时长校验→URL/大小记录
             for (Map.Entry<Integer, MultipartFile> entry : audioMap.entrySet()) {
@@ -132,7 +158,7 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
                 audioFileSizeMap.put(quality, audio.getSize()); // 记录文件大小（后续直接使用）
 
                 // 3.4 计算并校验音频时长（同一音乐所有音质需一致）
-                long duration = AudioDurationUtil.getAudioDuration(audio);
+                int duration = AudioDurationUtil.getAudioDuration(audio);
                 if (duration == -1) {
                     return Result.fail("音频（音质：" + quality + "）时长计算错误");
                 }
@@ -156,7 +182,7 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
             Music music = musicDTO.toEntity();
             music.setCoverUrl(coverName);
             music.setLyricUrl(lyricName);
-            music.setDuration(AudioDurationUtil.formatSecondsToMS(baseDuration)); // 直接用基准时长
+            music.setDuration(baseDuration); // 直接用基准时长
 
             // 6. 保存音乐主信息
             if (!this.save(music)) {
@@ -194,6 +220,7 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
             if (!uploadedFilePaths.isEmpty()) {
                 minIoService.batchDeleteFiles(uploadedFilePaths);
             }
+            TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
             return Result.fail("保存音乐失败，请稍后重试：" + e.getMessage());
         }
 
@@ -209,7 +236,7 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public Result removeMusic(Long musicId) {
+    public Result<Void> removeMusic(Long musicId) {
 
         try {
             // 校验音乐是否存在（已被删除则直接返回失败）
@@ -341,6 +368,9 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
         List<String> tags = musicTagMapper.getTagNamesByMusicId(musicId);
         musicDetailVO.setTags(tags);
 
+        // 转换时长
+        musicDetailVO.setDuration(AudioDurationUtil.formatSecondsToMS(music.getDuration()));
+
         // 返回成功结果（基础详情VO）
         return Result.ok(musicDetailVO);
     }
@@ -357,14 +387,14 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
      */
     @Override
     @Transactional(rollbackFor = Exception.class) // 事务注解：任何异常触发回滚
-    public Result updateMusic(Long musicId, MusicDTO musicDTO,
+    public Result<Void> updateMusic(Long musicId, MusicDTO musicDTO,
                               MultipartFile lyric, MultipartFile cover, Map<Integer, MultipartFile> audioMap) {
         // 存储新上传的文件路径（用于事务回滚时删除）
         List<String> newUploadedFiles = new ArrayList<>();
         // 存储待删除的旧文件路径（事务成功后删除，避免提前删除导致回滚后文件丢失）
         List<String> oldFilesToDelete = new ArrayList<>();
         // 存储新音频的时长（同一音乐不同音质时长需一致）
-        Long newDuration = null;
+        Integer newDuration = null;
 
         try {
             // 1. 校验音乐ID和原始音乐是否存在
@@ -435,7 +465,7 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
                     newUploadedFiles.add(newAudioUrl);
 
                     // 计算并校验音频时长（同一音乐所有音质时长需一致）
-                    long duration = AudioDurationUtil.getAudioDuration(audio);
+                    int duration = AudioDurationUtil.getAudioDuration(audio);
                     if (duration == -1) {
                         throw new RuntimeException("音频（音质：" + quality + "）时长计算错误");
                     }
@@ -486,7 +516,7 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
             updateMusic.setStatus(0); // 重置为待审核状态
             // 音频更新时同步更新时长，未更新则沿用旧时长
             updateMusic.setDuration(newDuration != null
-                    ? AudioDurationUtil.formatSecondsToMS(newDuration)
+                    ? newDuration
                     : oldMusic.getDuration());
             // 保留系统维护字段（播放量、下载量不允许修改）
             updateMusic.setPlayCount(oldMusic.getPlayCount());
@@ -509,6 +539,7 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
             if (!newUploadedFiles.isEmpty()) {
                 minIoService.batchDeleteFiles(newUploadedFiles);
             }
+            TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
             return Result.fail("修改音乐失败，请稍后重试：" + e.getMessage());
         }
     }
@@ -539,6 +570,9 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
         //  查询标签
         List<String> tags = musicTagMapper.getTagNamesByMusicId(musicId);
         musicDetailVO.setTags(tags);
+
+        // 转换时长
+        musicDetailVO.setDuration(AudioDurationUtil.formatSecondsToMS(music.getDuration()));
 
         // 3.1 补充专辑名称（通过专辑ID关联查询）
         Album album = albumMapper.selectById(musicDetailVO.getAlbumId());
@@ -602,7 +636,10 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
         List<MusicDetailVO> voList = new ArrayList<>();
         for (Music music : musicPage.getRecords()) {
             MusicDetailVO vo = new MusicDetailVO();
-            BeanUtils.copyProperties(music, vo);
+            vo.copyFrom(music);
+
+            // 转换时长
+            vo.setDuration(AudioDurationUtil.formatSecondsToMS(music.getDuration()));
 
             // 5.1 关联专辑名称（通过albumId查album表）
             Album album = albumMapper.selectById(music.getAlbumId());
@@ -652,6 +689,141 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
         pageResult.setPages((int) musicPage.getPages());
 
         return pageResult;
+    }
+
+    @Override
+    public Result<MusicPlayVO> playMusic(Long musicId, Integer quality) {
+        // 1. 参数校验
+        // 音乐ID非空且为正数
+        if (musicId == null || musicId <= 0) {
+            return Result.fail("音乐ID出错");
+        }
+        // 音质类型合法（1-4）
+        if (quality == null || !(quality == 1 || quality == 2 || quality == 3 || quality == 4)) {
+            return Result.fail("音质类型出错");
+        }
+
+        // 2. 校验音乐是否存在且已上架
+        Music music = musicMapper.selectById(musicId);
+        if (music == null) {
+            return Result.fail("音乐不存在");
+        }
+        if (music.getStatus() != 1) { // 1-上架状态，其他状态（0-待审核、2-下架）不可播放
+            return Result.fail("该音乐暂不支持播放");
+        }
+
+        // 3. 校验该音质的音频是否存在且文件有效
+        QueryWrapper<MusicAudio> audioWrapper = new QueryWrapper<>();
+        audioWrapper.eq("music_id", musicId)
+                .eq("quality_type", quality);
+        MusicAudio musicAudio = musicAudioMapper.selectOne(audioWrapper);
+        if (musicAudio == null) {
+            return Result.fail("不存在该音质的音频");
+        }
+        // 校验MinIO中音频文件是否存在
+        if (!minIoService.isObjectExists(musicAudio.getAudioUrl())) {
+            return Result.fail("音频文件已失效");
+        }
+
+        // 4. 生成可直接播放的音频URL（MinIO预签名URL，避免暴露原始路径）
+        String playUrl = minIoService.generatePresignedUrl(musicAudio.getAudioUrl(), 3600); // 1小时有效
+        if (playUrl == null) {
+            return Result.fail("播放链接生成失败");
+        }
+
+        // 组装返回VO
+        MusicPlayVO playVO = new MusicPlayVO();
+        playVO.setAudioUrl(playUrl);
+        playVO.setMusicName(music.getMusicName());
+        playVO.setDuration(AudioDurationUtil.formatSecondsToMS(music.getDuration()));
+        playVO.setIsVip(music.getIsVip());
+
+        // 关联查询音乐人名称
+        Musician musician = musicianMapper.selectById(music.getMusicianId());
+        if (musician != null) {
+            playVO.setMusicianName(musician.getStageName());
+        }
+
+        return Result.ok(playVO);
+    }
+
+    /**
+     * 2. 上报播放状态，达标则统计播放量
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public Result<Void> reportPlayStatus(MusicPlayReportDTO dto) {
+        try {
+            // 1. 参数校验
+            if (dto.getMusicId() == null || dto.getPlayedDuration() == null) {
+                return Result.fail("上报参数不完整");
+            }
+            Long userId = dto.getUserId();
+            Long musicId = dto.getMusicId();
+            int playedSeconds = dto.getPlayedDuration();
+            Music music = musicMapper.selectById(musicId);
+            int totalSeconds = music.getDuration();
+
+            // 2. 未登录用户不计入播放量
+            if (userId == null) {
+                return Result.fail("未登录用户，不统计播放量");
+            }
+
+            // 3. 校验统计条件（达标条件：满足任一）
+            int threshold = (int) (totalSeconds * SystemConstants.MIN_PLAY_RATIO);
+            if (playedSeconds < threshold) {
+                return Result.fail("播放时长未达标，不统计播放量");
+            }
+
+            // 4. 防重复统计（24小时内同一用户对同一首歌仅统计1次）
+            LocalDateTime yesterday = LocalDateTime.now().minusDays(1);
+            QueryWrapper<MusicPlayStat> statWrapper = new QueryWrapper<>();
+            statWrapper.eq("user_id", userId)
+                    .eq("music_id", musicId)
+                    .ge("create_time", yesterday);
+            if (musicPlayStatMapper.selectCount(statWrapper) > 0) {
+                return Result.fail("24小时内已统计过该歌曲播放量");
+            }
+
+            // 5. 统计播放量（音乐表play_count+1）
+            Music updateMusic = this.getById(musicId);
+            updateMusic.setPlayCount(updateMusic.getPlayCount() + 1);
+            if (!this.updateById(updateMusic)) {
+                throw new RuntimeException("播放量更新失败");
+            }
+
+            // 统计用户听歌记录
+            QueryWrapper<UserListenHistory> historyWrapper = new QueryWrapper<>();
+            historyWrapper.eq("music_id", musicId)
+                    .eq("user_id", userId);
+            UserListenHistory userListenHistory = userListenHistoryMapper.selectOne(historyWrapper);
+            if (userListenHistory == null) {
+                userListenHistory = new UserListenHistory();
+                userListenHistory.setUserId(userId);
+                userListenHistory.setMusicId(musicId);
+                userListenHistory.setListenCount(0);
+                if (userListenHistoryMapper.insert(userListenHistory) != 1){
+                    return Result.fail("统计用户听歌记录失败");
+                }
+            }else{
+                userListenHistory.setListenCount(userListenHistory.getListenCount() + 1);
+                if (userListenHistoryMapper.updateById(userListenHistory) != 1){
+                    return Result.fail("统计用户听歌记录失败");
+                }
+            }
+
+            // 6. 记录统计日志（用于防重复）
+            MusicPlayStat playStat = new MusicPlayStat();
+            playStat.setUserId(userId);
+            playStat.setMusicId(musicId);
+            playStat.setCreateTime(LocalDateTime.now());
+            musicPlayStatMapper.insert(playStat);
+        }catch (Exception e){
+            TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
+            return Result.fail("修改音乐失败，请稍后重试：" + e.getMessage());
+        }
+
+        return Result.ok();
     }
 
 }

@@ -51,4 +51,6 @@ public interface IMinIoService {
 
     boolean isAllowedFile(MultipartFile file, String type);
 
+    String generatePresignedUrl(String objectName, int expireSeconds);
+
 }

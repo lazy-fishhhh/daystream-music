@@ -1,4 +1,4 @@
-package controller;
+package com.future.trade.controller;
 
 
 import io.swagger.annotations.ApiOperation;
@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/vip/order")
 public class VipOrderController {
+
 
 
 

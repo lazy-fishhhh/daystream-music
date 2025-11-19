@@ -1,4 +1,4 @@
-package entity;
+package com.future.trade.entity;
 
 import com.baomidou.mybatisplus.core.metadata.OrderItem;
 import lombok.Data;

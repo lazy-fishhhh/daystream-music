@@ -33,7 +33,6 @@ public class MusicDetailVO {
         this.musicName = music.getMusicName();
         this.albumId = music.getAlbumId();
         this.musicianId = music.getMusicianId();
-        this.duration = music.getDuration();
         this.lyricUrl = music.getLyricUrl();
         this.coverUrl = music.getCoverUrl();
         this.bpm = music.getBpm();

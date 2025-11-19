@@ -1,4 +1,4 @@
-package service;
+package com.future.trade.service;
 
 import entity.pojo.util.Result;
 

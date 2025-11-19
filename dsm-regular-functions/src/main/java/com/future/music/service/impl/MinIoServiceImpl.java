@@ -1,8 +1,10 @@
 package com.future.music.service.impl;
 
 import com.future.music.service.IMinIoService;
+import constants.SystemConstants;
 import io.minio.*;
 import io.minio.errors.*;
+import io.minio.http.Method;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -12,6 +14,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.URL;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.security.InvalidKeyException;
@@ -194,6 +197,8 @@ class MinIoServiceImpl implements IMinIoService {
             allowedExtensions = Arrays.asList("mp3", "flac", "aac", "wav", "m4a");
         }else if (type.equals("picture")) {
             allowedExtensions = Arrays.asList("jpg", "jpeg", "png", "gif");
+        }else if (type.equals("lyric")) {
+            allowedExtensions = Arrays.asList("lrc","txt","krc","srt");
         }
 
         if (file.isEmpty()) {
@@ -210,6 +215,30 @@ class MinIoServiceImpl implements IMinIoService {
         String extension = originalFilename.substring(originalFilename.lastIndexOf(".") + 1).toLowerCase();
 
         return allowedExtensions.contains(extension);
+    }
+
+    /**
+     * 生成MinIO文件预签名URL（临时可访问）
+     * @param objectName 文件路径（如 "audio/2025/xxx.mp3"）
+     * @param expireSeconds 过期时间（秒）
+     * @return 预签名URL（前端可直接用于音频播放）
+     */
+    @Override
+    public String generatePresignedUrl(String objectName, int expireSeconds) {
+        try {
+            // MinIO客户端生成预签名URL
+            String url = minioClient.getPresignedObjectUrl(
+                    GetPresignedObjectUrlArgs.builder()
+                            .method(Method.GET)
+                            .bucket(bucketName) // 你的MinIO桶名
+                            .object(objectName)
+                            .expiry(expireSeconds)
+                            .build()
+            );
+            return url;
+        } catch (Exception e) {
+            return null;
+        }
     }
 
 
