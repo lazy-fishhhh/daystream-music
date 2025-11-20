@@ -13,27 +13,51 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 
+/**
+ * 播放列表实体类
+ * 对应数据库中的播放列表表，存储用户创建的音乐播放列表信息
+ */
 public class Playlist {
-        private Long id;
+    /** 主键ID */
+    private Long id;
 
-        private Long userId;
+    /** 创建者用户ID */
+    private Long userId;
 
-        @TableField("playlist_name")
-        private String name;
+    /** 列表名称 */
+    @TableField("playlist_name")
+    private String name;
 
-        @TableField("cover_url")
-        private String cover;
+    /** 封面图片URL */
+    @TableField("cover_url")
+    private String cover;
 
-        private String description;
+    /** 描述信息 */
+    private String description;
 
-        private int isPublic;
+    /** 是否公开（0-私有，1-公开） */
+    private int isPublic;
 
-        private Long musicCount;
-        private Long playCount;
-        @TableField("created_time")
-        private LocalDateTime createdTime;
-        @TableField("updated_time")
-        private LocalDateTime updatedTime;
-        private Long collectCount;
-        private Long commentCount;
+    /** 包含音乐数量 */
+    private Long musicCount;
+
+    /** 播放总次数 */
+    private Long playCount;
+
+    /** 创建时间 */
+    @TableField("created_time")
+    private LocalDateTime createdTime;
+
+    /** 更新时间 */
+    @TableField("updated_time")
+    private LocalDateTime updatedTime;
+
+    /** 点赞数 */
+    private Long likeCount;
+
+    /** 收藏数 */
+    private Long collectCount;
+
+    /** 评论数 */
+    private Long commentCount;
 }

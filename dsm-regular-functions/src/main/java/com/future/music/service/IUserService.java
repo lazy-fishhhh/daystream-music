@@ -1,6 +1,8 @@
 package com.future.music.service;
 
 
+import com.future.music.domain.vo.MusicDetailVO;
+import com.future.music.domain.vo.PlaylistDetailVO;
 import entity.dto.PlayListDTO;
 import entity.pojo.music.Playlist;
 import entity.pojo.util.PageReq;
@@ -19,4 +21,6 @@ public interface IUserService {
     Result<String> checkIn();
 
     Result<Integer> getContinuousSignInDays();
+
+    Result<PlaylistDetailVO> getPlaylistDetail(Long playlistId, int pageNum, int pageSize);
 }

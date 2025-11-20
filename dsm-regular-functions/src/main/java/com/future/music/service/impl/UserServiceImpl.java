@@ -1,27 +1,41 @@
 package com.future.music.service.impl;
 
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 
 import com.future.login.domain.LoginUserDetails;
 import com.future.login.util.SecurityUtil;
-import com.future.music.mapper.PlayListMapper;
+import com.future.music.domain.vo.MusicDetailVO;
+import com.future.music.domain.vo.PlaylistDetailVO;
+import com.future.music.mapper.*;
 import com.future.music.service.IUserService;
 import entity.dto.PlayListDTO;
+import entity.pojo.music.Album;
+import entity.pojo.music.Music;
+import entity.pojo.music.Musician;
 import entity.pojo.music.Playlist;
+import entity.pojo.social.LikeRecord;
+import entity.pojo.social.UserCollection;
 import entity.pojo.util.PageReq;
 import entity.pojo.util.PageResp;
 import entity.pojo.util.Result;
+import jakarta.annotation.Resource;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.BeanUtils;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.connection.BitFieldSubCommands;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import util.AudioDurationUtil;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.List;
 
 import static com.future.music.util.constants.CHECK_IN_KEY;
@@ -30,6 +44,21 @@ import static com.future.music.util.constants.CHECK_IN_KEY;
 @RequiredArgsConstructor
 @Service
 public class UserServiceImpl  implements IUserService {
+
+    @Resource
+    private PlaylistMusicMapper playlistMusicMapper;
+
+    @Resource
+    private LikeRecordMapper likeRecordMapper;
+
+    @Resource
+    private UserCollectionMapper userCollectionMapper;
+
+    @Resource
+    private AlbumMapper albumMapper;
+
+    @Resource
+    private MusicianMapper musicianMapper;
 
     //构造方法注入
     private final StringRedisTemplate stringRedisTemplate;
@@ -231,4 +260,83 @@ public class UserServiceImpl  implements IUserService {
 
         return Result.ok(continuousDays);
     }
+
+    /**
+     * 根据歌单ID查询歌单详情（包含基本信息和关联歌曲ID）
+     * @param playlistId 歌单ID
+     * @return 歌单详情（含歌曲ID列表），若不存在则返回null
+     */
+    public Result<PlaylistDetailVO> getPlaylistDetail(Long playlistId, int pageNum, int pageSize) {
+        if (playlistId == null || playlistId <= 0) {
+            return Result.fail("歌单ID出错");
+        }
+
+        // 1. 查询歌单基本信息
+        Playlist playlist = playListMapper.selectById(playlistId);
+        if (playlist == null) {
+            return Result.fail("歌单不存在");
+        }
+
+        // 2. 查询歌单包含的歌曲ID列表（关联表查询）
+        Page<Music> page = new Page<>(pageNum,pageSize);
+        IPage<Music> musicPage = playlistMusicMapper.selectMusicsByPlaylistId(page, playlistId);
+
+        // 3. 封装成VO（视图对象，用于返回给前端）
+        PlaylistDetailVO detailVO = new PlaylistDetailVO();
+        // 复制基本属性（使用BeanUtils简化代码）
+        BeanUtils.copyProperties(playlist, detailVO);
+
+        List<MusicDetailVO> voList = new ArrayList<>();
+        for (Music music : musicPage.getRecords()) {
+            MusicDetailVO vo = new MusicDetailVO();
+            vo.copyFrom(music);
+
+            // 转换时长
+            vo.setDuration(AudioDurationUtil.formatSecondsToMS(music.getDuration()));
+
+            // 5.1 关联专辑名称（通过albumId查album表）
+            Album album = albumMapper.selectById(music.getAlbumId());
+            if (album != null) {
+                vo.setAlbumName(album.getAlbumName());
+            }
+
+            // 5.2 关联点赞、收藏状态
+            if (SecurityUtil.getCurrentUserId() != null) {
+                QueryWrapper<LikeRecord> likeWrapper = new QueryWrapper<>();
+                likeWrapper.eq("target_id", music.getId())
+                        .eq("target_type", 1)
+                        .eq("user_id", SecurityUtil.getCurrentUserId());
+                LikeRecord likeRecord = likeRecordMapper.selectOne(likeWrapper);
+                vo.setIsLiked(likeRecord != null ? 1 : 0);
+
+                QueryWrapper<UserCollection> collectionWrapper = new QueryWrapper<>();
+                collectionWrapper.eq("user_id", SecurityUtil.getCurrentUserId())
+                        .eq("target_type", 1)
+                        .eq("target_id", music.getId());
+                UserCollection userCollection = userCollectionMapper.selectOne(collectionWrapper);
+                vo.setIsCollected(userCollection != null ? 1 : 0);
+            } else {
+                vo.setIsLiked(0); // 未登录默认未点赞
+                vo.setIsCollected(0);
+            }
+
+            // 5.4 关联音乐人名字（通过musicianId查musician表）
+            Musician musician = musicianMapper.selectById(music.getMusicianId());
+            if (musician != null) {
+                vo.setMusicianName(musician.getStageName());
+            }
+
+            voList.add(vo);
+        }
+
+        PageResp<MusicDetailVO> pageResult = new PageResp<>();
+        pageResult.setRecords(voList);
+        pageResult.setTotal(musicPage.getTotal());
+        pageResult.setPages((int) musicPage.getPages());
+
+        detailVO.setMusicDetailVOList(pageResult);
+
+        return Result.ok(detailVO);
+    }
+
 }

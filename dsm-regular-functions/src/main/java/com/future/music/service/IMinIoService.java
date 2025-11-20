@@ -47,7 +47,7 @@ public interface IMinIoService {
     //判断文件是否存在
     boolean isObjectExists(String objectName);
 
-    Instant getObjectLastModified(String bucketName, String objectName) throws Exception;
+    Instant getObjectLastModified(String objectName) throws Exception;
 
     boolean isAllowedFile(MultipartFile file, String type);
 
