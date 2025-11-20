@@ -1,7 +1,10 @@
 package social.domain.vo;
 
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Data;
+
+import java.time.LocalDateTime;
 
 /**
  * 点赞歌曲表
@@ -48,4 +51,6 @@ public class LikeMusicVO {
      * 是否下架 1-上架 2-下架
      */
     private Integer status;
+    @JsonIgnore
+    private LocalDateTime updatedTime;
 }

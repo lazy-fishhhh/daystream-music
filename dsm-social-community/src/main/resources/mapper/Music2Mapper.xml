@@ -6,12 +6,42 @@
     <select id="selectLikeMusicVO" resultType="social.domain.vo.LikeMusicVO">
         select m.id,m.music_name,m.album_id,m.musician_id,m.duration,m.cover_url,m.is_vip,m.status,
         u.username as musicianName,
-        a.album_name
+        a.album_name,l.updated_time
         from
         music as m
         left join user as u on m.musician_id=u.id
         left join album as a on m.album_id=a.id
+        left join like_record l on m.id=l.target_id
         where
         m.id=#{targetId}
+        and l.user_Id=#{userId}
+    </select>
+    <select id="selectLikeMusicVOBatchIds" resultType="social.domain.vo.LikeMusicVO">
+        select m.id,m.music_name,m.album_id,m.musician_id,m.duration,m.cover_url,m.is_vip,m.status,
+        u.username as musicianName,
+        a.album_name,
+        l.updated_time
+        from
+        music as m
+        left join user as u on m.musician_id=u.id
+        left join album as a on m.album_id=a.id
+        left join like_record l on m.id=l.target_id
+        where
+            l.user_id=#{userId}
+         and l.is_canceled=0
+        <if test="lastId != null">
+            and m.id &lt; #{lastId}  <!-- 查ID比lastId小的 -->
+        </if>
+        order by l.created_time desc
+        limit #{pageSize}
+
+    </select>
+    <select id="countHasMore" resultType="Long">
+        select count(1)
+        from
+            like_record
+        where
+            user_id=#{userId}
+        and id &lt; #{lastId}
     </select>
 </mapper>

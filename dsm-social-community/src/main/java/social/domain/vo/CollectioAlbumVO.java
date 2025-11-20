@@ -1,5 +1,6 @@
 package social.domain.vo;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Data;
 
 import java.time.LocalDateTime;
@@ -34,8 +35,14 @@ public class CollectioAlbumVO {
      */
     private LocalDateTime releaseDate;
     /**
+     * 专辑简介
+     */
+    private String introduction;
+    /**
      * 状态 0-下架 1-上架
      */
     private Integer status;
+    @JsonIgnore
+    private LocalDateTime updatedTime;
 
 }
