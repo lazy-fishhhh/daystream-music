@@ -1,5 +1,7 @@
 package com.future.login.exception;
 
+import lombok.Getter;
+
 /**
  * 订单相关业务异常
  */
@@ -15,6 +17,7 @@ public class OrderException extends BusinessException {
     private static final String EXTRA_ORDER_REFUND_TIMEOUT = "orderId=%d, refundExpireTime=%s";
 
     // 3. 枚举：统一管理错误码和错误消息（核心常量）
+    @Getter
     public enum OrderError {
         // 错误码（前缀+序号）→ 错误消息
         NOT_FOUND(CODE_PREFIX + "001", "订单不存在"),
@@ -26,6 +29,7 @@ public class OrderException extends BusinessException {
         REFUND_FAIL(CODE_PREFIX + "006", "订单退款失败")
 
         ;
+        // getter
         // 错误码
         private final String code;
         // 错误消息
@@ -36,14 +40,6 @@ public class OrderException extends BusinessException {
             this.message = message;
         }
 
-        // getter
-        public String getCode() {
-            return code;
-        }
-
-        public String getMessage() {
-            return message;
-        }
     }
 
     // 4. 静态工厂方法（对外暴露，用法不变）
