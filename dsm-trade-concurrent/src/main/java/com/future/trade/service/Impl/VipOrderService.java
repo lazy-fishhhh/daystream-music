@@ -24,15 +24,21 @@ import entity.pojo.info.User;
 import entity.pojo.util.PageReq;
 import entity.pojo.util.PageResp;
 import entity.pojo.util.Result;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jetbrains.annotations.NotNull;
+import org.springframework.beans.BeansException;
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.ApplicationContextAware;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import com.future.trade.service.IVipOrderService;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 import util.RedisTemplateWorker;
 
-import javax.transaction.Transactional;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -40,6 +46,8 @@ import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 import static com.future.trade.constants.VipRedisConstant.*;
+import static constants.RedisCacheConstants.LOCK_EXPIRE_TTL;
+import static constants.TradeConstants.*;
 
 
 /**
@@ -51,7 +59,7 @@ import static com.future.trade.constants.VipRedisConstant.*;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class VipOrderService implements IVipOrderService {
+public class VipOrderService implements IVipOrderService, ApplicationContextAware {
 
     private final VipCoreService vipCoreService;
     private final VipMapper vipMapper;
@@ -62,6 +70,26 @@ public class VipOrderService implements IVipOrderService {
     private final RedisTemplateWorker redisTemplateWorker;
     private final VipPackageMapper vipPackageMapper;
     private final UserMapper userMapper;
+
+    /*
+        注入自身代理对象  —> 解决Spring事务失效原理3：自调用走目标对象而不走代理对象的问题
+     */
+    // ApplicationContext：Spring 的 “容器管家”，
+    // 所有被 Spring 管理的 Bean（包括VipOrderService、UserMapper等）都存在这里
+    private ApplicationContext applicationContext;
+    private VipOrderService selfProxy;
+
+    // 实现 ApplicationContextAware 接口，获取上下文
+    @Override
+    public void setApplicationContext(@NotNull ApplicationContext applicationContext) throws BeansException {
+        this.applicationContext = applicationContext;
+    }
+    // 初始化时获取自身代理对象(Bean创建完成后自动执行)
+    @PostConstruct
+    public void initSelfProxy() {
+        // 从上面传入的Spring容器ApplicationContext中获取 VipOrderService 类型的Bean（这里拿到的是代理对象）
+        this.selfProxy = applicationContext.getBean(VipOrderService.class);
+    }
 
     /**
      * 生成唯一订单号
@@ -120,12 +148,12 @@ public class VipOrderService implements IVipOrderService {
             stringRedisTemplate.delete(USER_VIP_INFO_PREFIX + userId);
 
             // 2.1.3调用订单服务创建订单
-            Order order = createVipOrder(Long.valueOf(vipPackageEnum.getId()));
+            Order order = selfProxy.createVipOrder(Long.valueOf(vipPackageEnum.getId()));
             // 记录订单ID到VIP记录
             vip.setOrderId(order.getId());
             vipMapper.updateById(vip);
 
-            return Result.ok("VIP续期成功");
+            return Result.ok("VIP续费成功, 有效期至" + vip.getEndTime());
         }
 
         // 2.2. 不是VIP 插入新记录 并将VipStatus写入redis
@@ -160,12 +188,12 @@ public class VipOrderService implements IVipOrderService {
         }
 
         // 2.2.3 调用订单服务创建订单
-        Order order = createVipOrder(Long.valueOf(vipPackageEnum.getId()));
+        Order order = selfProxy.createVipOrder(Long.valueOf(vipPackageEnum.getId()));
         // 记录订单ID到VIP记录
         vip.setOrderId(order.getId());
         vipMapper.updateById(vip);
 
-        return Result.ok("VIP购买成功");
+        return Result.ok("VIP购买成功, 有效期至" + vip.getEndTime());
     }
 
 
@@ -173,7 +201,8 @@ public class VipOrderService implements IVipOrderService {
     /**
      * 创建VIP购买订单
      */
-    @Transactional  // TODO 这里也有自调用啊 先沉淀一波再解决
+    // 默认就是REQUIRED 内层事务与外层事务合并 ，这里写一下帮助理解
+    @Transactional(propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
     public Order createVipOrder(Long packageId) {
         // 默认VIP只能购买一个套餐这里就不传数量了
         // 1. 验证用户和套餐信息的有效性
@@ -337,10 +366,10 @@ public class VipOrderService implements IVipOrderService {
                     .orderByDesc(Vip::getCreatedTime);
             Vip vip = vipMapper.selectOne(vipQueryWrapper);
             
-            // 5. 计算退款金额（简化版：全额退款，实际应按使用比例计算）
+            // 5. 计算退款金额（全额退款）
             Integer refundAmount = order.getPayAmount();
             
-            // 6. 调用支付服务执行退款（模拟实现）
+            // TODO 6. 调用支付服务执行退款（模拟实现）
             boolean refundSuccess = true; // 假设退款成功
 
             // 7. 更新订单状态为已退款
@@ -358,7 +387,7 @@ public class VipOrderService implements IVipOrderService {
                 stringRedisTemplate.delete(USER_VIP_INFO_PREFIX + order.getUserId());
             }
 
-            // 9. 记录退款日志和发送通知（模拟实现）
+            // TODO 9. 记录退款日志和发送通知（模拟实现）
             logRefundInfo(order, refundAmount);
 
             return Result.ok();
@@ -388,7 +417,8 @@ public class VipOrderService implements IVipOrderService {
     public void scheduledAutoRenewal() {
         try {
             // 1. 执行自动续费
-            vipCoreService.processAutoRenewal();
+            // 自注入代理对象，解决自调用事务失效问题
+            selfProxy.processAutoRenewal();
 
             System.out.println("VIP自动续费定时任务执行完成: " + LocalDateTime.now());
         } catch (Exception e) {
@@ -402,7 +432,7 @@ public class VipOrderService implements IVipOrderService {
      * 自动续费核心逻辑
      * 筛选用户 -> 扣款 + 下订单 + 更新用户状态 -> 发送通知
      */
-    @Transactional
+//    @Transactional  事务加在这的话粒度太大了吧 所有用户处于同一个事务
     public void processAutoRenewal() {
         //筛选用户 -> 扣款 + 下订单 + 更新用户状态 -> 发送通知
 
@@ -426,97 +456,103 @@ public class VipOrderService implements IVipOrderService {
         for (Vip vip : toRenewVips) {
             Long userId = vip.getUserId();
             Long vipId = vip.getId();
-            // 默认续费月套餐
-            Long packageId = Long.valueOf(VipPackageEnum.MONTH.getId());
-            String lockKey = "vip:renew:lock:" + userId; // 分布式锁，防止重复续费
-
-            try {
-                // 3. 分布式锁：防止同一用户被多线程重复续费（过期时间30秒）
-                Boolean lockSuccess = stringRedisTemplate.opsForValue()
-                        .setIfAbsent(lockKey, "locked", 30, java.util.concurrent.TimeUnit.SECONDS);
-                if (Boolean.FALSE.equals(lockSuccess)) {
-                    log.warn("用户[{}]VIP续费失败：获取分布式锁失败（可能正在续费中）", userId);
-                    continue;
-                }
-
-                // 4. 再次校验VIP状态（防止并发修改）
-                Vip latestVip = vipMapper.selectById(vipId);
-                if (latestVip == null || !latestVip.getAutoRenew() || latestVip.getStatus() != Vip.VipStatus.ACTIVE) {
-                    log.warn("用户[{}]VIP续费失败：自动续费已关闭或VIP状态异常", userId);
-                    continue;
-                }
-
-                // 5. 校验套餐状态（是否上架）
-                VipPackage vipPackage = vipPackageMapper.selectById(packageId);
-                if (vipPackage == null || vipPackage.getStatus() != 1) {
-                    log.error("用户[{}]VIP续费失败：套餐不存在或已下架，套餐ID：{}", userId, packageId);
-                    // 关闭自动续费（避免后续重复尝试）
-                    latestVip.setAutoRenew(false);
-                    vipMapper.updateById(latestVip);
-                    // 记录失败日志
-//                    recordRenewLog(userId, vipId, null, packageId, vipPackage.getCurrentPrice(), 2, "套餐不存在或已下架");
-                    continue;
-                }
-
-                // 6. 校验用户余额
-                User user = userMapper.selectById(userId);
-                if (user == null) {
-                    log.error("用户[{}]VIP续费失败：用户不存在", userId);
-//                    recordRenewLog(userId, vipId, null, packageId, vipPackage.getCurrentPrice(), 2, "用户不存在");
-                    continue;
-                }
-                if (user.getWalletBalance() < vipPackage.getCurrentPrice()) {
-                    log.error("用户[{}]VIP续费失败：余额不足（当前余额：{}，所需金额：{}）",
-                            userId, user.getWalletBalance(), vipPackage.getCurrentPrice());
-                    // 关闭自动续费（避免后续重复尝试）
-                    latestVip.setAutoRenew(false);
-                    vipMapper.updateById(latestVip);
-//                    recordRenewLog(userId, vipId, null, packageId, vipPackage.getCurrentPrice(), 2, "余额不足");
-                    continue;
-                }
-
-                // 7. 执行续费：扣减余额 + 延长VIP有效期 + 生成订单
-                int renewAmount = vipPackage.getCurrentPrice();
-
-                // 7.1 扣减用户余额
-                user.setWalletBalance(user.getWalletBalance() - renewAmount);
-                userMapper.updateById(user);
-
-                // 7.2 延长VIP有效期
-                LocalDateTime newEndTime = latestVip.getEndTime().plusDays(vipPackage.getDurationDays());
-                latestVip.setEndTime(newEndTime);
-                latestVip.setRenewalCount(latestVip.getRenewalCount() + 1); // 续费次数+1
-                latestVip.setRenewalTime(now); // 更新续费时间
-                latestVip.setUpdatedTime(now);
-                latestVip.setPackageId(packageId);
-                vipMapper.updateById(latestVip);
-
-                // 7.3 生成续费订单（复用createVipOrder方法，注意订单类型标记为“续费”）
-                Order renewOrder = createRenewOrder(packageId, userId, vipPackage);
-                // 更新VIP关联的订单ID
-                latestVip.setOrderId(renewOrder.getId());
-                vipMapper.updateById(latestVip);
-
-                // 7.4 清除VIP缓存（刷新用户VIP状态）
-                stringRedisTemplate.delete(USER_VIP_INFO_PREFIX + userId);
-
-                // 7.5 记录续费成功日志
-                //续费日志
-//                recordRenewLog(userId, vipId, renewOrder.getId(), packageId, renewAmount, 1, null);
-                log.info("用户[{}]VIP续费成功：套餐ID={}，续费金额={}，新过期时间={}，订单号={}",
-                        userId, packageId, renewAmount, newEndTime, renewOrder.getOrderNo());
-
-            } catch (Exception e) {
-                log.error("用户[{}]VIP续费异常", userId, e);
-                //续费日志
-//                recordRenewLog(userId, vipId, null, packageId, 0, 2, e.getMessage());
-            } finally {
-                // 释放分布式锁
-                stringRedisTemplate.delete(lockKey);
-            }
+            // 给每个用户单独开启一个事务，确保隔离性
+            selfProxy.singleUserRenewal(userId, vipId, now);
         }
 
         log.info("VIP自动续费任务执行完毕，共处理{}个待续费用户", toRenewVips.size());
+    }
+
+    @Transactional //多个 SQL 归为一个事务
+    public void singleUserRenewal(Long userId, Long vipId, LocalDateTime now) {
+        // 默认续费月套餐
+        Long packageId = Long.valueOf(VipPackageEnum.MONTH.getId());
+        String lockKey = VIP_RENEW_LOCK + userId; // 分布式锁，防止重复续费
+
+        try {
+            // 3. 分布式锁：防止同一用户被多线程重复续费（过期时间30秒）
+            Boolean lockSuccess = stringRedisTemplate.opsForValue()
+                    .setIfAbsent(lockKey, LOCKED_VALUE, LOCK_EXPIRE_TTL, java.util.concurrent.TimeUnit.SECONDS);
+            if (Boolean.FALSE.equals(lockSuccess)) {
+                log.warn("用户[{}]VIP续费失败：获取分布式锁失败（可能正在续费中）", userId);
+                return;
+            }
+
+            // 4. 再次校验VIP状态（防止并发修改）
+            Vip latestVip = vipMapper.selectById(vipId);
+            if (latestVip == null || !latestVip.getAutoRenew() || latestVip.getStatus() != Vip.VipStatus.ACTIVE) {
+                log.warn("用户[{}]VIP续费失败：自动续费已关闭或VIP状态异常", userId);
+                return;
+            }
+
+            // 5. 校验套餐状态（是否上架）
+            VipPackage vipPackage = vipPackageMapper.selectById(packageId);
+            if (vipPackage == null || vipPackage.getStatus() != 1) {
+                log.error("用户[{}]VIP续费失败：套餐不存在或已下架，套餐ID：{}", userId, packageId);
+                // 关闭自动续费（避免后续重复尝试）
+                latestVip.setAutoRenew(false);
+                vipMapper.updateById(latestVip);
+                // 记录失败日志
+//                    recordRenewLog(userId, vipId, null, packageId, vipPackage.getCurrentPrice(), 2, "套餐不存在或已下架");
+                return;
+            }
+
+            // 6. 校验用户余额
+            User user = userMapper.selectById(userId);
+            if (user == null) {
+                log.error("用户[{}]VIP续费失败：用户不存在", userId);
+//                    recordRenewLog(userId, vipId, null, packageId, vipPackage.getCurrentPrice(), 2, "用户不存在");
+                return;
+            }
+            if (user.getWalletBalance() < vipPackage.getCurrentPrice()) {
+                log.error("用户[{}]VIP续费失败：余额不足（当前余额：{}，所需金额：{}）",
+                        userId, user.getWalletBalance(), vipPackage.getCurrentPrice());
+                // 关闭自动续费（避免后续重复尝试）
+                latestVip.setAutoRenew(false);
+                vipMapper.updateById(latestVip);
+//                    recordRenewLog(userId, vipId, null, packageId, vipPackage.getCurrentPrice(), 2, "余额不足");
+                return;
+            }
+
+            // 7. 执行续费：扣减余额 + 延长VIP有效期 + 生成订单
+            int renewAmount = vipPackage.getCurrentPrice();
+
+            // 7.1 扣减用户余额
+            user.setWalletBalance(user.getWalletBalance() - renewAmount);
+            userMapper.updateById(user);
+
+            // 7.2 延长VIP有效期
+            LocalDateTime newEndTime = latestVip.getEndTime().plusDays(vipPackage.getDurationDays());
+            latestVip.setEndTime(newEndTime);
+            latestVip.setRenewalCount(latestVip.getRenewalCount() + 1); // 续费次数+1
+            latestVip.setRenewalTime(now); // 更新续费时间
+            latestVip.setUpdatedTime(now);
+            latestVip.setPackageId(packageId);
+            vipMapper.updateById(latestVip);
+
+            // 7.3 生成续费订单（复用createVipOrder方法，注意订单类型标记为“续费”）
+            Order renewOrder = selfProxy.createRenewOrder(packageId, userId, vipPackage);
+            // 更新VIP关联的订单ID
+            latestVip.setOrderId(renewOrder.getId());
+            vipMapper.updateById(latestVip);
+
+            // 7.4 清除VIP缓存（刷新用户VIP状态）
+            stringRedisTemplate.delete(USER_VIP_INFO_PREFIX + userId);
+
+            // 7.5 记录续费成功日志
+            //续费日志
+//                recordRenewLog(userId, vipId, renewOrder.getId(), packageId, renewAmount, 1, null);
+            log.info("用户[{}]VIP续费成功：套餐ID={}，续费金额={}，新过期时间={}，订单号={}",
+                    userId, packageId, renewAmount, newEndTime, renewOrder.getOrderNo());
+
+        } catch (Exception e) {
+            log.error("用户[{}]VIP续费异常", userId, e);
+            //续费日志
+//                recordRenewLog(userId, vipId, null, packageId, 0, 2, e.getMessage());
+        } finally {
+            // 释放分布式锁
+            stringRedisTemplate.delete(lockKey);
+        }
     }
 
     /**
@@ -555,7 +591,7 @@ public class VipOrderService implements IVipOrderService {
      */
     private String generateRenewOrderNo() {
         long id = redisTemplateWorker.createId("vip_renew_order");
-        return "RENEW_" + id;
+        return VIP_RENEW_PREFIX + id;
     }
 
 //    /**
