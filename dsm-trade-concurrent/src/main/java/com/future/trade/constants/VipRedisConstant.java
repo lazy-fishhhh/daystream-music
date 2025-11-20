@@ -4,9 +4,18 @@ package com.future.trade.constants;
  * VIP Redis缓存前缀常量（单独一类，便于缓存管理）
  */
 public class VipRedisConstant {
+    // ====================================== 缓存前缀 ======================================
+    // 订单缓存
+    public static final String VIP_ORDER_INFO_PREFIX = "vip:order:info:";
+    public static final String VIP_ORDER_LIST_PREFIX = "vip:order:list:";
+    public static final String VIP_ORDER_COUNT_PREFIX = "vip:order:count:";
+    public static final String VIP_ORDER_USER_LIST_PREFIX = "vip:order:user:list:";
+    public static final String VIP_ORDER_USER_COUNT_PREFIX = "vip:order:user:count:";
+    public static final String VIP_ORDER_USER_INFO_PREFIX = "vip:order:user:info:";
+
     // 套餐缓存
-    public static final String PACKAGE_INFO_PREFIX = "vip:package:info:";
-    public static final String PACKAGE_LIST_PREFIX = "vip:package:list:";
+    public static final String VIP_PACKAGE_INFO_PREFIX = "vip:package:info:";
+    public static final String VIP_PACKAGE_LIST_PREFIX = "vip:package:list:";
 
     // 用户VIP缓存
     public static final String USER_VIP_INFO_PREFIX = "vip:user:info:";

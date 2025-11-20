@@ -1,19 +1,20 @@
 package com.future.trade.service;
 
-import com.future.trade.entity.Order;
+import com.future.trade.entity.OrderDetailVO;
+import entity.pojo.util.PageReq;
+import entity.pojo.util.PageResp;
 import entity.pojo.util.Result;
 
 import javax.transaction.Transactional;
-import java.util.List;
 
 public interface IVipOrderService {
 
     @Transactional
-    Result<Void> activateVip(Long userId, Long planId);
+    Result<String> buyVip(String packageName);
 
-    Order createVipOrder(Long userId, Long packageId);
-
-    Result<List<Order>> getUserOrderHistory(Long userId);
+    Result<PageResp<OrderDetailVO>> getUserOrderHistory(PageReq pageReq);
 
     Result<Void> processOrderRefund(Long orderId);
+
+
 }

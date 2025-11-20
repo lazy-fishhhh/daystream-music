@@ -1,5 +1,6 @@
 package com.future.trade.entity;
 
+import com.baomidou.mybatisplus.annotation.EnumValue;
 import lombok.Data;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
@@ -71,12 +72,33 @@ public class Vip {
     public long getRemainingDays() {
         return Duration.between(LocalDateTime.now(), endTime).toDays();
     }
-    
+
+
+    // VIP状态枚举（内部类）
     public enum VipStatus {
-        ACTIVE, EXPIRED, CANCELLED
+        ACTIVE("ACTIVE"),    // 对应数据库存储值 "ACTIVE"
+        EXPIRED("EXPIRED"),  // 对应数据库存储值 "EXPIRED"
+        CANCELLED("CANCELLED"); // 对应数据库存储值 "CANCELLED"
+
+        @EnumValue  // 标记该字段为数据库存储值
+        private final String code;
+
+        VipStatus(String code) {
+            this.code = code;
+        }
     }
-    
+
+    // VIP来源枚举（内部类）
     public enum VipSource {
-        PURCHASE, GIFT, PROMOTION
+        PURCHASE("PURCHASE"),    // 对应数据库存储值 "PURCHASE"
+        GIFT("GIFT"),            // 对应数据库存储值 "GIFT"
+        PROMOTION("PROMOTION");  // 对应数据库存储值 "PROMOTION"
+
+        @EnumValue  // 标记该字段为数据库存储值
+        private final String code;
+
+        VipSource(String code) {
+            this.code = code;
+        }
     }
 }

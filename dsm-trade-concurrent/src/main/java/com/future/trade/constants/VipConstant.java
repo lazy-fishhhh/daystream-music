@@ -4,6 +4,9 @@ package com.future.trade.constants;
  * VIP业务核心常量（聚合套餐、会员相关枚举+基础配置）
  */
 public class VipConstant {
+    private static final String VIP = "vip";
+
+
     // 1. 套餐相关（类型+状态）
     public static class Package {
         // 套餐类型
