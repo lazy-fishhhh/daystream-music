@@ -15,6 +15,8 @@ public enum BusinessErrorCode  {
      * 用户不存在
      */
     USER_NOT_FOUND("BUSINESS_ERROR_10002", "用户不存在"),
+    PARAM_ERROR("BUSINESS_ERROR_10003", "参数错误"),
+
     ;
 
     private final String code;

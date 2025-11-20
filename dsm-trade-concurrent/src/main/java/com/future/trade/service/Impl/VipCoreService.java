@@ -2,16 +2,17 @@ package com.future.trade.service.Impl;
 
 
 import cn.hutool.core.bean.BeanUtil;
+import code.BusinessErrorCode;
+import code.UserErrorCode;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.future.login.exception.BusinessException;
 import com.future.login.exception.VipStatusException;
 import com.future.login.util.SecurityUtil;
 import com.future.trade.constants.VipRedisConstant;
-import com.future.trade.entity.Order;
 import com.future.trade.entity.Vip;
-import com.future.trade.entity.enums.VipPackageEnum;
 import com.future.trade.entity.vo.VipStatusVO;
 
 import entity.pojo.util.Result;
@@ -19,7 +20,9 @@ import lombok.RequiredArgsConstructor;
 
 
 import com.future.trade.mapper.VipMapper;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import com.future.trade.service.IVipCoreService;
 
@@ -27,7 +30,6 @@ import javax.transaction.Transactional;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 import static com.future.trade.constants.VipRedisConstant.*;
@@ -41,6 +43,7 @@ import static com.future.trade.constants.VipRedisConstant.*;
  */
 @RequiredArgsConstructor
 @Service
+@Slf4j
 public class VipCoreService implements IVipCoreService {
     private final VipMapper vipMapper;
     private final StringRedisTemplate stringRedisTemplate;
@@ -167,7 +170,42 @@ public class VipCoreService implements IVipCoreService {
     }
 
 
+    /**
+     * 开启/关闭自动续费
+     */
+    @Transactional
+    @Override
+    public Result<String> toggleAutoRenew(Integer autoRenew) {
+        Long userId = SecurityUtil.getCurrentUserId();
+        if (userId == null) {
+            throw new BusinessException(UserErrorCode.LOGIN_STATE_INVALID.getCode(), "用户未登录");
+        }
+        if (autoRenew == null || (autoRenew != 0 && autoRenew != 1)) {
+            throw new BusinessException(BusinessErrorCode.PARAM_ERROR.getCode(), "无效的自动续费状态（仅支持0/1）");
+        }
 
+        // 查询用户当前有效的VIP记录
+        Vip vip = vipMapper.selectOne(new LambdaQueryWrapper<Vip>()
+                .eq(Vip::getUserId, userId)
+                .eq(Vip::getStatus, Vip.VipStatus.ACTIVE)
+                .orderByDesc(Vip::getEndTime)
+                .last("LIMIT 1"));
+        if (vip == null) {
+            throw VipStatusException.recordNotFound(userId);
+        }
+
+        // 更新自动续费状态
+        vip.setAutoRenew(autoRenew == 1);
+        vip.setUpdatedTime(LocalDateTime.now());
+        vipMapper.updateById(vip);
+
+        // 清除VIP缓存（刷新状态）
+        stringRedisTemplate.delete(USER_VIP_INFO_PREFIX + userId);
+
+        String msg = autoRenew == 1 ? "自动续费开启成功" : "自动续费关闭成功";
+        log.info("用户[{}]{}，VIP记录ID：{}", userId, msg, vip.getId());
+        return Result.ok(msg);
+    }
 
 
     /**
@@ -184,19 +222,23 @@ public class VipCoreService implements IVipCoreService {
     /**
      * 处理VIP自动续费
      */
+
+    @Transactional
     @Override
     public void processAutoRenewal() {
+
+
         // 1. 查询即将到期且开启自动续费的VIP用户
         List<Vip> usersToRenew = findUsersForAutoRenewal();
-        
+
         // 2. 遍历用户执行自动续费
         for (Vip vip : usersToRenew) {
             try {
                 // 创建分布式锁，防止并发续费
                 String lockKey = "vip:renew:lock:" + vip.getUserId();
-                Boolean locked = stringRedisTemplate.opsForValue().setIfAbsent(lockKey, "1", 
+                Boolean locked = stringRedisTemplate.opsForValue().setIfAbsent(lockKey, "1",
                         VipRedisConstant.VIP_CONCURRENT_LOCK_1MIN, TimeUnit.SECONDS);
-                
+
                 if (Boolean.TRUE.equals(locked)) {
                     try {
                         // 再次检查用户状态，确保未被其他线程处理
@@ -204,7 +246,8 @@ public class VipCoreService implements IVipCoreService {
                         if (latestVip != null && latestVip.getAutoRenew() && isDueForRenewal(latestVip)) {
                             // 调用支付服务执行自动扣款
                             boolean paymentSuccess = processAutoPayment(latestVip);
-                            
+
+
                             if (paymentSuccess) {
                                 // 根据扣款结果更新VIP有效期
                                 boolean renewalSuccess = renewVipSubscription(latestVip);
@@ -230,7 +273,7 @@ public class VipCoreService implements IVipCoreService {
             }
         }
     }
-    
+
     /**
      * 查询即将到期且开启自动续费的VIP用户
      */
@@ -278,8 +321,8 @@ public class VipCoreService implements IVipCoreService {
     @Transactional
     public boolean renewVipSubscription(Vip vip) {
         try {
-            // 计算续费后的结束时间（假设使用相同的套餐时长，实际应从套餐配置中获取）
-            long durationDays = 30; // 默认30天，实际应根据套餐ID查询
+            // 计算续费后的结束时间
+            long durationDays = 30; // 默认续费30天
             
             // 更新VIP信息
             vip.setEndTime(vip.getEndTime().plusDays(durationDays));
@@ -300,7 +343,7 @@ public class VipCoreService implements IVipCoreService {
             return false;
         }
     }
-    
+
     /**
      * 发送续费成功通知
      */
@@ -336,10 +379,10 @@ public class VipCoreService implements IVipCoreService {
     }
     
     /**
-     * 记录续费信息日志
+     * 模拟记录续费信息日志
+     * 实际应用中应使用WebSocket向用户推送续费成功/失败消息
      */
     private void logRenewalInfo(Vip vip, String message) {
-        // 实际应用中应使用日志框架记录
         System.out.println(String.format("[%s] 用户ID: %d, VIP ID: %d, %s", 
                 LocalDateTime.now(), vip.getUserId(), vip.getId(), message));
     }
@@ -349,20 +392,10 @@ public class VipCoreService implements IVipCoreService {
      */
     private void logRenewalError(Vip vip, String errorMessage) {
         // 实际应用中应使用日志框架记录
-        System.err.println(String.format("[%s] 错误 - 用户ID: %d, VIP ID: %d, %s", 
+        System.err.println(String.format("[%s] 错误 - 用户ID: %d, VIP ID: %d, %s",
                 LocalDateTime.now(), vip.getUserId(), vip.getId(), errorMessage));
     }
 
 
 
-//    /**
-//     * 升级用户VIP等级
-//     */
-//    public void upgradeVipLevel(Long userId, Integer targetLevel) {
-//        // 1. 验证目标等级的有效性
-//        // 2. 检查用户当前VIP状态
-//        // 3. 计算升级费用和新的有效期
-//        // 4. 更新用户VIP等级和权益
-//        // 5. 发送升级成功通知
-//    }
 }
