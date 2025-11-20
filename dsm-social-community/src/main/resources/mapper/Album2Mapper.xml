@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="social.mapper.Album2Mapper">
+    <select id="selectAlbumList" resultType="social.domain.vo.CollectioAlbumVO">
+        select a.id,a.album_name,a.musician_id,u.username,
+            a.cover_url,a.release_date,a.status,c.updated_time,a.introduction
+        from
+            album as a
+        left join user as u on a.musician_id=u.id
+        left join user_collection as c on a.id=c.target_id
+        where
+            a.id=#{targetId}
+            and c.user_id=#{userId}
+    </select>
+    <select id="selectAlbumListBatchIds" resultType="social.domain.vo.CollectioAlbumVO">
+        select a.id,a.album_name,a.musician_id,u.username,
+        a.cover_url,a.release_date,a.status,c.updated_time,a.introduction
+        from
+        album as a
+        left join user as u on a.musician_id=u.id
+        left join user_collection as c on a.id=c.target_id
+        where
+        c.user_id=#{userId}
+        and c.is_canceled=0
+        <if test="lastId!=null">
+            and a.id &lt; #{lastId}
+        </if>
+        order by c.updated_time desc
+        limit #{pageSize}
+    </select>
+</mapper>

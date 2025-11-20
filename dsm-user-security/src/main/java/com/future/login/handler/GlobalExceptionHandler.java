@@ -1,7 +1,8 @@
 package com.future.login.handler;
+import com.future.login.exception.*;
+
 import entity.pojo.util.Result;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.BindException;
 import org.springframework.validation.FieldError;
@@ -19,6 +20,45 @@ import static code.UserErrorCode.PARAM_ERROR;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    @ExceptionHandler(VipStatusException.class)
+    public Result<?> handleVipStatusException(VipStatusException e) {
+        log.warn("会员状态异常: {}", e.getMessage());
+        return Result.fail(e.getCode(), e.getMessage());
+    }
+
+    @ExceptionHandler(VipPackageException.class)
+    public Result<?> handleVipPackageException(VipPackageException e) {
+        log.warn("会员套餐异常: {}", e.getMessage());
+        return Result.fail(e.getCode(), e.getMessage());
+    }
+
+    @ExceptionHandler(OrderException.class)
+    public Result<?> handleOrderException(OrderException e) {
+        log.warn("订单异常: {}", e.getMessage());
+        return Result.fail(e.getCode(), e.getMessage());
+    }
+
+
+    @ExceptionHandler(AutoRenewException.class)
+    public Result<?> handleAutoRenewException(AutoRenewException e) {
+        log.warn("自动续费异常: {}", e.getMessage());
+        return Result.fail(e.getCode(), e.getMessage());
+    }
+
+    @ExceptionHandler(RuntimeException.class)
+    public Result<?> handleRuntimeException(RuntimeException e) {
+        log.error("系统异常: ", e);
+        return Result.fail(SYSTEM_ERROR.getCode(),"服务器出错啦~请联系技术人员排查");
+    }
+
+    /**
+     * 处理业务异常
+     */
+    @ExceptionHandler(BusinessException.class)
+    public Result<?> handleBusinessException(BusinessException e) {
+        log.warn("业务异常: {}，扩展信息: {}", e.getMessage(), e.getExtra());
+        return Result.fail(e.getCode(), e.getMessage());
+    }
     /**
      * 处理 JSON 解析异常（比如前端传了非法 JSON）
      */
@@ -58,6 +98,9 @@ public class GlobalExceptionHandler {
     /**
      * 统一兜底：捕获所有其他未处理的异常，避免暴露敏感信息
      */
+
+
+
     @ExceptionHandler(Exception.class)
     public Result<?> handleException(Exception e) {
         log.error("系统异常: ", e);

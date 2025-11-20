@@ -10,9 +10,9 @@ public class PageReq {
     /**
      * 当前页码
      */
-    @NotNull
+    @NotNull // 对int无效
     @Min(value = 1, message = "页码不能小于1")
-    private int pageNum = 1;
+    private Integer pageNum = 1;
 
 
     /**
@@ -20,5 +20,5 @@ public class PageReq {
      */
     @Min(value = 1, message = "每页条数不能小于1")
     @Max(value = 100, message = "每页条数不能大于100")
-    private int pageSize = 10;
+    private Integer pageSize = 10;
 }

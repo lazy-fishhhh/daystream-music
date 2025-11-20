@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="social.mapper.PlayList2Mapper">
+    <select id="selectLikeMusicVO" resultType="social.domain.vo.CollectonLIstVO">
+        select p.id,p.playlist_name,p.cover_url,p.is_public,p.music_count,p.play_count,
+        p.description,p.user_id,u.username,c.updated_time
+        from
+            playlist as p
+        left join user as u on p.user_id=u.id
+        left join user_collection as c on p.id=c.target_id
+        where p.id=#{targetId}
+        and c.user_id=#{userId}
+    </select>
+    <select id="selectLikeMusicVOBatchIds" resultType="social.domain.vo.CollectonLIstVO">
+        select p.id,p.playlist_name,p.cover_url,p.is_public,p.music_count,p.play_count,
+        p.description,p.user_id,u.username,c.updated_time
+        from
+        playlist as p
+        left join user as u on p.user_id=u.id
+        left join user_collection as c on p.id=c.target_id
+        where
+         c.user_id=#{userId}
+        and c.is_canceled=0
+        <if test="lastId!=null">
+            and p.id &lt; #{lastId}
+        </if>
+        order by c.updated_time desc
+        limit #{pageSize}
+    </select>
+</mapper>
+

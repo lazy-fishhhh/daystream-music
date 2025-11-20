@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.future.trade.mapper.OrderMapper">
+    <select id="selectOrderDetailVOList" resultType="com.future.trade.entity.OrderDetailVO">
+        SELECT
+            o.order_no,
+            -- 用CASE转换为文字
+            o.order_type,
+            CASE o.order_type
+                WHEN 1 THEN 'VIP订阅'
+                WHEN 2 THEN '单曲购买'
+                WHEN 3 THEN '打赏'
+                WHEN 4 THEN '商品购买'
+                END as order_type_desc,
+            od.product_name,
+            o.total_amount,
+            o.pay_amount,
+            od.price,
+            od.quantity,
+            -- 用CASE转换为文字
+            o.status,
+            CASE o.status
+                WHEN 1 THEN '待支付'
+                WHEN 2 THEN '已支付'
+                WHEN 3 THEN '已取消'
+                WHEN 4 THEN '已过期'
+                END as status_desc,
+            o.created_time,
+            o.pay_time,
+            od.effective_time,
+            od.expire_time
+        FROM `order` o
+                 LEFT JOIN `order_item` od
+                           ON o.id = od.order_id
+    </select>
+</mapper>

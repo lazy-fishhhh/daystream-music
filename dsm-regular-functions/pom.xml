@@ -165,6 +165,15 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-validation</artifactId>
         </dependency>
+        
+        <!-- 解决循环依赖问题：使用provided作用域引入交易模块，仅在编译时可用 -->
+        <!-- 注意：这不会导致真正的循环依赖，因为provided作用域不会传递依赖 -->
+        <dependency>
+            <groupId>com.future</groupId>
+            <artifactId>dsm-trade-concurrent</artifactId>
+            <version>0.0.1-SNAPSHOT</version>
+            <scope>provided</scope>
+        </dependency>
     </dependencies>
     <build>
         <plugins>

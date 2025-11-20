@@ -1,7 +1,6 @@
 package com.future.music.service.impl;
 
 import com.future.music.service.IMinIoService;
-import constants.SystemConstants;
 import io.minio.*;
 import io.minio.errors.*;
 import io.minio.http.Method;
@@ -14,7 +13,6 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.net.URL;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.security.InvalidKeyException;
