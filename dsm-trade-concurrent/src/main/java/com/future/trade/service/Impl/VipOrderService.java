@@ -1,14 +1,22 @@
 package com.future.trade.service.Impl;
 
+import code.BusinessErrorCode;
+import code.SystemErrorCode;
+import code.UserErrorCode;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.future.login.exception.BusinessException;
+import com.future.login.exception.OrderException;
+import com.future.login.exception.VipPackageException;
+import com.future.login.exception.VipStatusException;
 import com.future.login.mapper.UserMapper;
 import com.future.login.util.SecurityUtil;
 import com.future.trade.entity.*;
 import com.future.trade.entity.enums.VipPackageEnum;
+import com.future.trade.entity.enums.VipPackageNameEnum;
 import com.future.trade.entity.vo.VipStatusVO;
 import com.future.trade.mapper.OrderItemMapper;
 import com.future.trade.mapper.OrderMapper;
@@ -25,6 +33,7 @@ import org.springframework.stereotype.Service;
 import com.future.trade.service.IVipOrderService;
 import util.RedisTemplateWorker;
 
+import javax.transaction.SystemException;
 import javax.transaction.Transactional;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -75,14 +84,14 @@ public class VipOrderService implements IVipOrderService {
      */
     @Transactional
     @Override
-    public  Result<String> buyVip(String packageName) {
+    public  Result<String> buyVip(String packageName)  {
         Long userId = SecurityUtil.getCurrentUserId();
         if (userId == null) {
             throw new RuntimeException("尚未登陆");
         }
         Optional<VipPackageEnum> vipPackageEnumOptional = VipPackageEnum.getByPackageName(packageName);
         if (vipPackageEnumOptional.isEmpty()) {
-            throw new RuntimeException("VIP套餐不存在");
+            throw VipPackageException.notFound(packageName);
         }
         VipPackageEnum vipPackageEnum = vipPackageEnumOptional.get();
 
@@ -92,7 +101,7 @@ public class VipOrderService implements IVipOrderService {
         try {
             vipStatusVO = vipCoreService.checkAndUpdateVipStatus();// 自调用？
         } catch (JsonProcessingException e) {
-            throw new RuntimeException("获取用户VIP状态失败");
+            throw  VipStatusException.invalidStatus(userId);
         }
 
         // 2. 检查用户是否已经是VIP了
@@ -104,7 +113,7 @@ public class VipOrderService implements IVipOrderService {
                     .orderByDesc(Vip::getEndTime) // 取最新的一条记录, 避免仅查询id查到过期vip
                     .last("LIMIT 1"));
             if (vip == null) {
-                throw new RuntimeException("用户VIP记录不存在");
+                throw VipStatusException.recordNotFound(userId);
             }
 
 
@@ -194,8 +203,8 @@ public class VipOrderService implements IVipOrderService {
         order.setTotalAmount(vipPackage.getCurrentPrice());
         order.setPayAmount(vipPackage.getCurrentPrice()); // 暂不考虑优惠
         order.setOrderType(Order.OrderType.VIP_SUBSCRIBE.getCode());
-        order.setStatus(Order.OrderStatus.PENDING_PAYMENT.getCode());
         // TODO 这里是模拟支付 实际支付会有异步回调 这里先设置为已支付
+        order.setStatus(Order.OrderStatus.PAID.getCode());
         order.setPayTime(LocalDateTime.now());
         order.setCreatedTime(LocalDateTime.now());
         order.setUpdatedTime(LocalDateTime.now());
@@ -223,10 +232,10 @@ public class VipOrderService implements IVipOrderService {
             lqw1.eq(User::getId, userId);
             User user = userMapper.selectOne(lqw1);
             if (user == null) {
-                throw new IllegalArgumentException("用户不存在");
+                throw new BusinessException(BusinessErrorCode.USER_NOT_FOUND.getCode(), "用户不存在");
             }
             if (user.getWalletBalance() < vipPackage.getCurrentPrice()) {
-                throw new IllegalArgumentException("余额不足");
+                throw new BusinessException(BusinessErrorCode.BALANCE_NOT_ENOUGH.getCode(),"余额不足");
             }
             // 扣减用户余额
             user.setWalletBalance(user.getWalletBalance() - vipPackage.getCurrentPrice());
@@ -253,11 +262,11 @@ public class VipOrderService implements IVipOrderService {
             Long userId = SecurityUtil.getCurrentUserId();
             if (userId == null) {
                 log.warn("查询VIP订单历史失败：用户未登录（userId为空）");
-                return Result.fail("用户未登录，请先登录");
+                throw new BusinessException(UserErrorCode.LOGIN_STATE_INVALID.getCode(), "用户不存在");
             }
             if (userId <= 0) {
                 log.warn("查询VIP订单历史失败：无效的用户ID（userId={}）", userId);
-                return Result.fail("无效的用户ID，请重试");
+                throw new BusinessException(UserErrorCode.USER_STATUS_ERROR.getCode(), "用户不存在");
             }
 
             // 2. 查询订单前记录日志（便于追踪）
@@ -288,7 +297,7 @@ public class VipOrderService implements IVipOrderService {
             // 5. 全局异常捕获（避免接口直接抛出异常）
             log.error("查询用户VIP订单历史时发生异常", e);
             // 6. 抛给全局异常处理器处理
-            throw new RuntimeException("查询用户VIP订单历史失败，请稍后重试");
+            throw new OrderException(OrderException.OrderError.UNKNOWN_ERROR.getCode(), "查询用户VIP订单历史失败，请稍后重试");
         }
     }
 
@@ -299,19 +308,19 @@ public class VipOrderService implements IVipOrderService {
     @Override
     public Result<Void> processOrderRefund(Long orderId) {
         if (orderId == null || orderId <= 0) {
-            return Result.fail("无效的订单ID");
+            throw new OrderException(OrderException.OrderError.ITEM_NOT_FOUND.getCode(), "无效的订单ID");
         }
         
         try {
             // 1. 查询订单信息
             Order order = orderMapper.selectById(orderId);
             if (order == null) {
-                return Result.fail("订单不存在");
+                throw new OrderException(OrderException.OrderError.ITEM_NOT_FOUND.getCode(), "订单不存在");
             }
             
             // 2. 验证订单是否可以退款
             if (order.getStatus() != 1) {
-                return Result.fail("只有已支付的订单可以退款");
+                throw new OrderException(OrderException.OrderError.INVALID_STATUS.getCode(), "只有已支付的订单可以退款");
             }
             
             // 3. 查询订单详情以获取VIP套餐信息
@@ -321,7 +330,7 @@ public class VipOrderService implements IVipOrderService {
             OrderItem orderItem = orderItemMapper.selectOne(itemQueryWrapper);
             
             if (orderItem == null) {
-                return Result.fail("订单详情不存在");
+                throw new OrderException(OrderException.OrderError.ITEM_NOT_FOUND.getCode(), "订单详情不存在");
             }
             
             // 4. 查询用户的VIP信息
@@ -358,12 +367,13 @@ public class VipOrderService implements IVipOrderService {
                 
                 return Result.ok();
             } else {
-                return Result.fail("退款失败，请重试");
+                throw new OrderException(OrderException.OrderError.REFUND_FAIL.getCode(), "退款失败，请重试");
             }
         } catch (Exception e) {
             // 记录错误日志
             e.printStackTrace();
-            return Result.fail("处理退款失败：" + e.getMessage());
+            // 10. 抛给全局异常处理器处理
+            throw new OrderException(OrderException.OrderError.REFUND_FAIL.getCode(), "处理退款失败：" + e.getMessage());
         }
     }
     

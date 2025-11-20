@@ -26,7 +26,7 @@ public interface ErrorCode {
     /**
      * 错误码
      */
-    int getCode();
+    String getCode();
 
     /**
      * 错误消息

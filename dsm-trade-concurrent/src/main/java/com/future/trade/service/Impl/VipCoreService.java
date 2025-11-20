@@ -3,8 +3,10 @@ package com.future.trade.service.Impl;
 
 import cn.hutool.core.bean.BeanUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.future.login.exception.VipStatusException;
 import com.future.login.util.SecurityUtil;
 import com.future.trade.constants.VipRedisConstant;
 import com.future.trade.entity.Order;
@@ -148,7 +150,7 @@ public class VipCoreService implements IVipCoreService {
         } catch (Exception e) {
             // 反序列化失败时，删除错误缓存，下次查询走数据库
             stringRedisTemplate.delete(USER_VIP_INFO_PREFIX + userId);
-            throw new RuntimeException("VIP信息解析失败", e);
+            throw new JsonParseException("VIP信息解析失败");
         }
 
 
@@ -156,7 +158,7 @@ public class VipCoreService implements IVipCoreService {
         if (vipStatusVO.getVipExpireTime().isBefore(LocalDateTime.now())) {
             // 3. 更新过期VIP的状态为EXPIRED
             vipStatusVO.setIsVip(0);
-            throw new RuntimeException("VIP已过期");
+            throw VipStatusException.expired(userId, vipStatusVO.getVipExpireTime());
         }
 
         // TODO 4. 发送状态变更通知
