@@ -1,6 +1,9 @@
 package social.domain.vo;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Data;
+
+import java.time.LocalDateTime;
 
 /**
  * 收藏歌单表
@@ -43,4 +46,6 @@ public class CollectonLIstVO {
      * 歌单描述
      */
     private String description;
+    @JsonIgnore
+    private LocalDateTime updatedTime;
 }
