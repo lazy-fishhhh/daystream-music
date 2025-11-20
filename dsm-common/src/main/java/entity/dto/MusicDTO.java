@@ -17,7 +17,6 @@ import java.util.List;
 public class MusicDTO {
     private String musicName;        // 歌曲名
     private Long albumId;            // 所属专辑ID
-    private Long musicianId;         // 音乐人ID
     private Integer bpm;             // 节奏（BPM）
     private String licenseType;      // 版权类型
     private Integer isVip;           // 是否VIP专属（0-否，1-是）
@@ -32,7 +31,6 @@ public class MusicDTO {
         Music music = new Music();
         music.setMusicName(musicName);
         music.setAlbumId(albumId);
-        music.setMusicianId(musicianId);
         music.setBpm(bpm);
         music.setLicenseType(licenseType);
         music.setIsVip(isVip);
@@ -51,10 +49,6 @@ public class MusicDTO {
         }
         // 2. 专辑ID：非空且为正数
         if (albumId == null || albumId <= 0) {
-            return false;
-        }
-        // 3. 音乐人ID：非空且为正数
-        if (musicianId == null || musicianId <= 0) {
             return false;
         }
         // 4. BPM：非空且范围60-200

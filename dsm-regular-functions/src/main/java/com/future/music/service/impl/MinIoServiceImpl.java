@@ -121,7 +121,7 @@ class MinIoServiceImpl implements IMinIoService {
                 minioClient.removeObject(
                         RemoveObjectArgs.builder()
                                 .bucket(bucketName)
-                                .object(objectName)
+                                .object(objectName.substring(objectName.lastIndexOf("/") + 1))
                                 .build()
                 );
             }
@@ -178,7 +178,7 @@ class MinIoServiceImpl implements IMinIoService {
 
     //获取文件最后修改时间的方法
     @Override
-    public Instant getObjectLastModified(String bucketName, String objectName) throws Exception {
+    public Instant getObjectLastModified(String objectName) throws Exception {
         StatObjectResponse stat = minioClient.statObject(
                 StatObjectArgs.builder()
                         .bucket(bucketName)
@@ -231,7 +231,7 @@ class MinIoServiceImpl implements IMinIoService {
                     GetPresignedObjectUrlArgs.builder()
                             .method(Method.GET)
                             .bucket(bucketName) // 你的MinIO桶名
-                            .object(objectName)
+                            .object(objectName.substring(objectName.lastIndexOf("/") + 1))
                             .expiry(expireSeconds)
                             .build()
             );

@@ -15,7 +15,7 @@ public interface MusicTagMapper extends BaseMapper<MusicTag> {
      * @param musicId 音乐ID
      * @return 标签名集合
      */
-    @Select("SELECT mt.name " +
+    @Select("SELECT mt.tag_name " +
             "FROM music_tag mt " +
             "JOIN music_tag_relation mtr ON mt.id = mtr.tag_id " +
             "WHERE mtr.music_id = #{musicId}")

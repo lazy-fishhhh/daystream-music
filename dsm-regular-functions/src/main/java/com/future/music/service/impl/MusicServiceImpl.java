@@ -13,27 +13,30 @@ import com.future.music.service.IMinIoService;
 
 import com.future.music.service.IMusicService;
 import constants.SystemConstants;
+import entity.Vip;
 import entity.dto.MusicDTO;
 import entity.dto.SearchDTO;
 import entity.pojo.music.*;
+import entity.pojo.social.Comment;
 import entity.pojo.social.LikeRecord;
 import entity.pojo.social.UserCollection;
 import entity.pojo.util.PageResp;
 import entity.pojo.util.Result;
+import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletResponse;
+import mapper.VipMapper;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.interceptor.TransactionAspectSupport;
 import org.springframework.web.multipart.MultipartFile;
+import social.mapper.CommentMapper;
 import util.AudioDurationUtil;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.time.format.DateTimeFormatter;
+import java.util.*;
 
 /**
  * 音乐服务实现类
@@ -78,6 +81,15 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
     @Autowired
     private UserListenHistoryMapper userListenHistoryMapper;
 
+    @Autowired
+    private PlaylistMusicMapper playlistMusicMapper;
+
+    @Autowired
+    private CommentMapper commentMapper;
+
+    @Resource
+    private VipMapper vipMapper;
+
     /**
      * 保存音乐信息（包含音乐主信息、音频、歌词、封面）
      * 标注 @Transactional 确保所有数据库操作在同一事务中，保证数据一致性
@@ -96,6 +108,10 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
                             MultipartFile audio3,  // 音质3：无损
                             MultipartFile audio4   // 音质4：空间
                             ) {
+        if (SecurityUtil.getCurrentUserId() ==  null){
+            return Result.fail("请先登录再进行该操作");
+        }
+
         // 1. 校验至少上传一个音质
         if (audio1 == null && audio2 == null && audio3 == null && audio4 == null) {
             return Result.fail("至少需上传一个音质的音频文件");
@@ -184,6 +200,11 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
             music.setLyricUrl(lyricName);
             music.setDuration(baseDuration); // 直接用基准时长
 
+            //音乐人id
+            QueryWrapper<Musician>  queryWrapper = new QueryWrapper<>();
+            queryWrapper.eq("user_id", SecurityUtil.getCurrentUserId());
+            music.setMusicianId(musicianMapper.selectOne(queryWrapper).getId());
+
             // 6. 保存音乐主信息
             if (!this.save(music)) {
                 throw new RuntimeException("音乐保存失败");
@@ -239,6 +260,11 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
     public Result<Void> removeMusic(Long musicId) {
 
         try {
+            Long userId = SecurityUtil.getCurrentUserId();
+            if (userId ==  null){
+                return Result.fail("请先登录再进行该操作");
+            }
+            
             // 校验音乐是否存在（已被删除则直接返回失败）
             if (musicMapper.selectById(musicId) == null) {
                 return Result.fail("该音乐已被删除");
@@ -258,6 +284,32 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
             if (musicTagRelationMapper.delete(musicTagRelationQueryWrapper) == 0) {
                 throw new RuntimeException("音乐标签关联删除失败");
             }
+
+            // 3. 删除歌单关联信息
+            QueryWrapper<PlaylistMusic> playlistQueryWrapper = new QueryWrapper<>();
+            playlistQueryWrapper.eq("music_id", musicId);
+            playlistMusicMapper.delete(playlistQueryWrapper);
+
+            // 4. 删除点赞信息
+            QueryWrapper<LikeRecord> likeRecordQueryWrapper = new QueryWrapper<>();
+            likeRecordQueryWrapper.eq("target_id", musicId)
+                    .eq("user_id", userId)
+                    .eq("target_type", 1);
+            likeRecordMapper.delete(likeRecordQueryWrapper);
+
+            // 5. 删除收藏信息
+            QueryWrapper<UserCollection> userCollectionQueryWrapper = new QueryWrapper<>();
+            userCollectionQueryWrapper.eq("target_id", musicId)
+                    .eq("user_id", userId)
+                    .eq("target_type", 1);
+            userCollectionMapper.delete(userCollectionQueryWrapper);
+
+            // 6. 删除评论表
+            QueryWrapper<Comment> commentQueryWrapper = new QueryWrapper<>();
+            commentQueryWrapper.eq("target_id", musicId)
+                    .eq("user_id", userId)
+                    .eq("target_type", 1);
+            commentMapper.delete(commentQueryWrapper);
 
             //  删除音乐主信息
             if (musicMapper.deleteById(musicId) == 0) {
@@ -343,6 +395,11 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
      */
     @Override
     public Result<MusicDetailVO> echoMusic(Long musicId) {
+
+        if (SecurityUtil.getCurrentUserId() ==  null){
+            return Result.fail("请先登录再进行该操作");
+        }
+
         // 1. 校验音乐ID有效性（非空且大于0）
         if (musicId == null || musicId <= 0) {
             return Result.fail("音乐ID无效");
@@ -363,6 +420,12 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
         wrapper.eq("music_id", musicId); // 按音乐ID关联
         List<MusicAudio> audioList = musicAudioMapper.selectList(wrapper);
         musicDetailVO.setAudioList(audioList); // 给VO设置音频列表（含音质、文件大小等信息）
+
+        // 补充专辑名称（通过专辑ID关联查询）
+        Album album = albumMapper.selectById(musicDetailVO.getAlbumId());
+        if (album != null) {
+            musicDetailVO.setAlbumName(album.getAlbumName());
+        }
 
         // 5. 查询标签
         List<String> tags = musicTagMapper.getTagNamesByMusicId(musicId);
@@ -389,6 +452,11 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
     @Transactional(rollbackFor = Exception.class) // 事务注解：任何异常触发回滚
     public Result<Void> updateMusic(Long musicId, MusicDTO musicDTO,
                               MultipartFile lyric, MultipartFile cover, Map<Integer, MultipartFile> audioMap) {
+
+        if (SecurityUtil.getCurrentUserId() ==  null){
+            return Result.fail("请先登录再进行该操作");
+        }
+
         // 存储新上传的文件路径（用于事务回滚时删除）
         List<String> newUploadedFiles = new ArrayList<>();
         // 存储待删除的旧文件路径（事务成功后删除，避免提前删除导致回滚后文件丢失）
@@ -620,14 +688,13 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
 
         // 3. 构建多条件查询（音乐名、标签名、音乐人名字 模糊匹配）
         QueryWrapper<Music> queryWrapper = new QueryWrapper<>();
-        // 条件1：音乐名模糊匹配
-        queryWrapper.like("m.music_name", keyword)
-                // 条件2：音乐人名字模糊匹配（关联musician表）
-                .or().like("mu.name", keyword)
-                // 条件3：标签名模糊匹配（关联music_tag表）
-                .or().like("mt.tag_name", keyword)
-                // 过滤音乐状态（仅查询上架状态，按需调整）
-                .eq("m.status", 1);
+
+        queryWrapper.and(wrapper -> wrapper
+                        .like("m.music_name", keyword)        // 条件1：音乐名
+                        .or().like("mu.stage_name", keyword)  // 条件2：音乐人
+                        .or().like("mt.tag_name", keyword)    // 条件3：标签名
+                )
+                .eq("m.status", 1); // 全局过滤：所有条件都需满足状态=1
 
         // 4. 执行多表联查+分页+排序（SQL已含ORDER BY play_count DESC）
         IPage<Music> musicPage = musicMapper.searchMusicByMultiCondition(page, queryWrapper);
@@ -666,12 +733,6 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
                 vo.setIsLiked(0); // 未登录默认未点赞
                 vo.setIsCollected(0);
             }
-
-            // 5.3 关联音频列表（通过musicId查music_audio表）
-//            QueryWrapper<MusicAudio> audioWrapper = new QueryWrapper<>();
-//            audioWrapper.eq("music_id", music.getId());
-//            List<MusicAudio> audioList = musicAudioMapper.selectList(audioWrapper);
-//            vo.setAudioList(audioList);
 
             // 5.4 关联音乐人名字（通过musicianId查musician表）
             Musician musician = musicianMapper.selectById(music.getMusicianId());
@@ -712,6 +773,16 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
             return Result.fail("该音乐暂不支持播放");
         }
 
+        if (music.getIsVip() == 1){
+            QueryWrapper<Vip> queryWrapper = new QueryWrapper<>();
+            queryWrapper.eq("user_id", SecurityUtil.getCurrentUserId())
+                    .gt("end_time", new Date());
+            Vip vip = vipMapper.selectOne(queryWrapper);
+            if (vip == null) {
+                return Result.fail("请先充值VIP再播放");
+            }
+        }
+
         // 3. 校验该音质的音频是否存在且文件有效
         QueryWrapper<MusicAudio> audioWrapper = new QueryWrapper<>();
         audioWrapper.eq("music_id", musicId)
@@ -733,6 +804,7 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
 
         // 组装返回VO
         MusicPlayVO playVO = new MusicPlayVO();
+        playVO.setCoverUrl(music.getCoverUrl());
         playVO.setAudioUrl(playUrl);
         playVO.setMusicName(music.getMusicName());
         playVO.setDuration(AudioDurationUtil.formatSecondsToMS(music.getDuration()));
@@ -748,7 +820,7 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
     }
 
     /**
-     * 2. 上报播放状态，达标则统计播放量
+     * 上报播放状态，达标则统计播放量
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -769,21 +841,21 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
                 return Result.fail("未登录用户，不统计播放量");
             }
 
-            // 3. 校验统计条件（达标条件：满足任一）
+            // 3. 校验统计条件
             int threshold = (int) (totalSeconds * SystemConstants.MIN_PLAY_RATIO);
             if (playedSeconds < threshold) {
                 return Result.fail("播放时长未达标，不统计播放量");
             }
 
             // 4. 防重复统计（24小时内同一用户对同一首歌仅统计1次）
-            LocalDateTime yesterday = LocalDateTime.now().minusDays(1);
-            QueryWrapper<MusicPlayStat> statWrapper = new QueryWrapper<>();
-            statWrapper.eq("user_id", userId)
-                    .eq("music_id", musicId)
-                    .ge("create_time", yesterday);
-            if (musicPlayStatMapper.selectCount(statWrapper) > 0) {
-                return Result.fail("24小时内已统计过该歌曲播放量");
-            }
+//            LocalDateTime yesterday = LocalDateTime.now().minusDays(1);
+//            QueryWrapper<MusicPlayStat> statWrapper = new QueryWrapper<>();
+//            statWrapper.eq("user_id", userId)
+//                    .eq("music_id", musicId)
+//                    .ge("create_time", yesterday);
+//            if (musicPlayStatMapper.selectCount(statWrapper) > 0) {
+//                return Result.fail("24小时内已统计过该歌曲播放量");
+//            }
 
             // 5. 统计播放量（音乐表play_count+1）
             Music updateMusic = this.getById(musicId);
@@ -801,7 +873,7 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
                 userListenHistory = new UserListenHistory();
                 userListenHistory.setUserId(userId);
                 userListenHistory.setMusicId(musicId);
-                userListenHistory.setListenCount(0);
+                userListenHistory.setListenCount(1);
                 if (userListenHistoryMapper.insert(userListenHistory) != 1){
                     return Result.fail("统计用户听歌记录失败");
                 }
