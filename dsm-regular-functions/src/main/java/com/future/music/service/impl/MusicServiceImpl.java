@@ -12,8 +12,9 @@ import com.future.music.mapper.*;
 import com.future.music.service.IMinIoService;
 
 import com.future.music.service.IMusicService;
+import com.future.trade.entity.Vip;
+import com.future.trade.mapper.VipMapper;
 import constants.SystemConstants;
-import entity.Vip;
 import entity.dto.MusicDTO;
 import entity.dto.SearchDTO;
 import entity.pojo.music.*;
@@ -24,7 +25,6 @@ import entity.pojo.util.PageResp;
 import entity.pojo.util.Result;
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletResponse;
-import mapper.VipMapper;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;

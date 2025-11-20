@@ -60,12 +60,4 @@ public class Playlist {
 
     /** 评论数 */
     private Long commentCount;
-        private Long musicCount;
-        private Long playCount;
-        @TableField("created_time")
-        private LocalDateTime createdTime;
-        @TableField("updated_time")
-        private LocalDateTime updatedTime;
-        private Long collectCount;
-        private Long commentCount;
 }
