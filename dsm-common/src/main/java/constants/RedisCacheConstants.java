@@ -38,7 +38,7 @@ public class RedisCacheConstants {
     /**
      * 分布式锁过期时间（防止死锁，需大于业务执行时间）
      */
-    public static final Long LOCK_EXPIRE_TTL = 30L; // 30秒
+//    public static final Long LOCK_EXPIRE_TTL = 30L; // 30秒
 
     /**
 

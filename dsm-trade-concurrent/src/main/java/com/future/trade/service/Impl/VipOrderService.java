@@ -29,8 +29,10 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.beans.BeansException;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -59,7 +61,7 @@ import static constants.TradeConstants.*;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class VipOrderService implements IVipOrderService, ApplicationContextAware {
+public class VipOrderService implements IVipOrderService {
 
     private final VipCoreService vipCoreService;
     private final VipMapper vipMapper;
@@ -74,22 +76,19 @@ public class VipOrderService implements IVipOrderService, ApplicationContextAwar
     /*
         注入自身代理对象  —> 解决Spring事务失效原理3：自调用走目标对象而不走代理对象的问题
      */
-    // ApplicationContext：Spring 的 “容器管家”，
-    // 所有被 Spring 管理的 Bean（包括VipOrderService、UserMapper等）都存在这里
-    private ApplicationContext applicationContext;
+
+
+    // 使用 @Autowired 直接注入自身的代理对象
+    // Spring 会自动处理，将包含AOP增强（如事务）的代理对象注入进来
+    @Autowired
+    // @Lazy 注解告诉 Spring，不要在容器启动时就初始化 selfProxy，
+    // 而是在第一次调用 selfProxy 的方法时才进行初始化。
+    // 这样，当 VipOrderService 自身初始化完成后，再去初始化 selfProxy，
+    // 就不会形成循环依赖。
+    @Lazy
     private VipOrderService selfProxy;
 
-    // 实现 ApplicationContextAware 接口，获取上下文
-    @Override
-    public void setApplicationContext(@NotNull ApplicationContext applicationContext) throws BeansException {
-        this.applicationContext = applicationContext;
-    }
-    // 初始化时获取自身代理对象(Bean创建完成后自动执行)
-    @PostConstruct
-    public void initSelfProxy() {
-        // 从上面传入的Spring容器ApplicationContext中获取 VipOrderService 类型的Bean（这里拿到的是代理对象）
-        this.selfProxy = applicationContext.getBean(VipOrderService.class);
-    }
+    // 另一种方法是从ApplicationContext中获取代理对象
 
     /**
      * 生成唯一订单号

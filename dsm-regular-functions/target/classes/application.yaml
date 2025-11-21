@@ -32,6 +32,13 @@ servlet:
     max-file-size: 5GB
     max-request-size: 5GB
 
+spring:
+  rabbitmq:
+    host: 127.0.0.1
+    port: 5672
+    username: huayue
+    password: 123
+    virtual-host: /huayue
 
 
 
