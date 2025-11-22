@@ -35,6 +35,14 @@
 	</properties>
 
 	<dependencies>
+
+        <!-- AMQP依赖  包含RabbitMQ客户端 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-amqp</artifactId>
+            <version>3.5.7</version>
+        </dependency>
+
         <!-- Lombok：简化实体类代码 -->
         <dependency>
             <groupId>org.projectlombok</groupId>

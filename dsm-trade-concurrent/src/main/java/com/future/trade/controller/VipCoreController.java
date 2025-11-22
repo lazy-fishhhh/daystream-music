@@ -31,5 +31,12 @@ public class VipCoreController {
             return Result.ok(vipCoreService.checkAndUpdateVipStatus());
     }
 
-
+    /**
+     * 开启/关闭自动续费
+     */
+    @ApiOperation("开启/关闭自动续费")
+    @GetMapping("/autoRenew")
+    public Result<String> enableAutoRenew(@RequestParam Integer autoRenew) {
+        return vipCoreService.toggleAutoRenew(autoRenew);
+    }
 }

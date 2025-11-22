@@ -10,6 +10,10 @@ public class RedisCacheConstants {
      */
     public static final Long CACHE_NULL_TTL = 5L;
 
+    /**
+     * 分布式锁过期时间（防止死锁，需大于业务执行时间）
+     */
+    public static final Long LOCK_EXPIRE_TTL = 30L; // 30秒
 
     /**
      * 短期缓存过期时间（适用于高频变动数据）：如在线状态、未读消息数
@@ -34,7 +38,7 @@ public class RedisCacheConstants {
     /**
      * 分布式锁过期时间（防止死锁，需大于业务执行时间）
      */
-    public static final Long LOCK_EXPIRE_TTL = 30L; // 30秒
+//    public static final Long LOCK_EXPIRE_TTL = 30L; // 30秒
 
     /**
 

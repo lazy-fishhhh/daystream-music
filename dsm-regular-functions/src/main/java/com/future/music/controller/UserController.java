@@ -1,5 +1,6 @@
 package com.future.music.controller;
 
+import com.future.music.domain.vo.PlaylistDetailVO;
 import com.future.music.service.IUserService;
 import entity.dto.PlayListDTO;
 import entity.pojo.music.Playlist;
@@ -64,6 +65,19 @@ public class UserController {
     @GetMapping("/checkIn/getContinuousSignInDays")
     public Result<Integer> getContinuousSignInDays() {
         return userService.getContinuousSignInDays();
+    }
+
+
+    /**
+     * 进入歌单详情
+     * @param playlistId 歌单ID（从路径参数获取）
+     * @return 统一返回格式（成功/失败 + 数据）
+     */
+    @GetMapping("/detail/{playlistId}")
+    public Result<PlaylistDetailVO> getDetail(@RequestParam(defaultValue = "1") int pageNum,
+                                              @RequestParam(defaultValue = "10") int pageSize,
+                                              @PathVariable Long playlistId) {
+        return userService.getPlaylistDetail(playlistId, pageNum, pageSize);
     }
 
 }
