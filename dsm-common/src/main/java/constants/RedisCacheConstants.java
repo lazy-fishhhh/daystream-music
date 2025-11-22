@@ -74,6 +74,11 @@ public class RedisCacheConstants {
     public static final String USER_COLLECTION="user:collect";
     /**用户点赞缓存前缀*/
     public static final String USER_LIKE="user:like";
+    /**用户关注列表缓存*/
+    public static final String USER_FOLLOW="user:follow";
+    /**用户粉丝列表缓存*/
+    public static final String USER_FOLLOWER="user:follower";
+
 
     // ==================== 音乐相关缓存 ====================
     /** 音乐元数据缓存前缀（音乐ID-元数据） */

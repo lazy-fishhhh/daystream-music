@@ -19,6 +19,6 @@ public class UserConstants {
     public static final String PERMISSION_USER_MANAGE = "user_manage"; // 用户管理权限
 
     // 用户状态
-    public static final int USER_STATUS_NORMAL = 0; // 正常
-    public static final int USER_STATUS_BANNED = 1; // 封禁
+    public static final int USER_STATUS_NORMAL = 0; // 封禁
+    public static final int USER_STATUS_BANNED = 1; // 正常
 }

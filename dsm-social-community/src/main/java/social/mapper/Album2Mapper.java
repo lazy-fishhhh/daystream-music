@@ -24,4 +24,5 @@ public interface Album2Mapper extends BaseMapper<Album> {
     List<CollectioAlbumVO> selectAlbumListBatchIds(@Param("userId")Long userId,
                                                    @Param("pageSize")Integer pageSize,
                                                    @Param("lastId")Long lastId);
+    List<CollectioAlbumVO>selectAlbumListAll(Long userId);
 }

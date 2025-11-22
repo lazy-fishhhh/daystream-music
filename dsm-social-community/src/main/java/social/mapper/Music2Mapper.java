@@ -23,6 +23,5 @@ public interface Music2Mapper extends BaseMapper<Music> {
     LikeMusicVO selectLikeMusicVO(@Param("targetId") Long targetId,
                                   @Param("userId")Long userId);
     List<LikeMusicVO> selectLikeMusicVOBatchIds(@Param("lastId")Long lastId,@Param("pageSize")Integer pageSize,@Param("userId")Long userId);
-    Long countHasMore(@Param("userId")Long userId,
-                      @Param("lastId")Long lastId);
+    List<LikeMusicVO> selectLikeMusicVOAll(Long userId);
 }

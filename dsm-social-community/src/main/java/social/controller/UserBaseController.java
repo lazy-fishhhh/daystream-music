@@ -1,12 +1,10 @@
 package social.controller;
 
 import entity.pojo.util.Result;
-import io.swagger.annotations.ApiResponse;
 import social.domain.dto.CollectionDTO;
 import social.domain.dto.LikeDTO;
 import social.domain.dto.PageDTO;
 import social.domain.vo.CollectionVO;
-import social.domain.vo.LikeMusicVO;
 import social.domain.vo.LikeVO;
 import social.service.UserBaseService;
 import io.swagger.annotations.Api;
@@ -15,11 +13,10 @@ import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
 
 @RestController
 @RequestMapping("/userbase")
-@Api(tags = "用户基础社交功能")
+@Api(tags = "用户基础社交功能(关注/点赞/收藏)")
 public class UserBaseController {
     @Autowired
     private UserBaseService userBaseService;
@@ -53,4 +50,48 @@ public class UserBaseController {
     {
         return userBaseService.getPlayList(pageDTO);
     }
+    @ApiOperation(value = "关注")
+    @GetMapping("/follow")
+    public Result follow(@RequestParam(value = "userId",required = true)Long userId)
+    {
+        return userBaseService.follow(userId);
+    }
+    @ApiOperation(value = "取消关注")
+    @GetMapping("/unfollow")
+    public Result unfollow(@RequestParam(value = "userId",required = true)Long userId)
+    {
+        return userBaseService.unFollow(userId);
+    }
+    @ApiOperation(value = "获取粉丝列表")
+    @PostMapping("/getFollowedList")
+    public Result getFollowerList(@Valid @RequestBody PageDTO pageDTO)
+    {
+        return userBaseService.getFollowerList(pageDTO);
+    }
+    @ApiOperation(value = "获取粉丝数")
+    @GetMapping("/getFollowerCount")
+    public Result getFollowerCount()
+    {
+        return userBaseService.getFollowerCount();
+    }
+    @ApiOperation(value = "获取关注数")
+    @GetMapping("/getFollowCount")
+    public Result getFollowCount()
+    {
+        return userBaseService.getFollowCount();
+    }
+
+    @ApiOperation(value = "获取关注的音乐人列表")
+    @PostMapping("/getFollowMusician")
+    public Result getFollowMusician(@Valid @RequestBody PageDTO pageDTO)
+    {
+        return userBaseService.getFollowListMusic(pageDTO);
+    }
+    @ApiOperation(value = "获取关注的普通人列表")
+    @PostMapping("/getFollowNormal")
+    public Result getFollowNormal(@Valid @RequestBody PageDTO pageDTO)
+    {
+        return userBaseService.getFollowListNormal(pageDTO);
+    }
+
 }
