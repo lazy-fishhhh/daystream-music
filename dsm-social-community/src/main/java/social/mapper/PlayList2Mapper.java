@@ -21,9 +21,11 @@ public interface PlayList2Mapper extends BaseMapper<Playlist> {
     @Select("SELECT collect_count FROM playlist WHERE id = #{targetId} FOR UPDATE")
     Long selectCount(Long targetId);
 
-    CollectonLIstVO selectLikeMusicVO(@Param("targetId") Long targetId,
+    CollectonLIstVO selectPlayListVO(@Param("targetId") Long targetId,
                                       @Param("userId")Long userId);
-    List<CollectonLIstVO> selectLikeMusicVOBatchIds(@Param("userId")Long userId,
-                                                    @Param("pageSize")Integer pageSize,
-                                                    @Param("lastId")Long lastId);
+    List<CollectonLIstVO> selectPlayListBatchIds(@Param("userId")Long userId,
+                                                 @Param("lastId")Long lastId,
+                                                 @Param("pageSize")Integer pageSize);
+
+    List<CollectonLIstVO> selectPlayListAll(Long userId);
 }

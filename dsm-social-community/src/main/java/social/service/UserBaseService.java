@@ -19,4 +19,12 @@ public interface UserBaseService {
     Result getCollectAlbum(PageDTO pageDTO);
 
     Result getPlayList(PageDTO pageDTO);
+    Result follow(Long userId);
+
+    Result unFollow(Long userId);
+    Result getFollowerList(PageDTO pageDTO);
+    Result getFollowerCount();
+    Result getFollowCount();
+    Result getFollowListMusic(PageDTO pageDTO);
+    Result getFollowListNormal(PageDTO pageDTO);
 }

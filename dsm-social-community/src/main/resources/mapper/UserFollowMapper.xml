@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="social.mapper.FollowMapper">
+    <!--获取关注列表-->
+    <select id="selectFollowUser" resultType="social.domain.vo.UserFollowerVO">
+        select u.id,u.username,u.avatar,u.introduction,u.user_status,f.follow_time
+        from
+        user as u
+        left join user_follow as f on u.id=f.followed_user_id
+        where u.id=#{userId}
+        and f.user_id=#{currentId}
+        and f.followed_user_id=#{userId}
+    </select>
+    <!--获取粉丝列表-->
+    <select id="selectFollowedUser" resultType="social.domain.vo.UserFollowerVO">
+        select u.id,u.username,u.avatar,u.introduction,u.user_status,f.follow_time
+        from
+        user as u
+        left join user_follow as f on u.id=f.user_id
+        where u.id=#{userId}
+        and f.user_id=#{userId}
+        and f.followed_user_id=#{currentId}
+    </select>
+    <select id="selectFollowUserBatch" resultType="social.domain.vo.UserFollowerVO">
+        select u.id, u.username, u.avatar, u.introduction, u.user_status,f.follow_time
+        from
+        user as u
+        left join user_follow as f on u.id=f.user_id
+        where u.id in
+        <foreach collection="userIds" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+        <if test="lastId!=null">
+           and u.id &lt; lastId
+        </if>
+        order by f.follow_time desc
+        limit #{pageSize}
+    </select>
+    <select id="selectFollowAll" resultType="social.domain.vo.UserFollowerVO">
+        select u.id, u.username, u.avatar, u.introduction, u.user_status,f.follow_time
+        from
+        user as u
+        left join user_follow as f on u.id=f.user_id
+        where u.id in
+        <foreach collection="userIds" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+        order by f.follow_time desc
+    </select>
+    <select id="selectFollowedUserBatchNormal" resultType="social.domain.vo.UserFollowerVO">
+        select u.id, u.username, u.avatar, u.introduction, u.user_status,f.follow_time
+        from
+        user as u
+        left join user_follow as f on u.id=f.followed_user_id
+        left join user_role as ur on u.id=ur.user_id
+        where u.id in
+        <foreach collection="userIds" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+        <if test="lastId!=null">
+            and u.id &lt; lastId
+        </if>
+        and ur.role_id in(1,2)
+        order by f.follow_time desc
+        limit #{pageSize}
+    </select>
+    <select id="selectFollowedUserBatchMuscian" resultType="social.domain.vo.UserFollowerVO">
+        select u.id, u.username, u.avatar, u.introduction, u.user_status,f.follow_time
+        from
+        user as u
+        left join user_follow as f on u.id=f.followed_user_id
+        left join user_role as ur on u.id=ur.user_id
+        where u.id in
+        <foreach collection="userIds" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+        <if test="lastId!=null">
+            and u.id &lt; lastId
+        </if>
+        and ur.role_id in (3)
+        order by f.follow_time desc
+        limit #{pageSize}
+    </select>
+    <select id="selectFollowedAllNormal" resultType="social.domain.vo.UserFollowerVO">
+        select u.id, u.username, u.avatar, u.introduction, u.user_status,f.follow_time
+        from
+        user as u
+        left join user_follow as f on u.id=f.followed_user_id
+        left join user_role as ur on u.id=ur.user_id
+        where u.id in
+        <foreach collection="userIds" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+        and ur.role_id in (1,2)
+        order by f.follow_time desc
+    </select>
+    <select id="selectFollowedAllMuscian" resultType="social.domain.vo.UserFollowerVO">
+        select u.id, u.username, u.avatar, u.introduction, u.user_status,f.follow_time
+        from
+        user as u
+        left join user_follow as f on u.id=f.followed_user_id
+        left join user_role as ur on u.id=ur.user_id
+        where u.id in
+        <foreach collection="userIds" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+        and ur.role_id in (3)
+        order by f.follow_time desc
+    </select>
+    <select id="selectFollowerUserIds" resultType="Long">
+        select user_id
+        from
+        user_follow
+        where
+        followed_user_id=#{userId}
+    </select>
+    <select id="selectFollowUserIdsnormal" resultType="Long">
+        select f.followed_user_id
+        from
+        user_follow as f
+        left join user_role as ur on f.followed_user_id=ur.user_id
+        where
+        f.user_id=#{userId}
+        and ur.role_id in (1,2)
+    </select>
+    <select id="selectFollowUserIdsMusician" resultType="Long">
+        select f.followed_user_id
+        from
+        user_follow as f
+        left join user_role as ur on f.followed_user_id=ur.user_id
+        where
+        f.user_id=#{userId}
+        and ur.role_id in (3)
+    </select>
+    <select id="countHasMore" resultType="Long">
+        select count(1)
+        from
+        user as u
+        left join user_follow as j on u.id=j.user_id
+        where
+        j.followed_user_id=#{userId}
+        and u.id &lt; #{lastId}
+    </select>
+</mapper>
