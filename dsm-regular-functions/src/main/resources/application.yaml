@@ -34,11 +34,14 @@ servlet:
 
 spring:
   rabbitmq:
-    host: 127.0.0.1
+    host: 39.96.214.163
     port: 5672
-    username: huayue
-    password: 123
-    virtual-host: /huayue
+    username: DayStreamMusic
+    password: 123456
+    virtual-host: /DayStreamMusic
+    listener:
+      simple:
+       prefetch: 1
 
 
 
