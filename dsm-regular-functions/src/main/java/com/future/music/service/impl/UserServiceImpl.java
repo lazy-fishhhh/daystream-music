@@ -10,6 +10,7 @@ import com.future.login.util.SecurityUtil;
 import com.future.music.domain.vo.MusicDetailVO;
 import com.future.music.domain.vo.PlaylistDetailVO;
 import com.future.music.mapper.*;
+import com.future.music.service.IMusicService;
 import com.future.music.service.IUserService;
 import entity.dto.PlayListDTO;
 import entity.pojo.music.Album;
@@ -59,6 +60,9 @@ public class UserServiceImpl  implements IUserService {
 
     @Resource
     private MusicianMapper musicianMapper;
+
+    @Resource
+    private IMusicService musicService;
 
     //构造方法注入
     private final StringRedisTemplate stringRedisTemplate;
@@ -266,6 +270,7 @@ public class UserServiceImpl  implements IUserService {
      * @param playlistId 歌单ID
      * @return 歌单详情（含歌曲ID列表），若不存在则返回null
      */
+    @Override
     public Result<PlaylistDetailVO> getPlaylistDetail(Long playlistId, int pageNum, int pageSize) {
         if (playlistId == null || playlistId <= 0) {
             return Result.fail("歌单ID出错");
@@ -288,44 +293,11 @@ public class UserServiceImpl  implements IUserService {
 
         List<MusicDetailVO> voList = new ArrayList<>();
         for (Music music : musicPage.getRecords()) {
-            MusicDetailVO vo = new MusicDetailVO();
-            vo.copyFrom(music);
-
-            // 转换时长
-            vo.setDuration(AudioDurationUtil.formatSecondsToMS(music.getDuration()));
-
-            // 5.1 关联专辑名称（通过albumId查album表）
-            Album album = albumMapper.selectById(music.getAlbumId());
-            if (album != null) {
-                vo.setAlbumName(album.getAlbumName());
+            Result<MusicDetailVO> result = musicService.getOneMusic(music.getId());
+            if (result.getErrorMsg() != null) {
+                return Result.fail(result.getErrorMsg());
             }
-
-            // 5.2 关联点赞、收藏状态
-            if (SecurityUtil.getCurrentUserId() != null) {
-                QueryWrapper<LikeRecord> likeWrapper = new QueryWrapper<>();
-                likeWrapper.eq("target_id", music.getId())
-                        .eq("target_type", 1)
-                        .eq("user_id", SecurityUtil.getCurrentUserId());
-                LikeRecord likeRecord = likeRecordMapper.selectOne(likeWrapper);
-                vo.setIsLiked(likeRecord != null ? 1 : 0);
-
-                QueryWrapper<UserCollection> collectionWrapper = new QueryWrapper<>();
-                collectionWrapper.eq("user_id", SecurityUtil.getCurrentUserId())
-                        .eq("target_type", 1)
-                        .eq("target_id", music.getId());
-                UserCollection userCollection = userCollectionMapper.selectOne(collectionWrapper);
-                vo.setIsCollected(userCollection != null ? 1 : 0);
-            } else {
-                vo.setIsLiked(0); // 未登录默认未点赞
-                vo.setIsCollected(0);
-            }
-
-            // 5.4 关联音乐人名字（通过musicianId查musician表）
-            Musician musician = musicianMapper.selectById(music.getMusicianId());
-            if (musician != null) {
-                vo.setMusicianName(musician.getStageName());
-            }
-
+            MusicDetailVO vo = result.getData();
             voList.add(vo);
         }
 

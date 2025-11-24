@@ -3,8 +3,7 @@ package com.future.music.service;
 import com.baomidou.mybatisplus.extension.service.IService;
 
 import com.future.music.domain.dto.MusicPlayReportDTO;
-import com.future.music.domain.vo.MusicDetailVO;
-import com.future.music.domain.vo.MusicPlayVO;
+import com.future.music.domain.vo.*;
 import entity.dto.MusicDTO;
 import entity.dto.SearchDTO;
 import entity.pojo.music.Music;
@@ -13,6 +12,7 @@ import entity.pojo.util.Result;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.List;
 import java.util.Map;
 
 public interface IMusicService extends IService<Music> {
@@ -22,14 +22,14 @@ public interface IMusicService extends IService<Music> {
 
     void downloadMusic(Long musicId, Integer quality, HttpServletResponse response);
 
-    Result<MusicDetailVO> echoMusic(Long musicId);
+    Result<EchoMusicVO> echoMusic(Long musicId);
 
     Result<Void> updateMusic(Long musicId, MusicDTO musicDTO,
                        MultipartFile lyric, MultipartFile cover, Map<Integer, MultipartFile> audioMap);
 
     Result<MusicDetailVO> getOneMusic(Long musicId);
 
-    PageResp<MusicDetailVO> searchMusic(SearchDTO dto);
+    PageResp<MusicVO> searchMusic(SearchDTO dto);
 
     Result<MusicPlayVO> playMusic(Long musicId, Integer quality);
 
