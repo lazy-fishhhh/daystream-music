@@ -28,6 +28,7 @@ import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
@@ -72,6 +73,7 @@ public class VipOrderService implements IVipOrderService {
     private final RedisTemplateWorker redisTemplateWorker;
     private final VipPackageMapper vipPackageMapper;
     private final UserMapper userMapper;
+    private final RabbitTemplate rabbitTemplate;
 
     /*
         注入自身代理对象  —> 解决Spring事务失效原理3：自调用走目标对象而不走代理对象的问题
@@ -228,7 +230,18 @@ public class VipOrderService implements IVipOrderService {
         order.setTotalAmount(vipPackage.getCurrentPrice());
         order.setPayAmount(vipPackage.getCurrentPrice()); // 暂不考虑优惠
         order.setOrderType(Order.OrderType.VIP_SUBSCRIBE.getCode());
+
+
         // TODO 这里是模拟支付 实际支付会有异步回调 这里先设置为已支付
+        // ctrl alt + t 生成try catch 块
+//        try {
+//             rabbitTemplate.convertAndSend("pay-topic", "pay-success", order.getOrderNo());
+//        } catch (Exception e) {
+//            log.info("支付成功但是通知发送失败，订单号：{}", order.getOrderNo());
+//        }
+
+
+
         order.setStatus(Order.OrderStatus.PAID.getCode());
         order.setPayTime(LocalDateTime.now());
         order.setCreatedTime(LocalDateTime.now());

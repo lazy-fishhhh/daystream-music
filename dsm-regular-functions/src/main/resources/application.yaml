@@ -43,6 +43,19 @@ spring:
       simple:
        prefetch: 1
 
+    # 生产者重连配置
+    connection-timeout: 200ms # 连接超时时间
+    template:
+      retry:
+        enabled: true # 开启超时重试机制
+        initial-interval: 1000ms # 失败后的重连间隔时间
+        max-attempts: 3 # 最大重试次数
+        multiplier: 1 # 重试间隔时间 multiplier 倍增长
+    #生成者确认机制
+    # 开启RabbitMQ的发布者确认（Publisher Confirm）机制。
+    # 该机制确保生产者发送的消息已成功被RabbitMQ交换机接收。
+    publisher-confirm-type: correlated # 开启确认模式
+    publisher-returns: true # 开启返回模式
 
 
 
