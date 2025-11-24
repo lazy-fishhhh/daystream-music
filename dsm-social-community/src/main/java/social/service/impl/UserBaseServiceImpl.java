@@ -3,7 +3,11 @@ package social.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.future.login.mapper.UserRoleMapper;
 import com.future.login.util.SecurityUtil;
+import constants.RedisCacheConstants;
+import entity.pojo.info.User;
+import entity.pojo.info.UserRole;
 import entity.pojo.music.Album;
 import entity.pojo.music.Music;
 import entity.pojo.social.Comment;
@@ -11,7 +15,6 @@ import entity.pojo.social.LikeRecord;
 import entity.pojo.social.Playlist;
 import entity.pojo.social.UserCollection;
 import entity.pojo.util.Result;
-import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -21,6 +24,7 @@ import social.domain.LikeEnum;
 import social.domain.dto.CollectionDTO;
 import social.domain.dto.LikeDTO;
 import social.domain.dto.PageDTO;
+import social.domain.pojo.UserFollow;
 import social.domain.vo.*;
 import social.mapper.*;
 import social.service.UserBaseService;
@@ -28,19 +32,19 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Instant;
+import java.sql.Time;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import static constants.RedisCacheConstants.USER_COLLECTION;
 import static constants.RedisCacheConstants.USER_LIKE;
 
+/**
+ * 用户基础社交功能 点赞/收藏/关注/评论
+ */
 @Slf4j
 @Service
 public class UserBaseServiceImpl implements UserBaseService {
@@ -60,6 +64,12 @@ public class UserBaseServiceImpl implements UserBaseService {
     private StringRedisTemplate stringRedisTemplate;
     @Autowired
     private ObjectMapper objectMapper;
+    @Autowired
+    private User2Mapper user2Mapper;
+    @Autowired
+    private FollowMapper followMapper;
+    @Autowired
+    private UserRoleMapper userRoleMapper;
     //点赞/取消点赞功能
     @Transactional(rollbackFor = Exception.class)
     @Override
@@ -206,6 +216,8 @@ public class UserBaseServiceImpl implements UserBaseService {
         return  count;
     }
 
+
+
     /**
      * 收藏
      */
@@ -271,7 +283,7 @@ public class UserBaseServiceImpl implements UserBaseService {
                     if(targetType==CollectionEnum.PLAYLIST.getValue())
                     {
                         String key=USER_COLLECTION+":"+"playList"+currentUserId;
-                        CollectonLIstVO collectonLIstVO=playList2Mapper.selectLikeMusicVO(targetId,currentUserId);
+                        CollectonLIstVO collectonLIstVO=playList2Mapper.selectPlayListVO(targetId,currentUserId);
                         stringRedisTemplate.opsForZSet().remove(key,objectMapper.writeValueAsString(collectonLIstVO));
                     }
                     else if(targetType==CollectionEnum.AlBUM.getValue())
@@ -296,7 +308,7 @@ public class UserBaseServiceImpl implements UserBaseService {
                     {
                         String key=USER_COLLECTION+":"+"playList"+currentUserId;
                         Long epochSecond = userCollection.getUpdatedTime().atZone(ZoneId.systemDefault()).toInstant().getEpochSecond();
-                        CollectonLIstVO collectonLIstVO=playList2Mapper.selectLikeMusicVO(targetId,currentUserId);
+                        CollectonLIstVO collectonLIstVO=playList2Mapper.selectPlayListVO(targetId,currentUserId);
                         stringRedisTemplate.opsForZSet().add(key,objectMapper.writeValueAsString(collectonLIstVO),epochSecond);
                         stringRedisTemplate.expire(key,7,TimeUnit.DAYS);
                     }
@@ -325,7 +337,7 @@ public class UserBaseServiceImpl implements UserBaseService {
             {
                 String key=USER_COLLECTION+":"+"playList"+currentUserId;
                 Long epochSecond = userCollection.getUpdatedTime().atZone(ZoneId.systemDefault()).toInstant().getEpochSecond();
-                CollectonLIstVO collectonLIstVO=playList2Mapper.selectLikeMusicVO(targetId,currentUserId);
+                CollectonLIstVO collectonLIstVO=playList2Mapper.selectPlayListVO(targetId,currentUserId);
                 stringRedisTemplate.opsForZSet().add(key,objectMapper.writeValueAsString(collectonLIstVO),epochSecond);
                 stringRedisTemplate.expire(key,7,TimeUnit.DAYS);
             }
@@ -385,6 +397,8 @@ public class UserBaseServiceImpl implements UserBaseService {
         }
         return count;
     }
+
+
     //获取用户的点赞列表
     @Override
     public Result getLikeMusic(PageDTO pageDTO)
@@ -405,20 +419,31 @@ public class UserBaseServiceImpl implements UserBaseService {
         //判断reids中是否有内容
         if(totalSize!=null&&totalSize>0) {
             //判断是否是第一次取
-            if (pageDTO.getLastId() == null||pageDTO.getLastId().isEmpty()) {
+            if (pageDTO.getLastId() == null || pageDTO.getLastId().isEmpty()) {
                 start = 0L;
                 end = Math.min(pageSize - 1, totalSize - 1);
             } else {
-                Long lastId=Long.parseLong(pageDTO.getLastId());
+                Long lastId = Long.parseLong(pageDTO.getLastId());
                 //定位到上一页最后一个点赞的索引
-                LikeMusicVO likeMusicVO = music2Mapper.selectLikeMusicVO(lastId,currentUserId);
+                LikeMusicVO likeMusicVO = music2Mapper.selectLikeMusicVO(lastId, currentUserId);
                 String lastMusic = null;
                 try {
                     lastMusic = objectMapper.writeValueAsString(likeMusicVO);
                     Long rank = zSetOperations.rank(key, lastMusic);
-                    Long Rank = totalSize - rank - 1;
-                    start = Rank + 1;
-                    end = Math.min(start + pageSize - 1, totalSize - 1);
+                    if(rank==null)
+                    {
+                        return Result.ok("未找到相应的记录");
+                    }
+                    else{
+                        Long Rank = totalSize - rank - 1;
+                        if(Rank<0)
+                        {
+                            return Result.ok("该lastId后面没有数据");
+                        }
+                        start = Rank + 1;
+                        end = Math.min(start + pageSize - 1, totalSize - 1);
+                    }
+
                 } catch (JsonProcessingException e) {
                     throw new RuntimeException();
                 }
@@ -435,27 +460,33 @@ public class UserBaseServiceImpl implements UserBaseService {
                 }
             }
             //判断是否还有更多数据
-            hasmore = end < totalSize - 1;
-            //记录下一页lastId
-            if (!musicVOS.isEmpty()) {
-                curentLastId = musicVOS.get(musicVOS.size() - 1).getId();
-            }
+                hasmore = end < totalSize - 1;
+                //记录下一页lastId
+                if (!musicVOS.isEmpty()) {
+                    curentLastId = musicVOS.get(musicVOS.size() - 1).getId();
+                }
         }
             //如果reids没有命中,从数据库中查询
             if(musicVOS==null||musicVOS.isEmpty())
             {
+                List<LikeMusicVO> likeMusicVOList=new ArrayList<>();
                 Long lastId=null;
                 if(!(pageDTO.getLastId()==null||pageDTO.getLastId().isEmpty()))
                 {
                     lastId=Long.parseLong(pageDTO.getLastId());
                 }
-                musicVOS = music2Mapper.selectLikeMusicVOBatchIds(lastId, pageSize,currentUserId);
-                if(musicVOS==null||musicVOS.isEmpty())
+                likeMusicVOList = music2Mapper.selectLikeMusicVOAll(currentUserId);
+                musicVOS=music2Mapper.selectLikeMusicVOBatchIds(lastId,pageSize,currentUserId);
+                if(likeMusicVOList==null||likeMusicVOList.isEmpty())
                 {
                     return Result.ok("暂无喜欢的歌曲");
                 }
+                if(musicVOS==null||musicVOS.isEmpty())
+                {
+                    return Result.ok("该lastId后面没有数据了");
+                }
                 //存入redis
-                Set<ZSetOperations.TypedTuple<String>> tuples = musicVOS.stream().map(
+                Set<ZSetOperations.TypedTuple<String>> tuples = likeMusicVOList.stream().map(
                                 likeMusicVO -> {
                                    double epochSecond =likeMusicVO.getUpdatedTime().atZone(ZoneId.systemDefault()).toInstant().getEpochSecond();
                                     String value = null;
@@ -472,10 +503,11 @@ public class UserBaseServiceImpl implements UserBaseService {
                     zSetOperations.add(key,tuples);
                     stringRedisTemplate.expire(key,7,TimeUnit.DAYS);
                 }
+
                 //计算本页最后一个id
                 curentLastId=musicVOS.get(musicVOS.size()-1).getId();
                 //判断是否还有更多
-                hasmore=music2Mapper.countHasMore(currentUserId,curentLastId)>0;
+                hasmore=musicVOS.size()<likeMusicVOList.size();
             }
             //封装数据
             PageLikeVO<LikeMusicVO> pageLikeVO=new PageLikeVO();
@@ -484,6 +516,8 @@ public class UserBaseServiceImpl implements UserBaseService {
             pageLikeVO.setLastId(curentLastId);
             return Result.ok(pageLikeVO);
         }
+
+
 
 
     //获取用户收藏的专辑
@@ -517,9 +551,21 @@ public class UserBaseServiceImpl implements UserBaseService {
                 try {
                     lastAlbum = objectMapper.writeValueAsString(collectioAlbumVO);
                     Long rank = zSetOperations.rank(key, lastAlbum);
-                    Long Rank = totalSize - rank - 1;
-                    start = Rank + 1;
-                    end = Math.min(start + pageSize - 1, totalSize - 1);
+                    if(rank==null)
+                    {
+                        return Result.ok("未找到相应的数据");
+                    }
+                    else
+                    {
+                        Long Rank = totalSize - rank - 1;
+                         if(Rank<0)
+                        {
+                            return Result.ok("该lastId后面没有数据了");
+                        }
+                        start = Rank + 1;
+                        end = Math.min(start + pageSize - 1, totalSize - 1);
+                    }
+
                 } catch (JsonProcessingException e) {
                     throw new RuntimeException();
                 }
@@ -550,13 +596,19 @@ public class UserBaseServiceImpl implements UserBaseService {
             {
                 lastId=Long.parseLong(pageDTO.getLastId());
             }
+            List<CollectioAlbumVO> albumVOList=new ArrayList<>();
             albumVOS = album2Mapper.selectAlbumListBatchIds(currentUserId, pageSize,lastId);
+            albumVOList= album2Mapper.selectAlbumListAll(currentUserId);
+            if(albumVOList==null||albumVOList.isEmpty())
+            {
+                return Result.ok("未找到收藏记录");
+            }
             if(albumVOS==null||albumVOS.isEmpty())
             {
-                return Result.ok("暂无收藏的专辑");
+                return Result.ok("该lastId后面没有数据了");
             }
             //存入redis
-            Set<ZSetOperations.TypedTuple<String>> tuples = albumVOS.stream().map(
+            Set<ZSetOperations.TypedTuple<String>> tuples = albumVOList.stream().map(
                             collectioAlbumVO -> {
                                 double epochSecond =collectioAlbumVO.getUpdatedTime().atZone(ZoneId.systemDefault()).toInstant().getEpochSecond();
                                 String value = null;
@@ -576,7 +628,7 @@ public class UserBaseServiceImpl implements UserBaseService {
             //计算本页最后一个id
             curentLastId=albumVOS.get(albumVOS.size()-1).getId();
             //判断是否还有更多
-            hasmore=music2Mapper.countHasMore(currentUserId,curentLastId)>0;
+            hasmore=albumVOS.size()<albumVOList.size();
         }
         //封装数据
         PageLikeVO<CollectioAlbumVO> pageLikeVO=new PageLikeVO();
@@ -585,6 +637,8 @@ public class UserBaseServiceImpl implements UserBaseService {
         pageLikeVO.setLastId(curentLastId);
         return Result.ok(pageLikeVO);
     }
+
+
 //获取收藏的歌单
     @Override
     public Result getPlayList(PageDTO pageDTO) {
@@ -610,12 +664,20 @@ public class UserBaseServiceImpl implements UserBaseService {
             } else {
                 Long lastId=Long.parseLong(pageDTO.getLastId());
                 //定位到上一页最后一个音乐的索引
-                CollectonLIstVO collectonLIstVO = playList2Mapper.selectLikeMusicVO(lastId,currentUserId);
+                CollectonLIstVO collectonLIstVO = playList2Mapper.selectPlayListVO(lastId,currentUserId);
                 String lastPlayList = null;
                 try {
                     lastPlayList = objectMapper.writeValueAsString(collectonLIstVO);
                     Long rank = zSetOperations.rank(key, lastPlayList);
+                    if(rank==null)
+                    {
+                        return Result.ok("未找到对应的记录");
+                    }
                     Long Rank = totalSize - rank - 1;
+                    if(Rank<0)
+                    {
+                        return Result.ok("该lastId后面没有数据了");
+                    }
                     start = Rank + 1;
                     end = Math.min(start + pageSize - 1, totalSize - 1);
                 } catch (JsonProcessingException e) {
@@ -648,13 +710,19 @@ public class UserBaseServiceImpl implements UserBaseService {
             {
                 lastId=Long.parseLong(pageDTO.getLastId());
             }
-            playLists = playList2Mapper.selectLikeMusicVOBatchIds(currentUserId, pageSize,lastId);
-            if(playLists==null||playLists.isEmpty())
+            List<CollectonLIstVO> list=new ArrayList<>();
+            playLists = playList2Mapper.selectPlayListBatchIds(currentUserId,lastId,pageSize);
+            list=playList2Mapper.selectPlayListAll(currentUserId);
+            if(list==null||list.isEmpty())
             {
                 return Result.ok("暂无收藏的歌单");
             }
+            if(playLists==null||playLists.isEmpty())
+            {
+                return Result.ok("该lastId后面没有数据了");
+            }
             //存入redis
-            Set<ZSetOperations.TypedTuple<String>> tuples = playLists.stream().map(
+            Set<ZSetOperations.TypedTuple<String>> tuples = list.stream().map(
                             collectonLIstVO -> {
                                 double epochSecond =collectonLIstVO.getUpdatedTime().atZone(ZoneId.systemDefault()).toInstant().getEpochSecond();
                                 String value = null;
@@ -674,7 +742,7 @@ public class UserBaseServiceImpl implements UserBaseService {
             //计算本页最后一个id
             curentLastId=playLists.get(playLists.size()-1).getId();
             //判断是否还有更多
-            hasmore=music2Mapper.countHasMore(currentUserId,curentLastId)>0;
+            hasmore=playLists.size()<list.size();
         }
         //封装数据
         PageLikeVO<CollectonLIstVO> pageLikeVO=new PageLikeVO();
@@ -684,4 +752,507 @@ public class UserBaseServiceImpl implements UserBaseService {
         return Result.ok(pageLikeVO);
     }
 
-}
+
+
+    //关注
+    @Override
+    public Result follow(Long userId) {
+        if(userId==null)
+        {
+            return Result.fail("被关注者id不能为空");
+        }
+        User user = user2Mapper.selectById(userId);
+        if(user==null)
+        {
+            return Result.fail("该用户不存在");
+        }
+        if(user.getUserStatus()==0)
+        {
+            return Result.fail("该用户已被封禁，禁止关注");
+        }
+        //获取我当前用户id
+        Long currentUserId = SecurityUtil.getCurrentUserId();
+        LambdaQueryWrapper<UserFollow> lambdaQueryWrapper1=new LambdaQueryWrapper<>();
+        lambdaQueryWrapper1.eq(UserFollow::getUserId,currentUserId)
+                .eq(UserFollow::getFollowedUserId,userId);
+        UserFollow follow1 = followMapper.selectOne(lambdaQueryWrapper1);
+        if(follow1!=null)
+        {
+            return Result.fail("您已经关注过了，请勿重复操作");
+        }
+        //关注
+        UserFollow follow=new UserFollow();
+        follow.setFollowedUserId(userId);
+        follow.setUserId(currentUserId);
+        follow.setFollowTime(LocalDateTime.now());
+        followMapper.insert(follow);
+        FollowerVO followerVO=new FollowerVO();
+        followerVO.setIsfollow(true);
+        followerVO.setMsg("关注成功");
+        LambdaQueryWrapper<UserRole> lambdaQueryWrapper=new LambdaQueryWrapper<>();
+        lambdaQueryWrapper.eq(UserRole::getUserId,userId);
+        UserRole userRole = userRoleMapper.selectOne(lambdaQueryWrapper);
+        //存入reids
+        try {
+            String followKey=null;
+            //关注列表缓存
+            if(userRole.getRoleId()==1||userRole.getRoleId()==2) {
+               followKey = RedisCacheConstants.USER_FOLLOW + ":" + currentUserId+"normal";
+            }else if(userRole.getRoleId()==3)
+            {
+                followKey=RedisCacheConstants.USER_FOLLOW+":"+currentUserId+"music";
+            }
+            UserFollowerVO userFollowerVO = followMapper.selectFollowUser(userId,currentUserId);
+            String follow2 = objectMapper.writeValueAsString(userFollowerVO);
+            double score=follow.getFollowTime().atZone(ZoneId.systemDefault()).toInstant().getEpochSecond();
+            stringRedisTemplate.opsForZSet().add(followKey,follow2,score);
+            stringRedisTemplate.expire(followKey,7,TimeUnit.DAYS);
+            //粉丝列表缓存
+            String followerKey= RedisCacheConstants.USER_FOLLOWER+":"+userId;
+            UserFollowerVO userFollowerVO1 = followMapper.selectFollowedUser(currentUserId,userId);
+            String follow3 = objectMapper.writeValueAsString(userFollowerVO1);
+            double score1=follow.getFollowTime().atZone(ZoneId.systemDefault()).toInstant().getEpochSecond();
+            stringRedisTemplate.opsForZSet().add(followerKey,follow3,score1);
+            stringRedisTemplate.expire(followKey,7,TimeUnit.DAYS);
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException(e);
+        }
+        return Result.ok(followerVO);
+    }
+
+
+
+
+    /**
+     * 取消关注
+     */
+    @Override
+    public Result unFollow(Long userId) {
+        if(userId==null)
+        {
+            return Result.fail("被关注者id不能为空");
+        }
+        User user = user2Mapper.selectById(userId);
+        if(user==null)
+        {
+            return Result.fail("该用户不存在");
+        }
+        Long currentUserId = SecurityUtil.getCurrentUserId();
+        LambdaQueryWrapper<UserFollow> lambdaQueryWrapper1=new LambdaQueryWrapper<>();
+        lambdaQueryWrapper1.eq(UserFollow::getUserId,currentUserId)
+                .eq(UserFollow::getFollowedUserId,userId);
+        UserFollow follow = followMapper.selectOne(lambdaQueryWrapper1);
+        if(follow==null)
+        {
+            return Result.fail("你还没有关注当前用户");
+        }
+        LambdaQueryWrapper<UserRole> lambdaQueryWrapper=new LambdaQueryWrapper<>();
+        lambdaQueryWrapper.eq(UserRole::getUserId,userId);
+        UserRole userRole = userRoleMapper.selectOne(lambdaQueryWrapper);
+        //从reids中删除
+        try {
+            //关注列表缓存
+            String followKey=null;
+            if(userRole.getRoleId()==1||userRole.getRoleId()==2) {
+                 followKey= RedisCacheConstants.USER_FOLLOW + ":" + currentUserId+"normal";
+            }else if(userRole.getRoleId()==3)
+            {
+                followKey=RedisCacheConstants.USER_FOLLOW+":"+currentUserId+"music";
+            }
+            UserFollowerVO userFollowerVO = followMapper.selectFollowUser(userId,currentUserId);
+            String follow2 = objectMapper.writeValueAsString(userFollowerVO);
+            log.info(follow2);
+            stringRedisTemplate.opsForZSet().remove(followKey,follow2);
+            //粉丝列表缓存
+            String followerKey= RedisCacheConstants.USER_FOLLOWER+":"+userId;
+            UserFollowerVO userFollowerVO1 = followMapper.selectFollowedUser(currentUserId,userId);
+            String follow3 = objectMapper.writeValueAsString(userFollowerVO1);
+            log.info(follow3);
+            stringRedisTemplate.opsForZSet().remove(followerKey,follow3);
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException(e);
+        }
+        //取消关注
+        followMapper.delete(lambdaQueryWrapper1);
+        FollowerVO followerVO=new FollowerVO();
+        followerVO.setIsfollow(false);
+        followerVO.setMsg("取消关注成功");
+        return Result.ok(followerVO);
+    }
+
+    /**
+     * 用户的关注数
+     */
+    @Override
+    public Result getFollowCount()
+    {
+        Long currentUserId = SecurityUtil.getCurrentUserId();
+        LambdaQueryWrapper<UserFollow> lambdaQueryWrapper=new LambdaQueryWrapper<>();
+        lambdaQueryWrapper.eq(UserFollow::getUserId,currentUserId);
+        Long count = followMapper.selectCount(lambdaQueryWrapper);
+        return Result.ok(count);
+    }
+
+    /**
+     * 用户的粉丝数
+     */
+    @Override
+    public Result getFollowerCount()
+    {
+        Long currentUserId=SecurityUtil.getCurrentUserId();
+        LambdaQueryWrapper<UserFollow> lambdaQueryWrapper=new LambdaQueryWrapper<>();
+        lambdaQueryWrapper.eq(UserFollow::getFollowedUserId,currentUserId);
+        Long count = followMapper.selectCount(lambdaQueryWrapper);
+        return Result.ok(count);
+    }
+
+    /**
+     * 用户的粉丝列表
+     */
+    @Override
+    public Result getFollowerList(PageDTO pageDTO)
+    {
+        //从redis中查询
+        Long currentUserId = SecurityUtil.getCurrentUserId();
+        String followerKey= RedisCacheConstants.USER_FOLLOWER+":"+currentUserId;
+        List<UserFollowerVO> userFollowerVOS=new ArrayList<>();
+        ZSetOperations<String, String> zSetOperations = stringRedisTemplate.opsForZSet();
+        //总数量用于计数
+        Long totalSize=zSetOperations.size(followerKey);
+        Integer pageSize=pageDTO.getSize();
+        Long start=0L;
+        Long end=0L;
+        Long currentLastId=0L;
+        Boolean hasmore=false;
+        //判断是不是从头开始查找的
+        if(totalSize!=null&&totalSize>0) {
+            if (pageDTO.getLastId()==null||pageDTO.getLastId().trim().isEmpty()) {
+                end = Math.min(pageSize - 1, totalSize - 1);
+            } else {
+                Long lastId = Long.parseLong(pageDTO.getLastId());
+                //定位到当前lastId
+                UserFollowerVO user = followMapper.selectFollowedUser(lastId,currentUserId);
+                try {
+                    String s = objectMapper.writeValueAsString(user);
+                    Long rank = zSetOperations.rank(followerKey, s);
+                    if (rank == null) {
+                        return Result.fail("未找到相关记录");
+                    }
+                        Long Rank = totalSize - rank - 1;
+                        if(Rank<0)
+                        {
+                            return Result.ok("该lastId后面没有数据了");
+                        }
+                        start = totalSize - rank - 1;
+                        end = Math.min(start + pageSize - 1, totalSize - 1);
+                } catch (JsonProcessingException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+            //从redis中获取
+            Set<ZSetOperations.TypedTuple<String>> typedTuples = zSetOperations.reverseRangeWithScores(followerKey, start, end);
+            for (ZSetOperations.TypedTuple<String> typedTuple : typedTuples) {
+                String value = typedTuple.getValue();
+                try {
+                    UserFollowerVO userFollowerVO = objectMapper.readValue(value, UserFollowerVO.class);
+                    userFollowerVOS.add(userFollowerVO);
+                } catch (JsonProcessingException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+            //判断是否还有数据
+            hasmore = end < totalSize - 1;
+            //当前页的最后元素的id
+            currentLastId = userFollowerVOS.get(userFollowerVOS.size() - 1).getId();
+        }
+            //如果没有找到，从数据库中找
+            if(userFollowerVOS==null||userFollowerVOS.isEmpty())
+            {
+                Long lastId=null;
+                if( !(pageDTO.getLastId()== null||pageDTO.getLastId().trim().isEmpty()))
+                {
+                    lastId=Long.parseLong(pageDTO.getLastId());
+                }
+                List<UserFollowerVO> userFollowerVOList=new ArrayList<>();
+                List<Long> userIds = followMapper.selectFollowerUserIds(currentUserId);
+                if (userIds == null || userIds.isEmpty()) {
+                    return Result.ok("暂无粉丝");
+                }
+                userFollowerVOList=followMapper.selectFollowAll(userIds);
+                if(userFollowerVOList==null||userFollowerVOList.isEmpty())
+                {
+                    return Result.ok("暂无粉丝");
+                }
+                userFollowerVOS=followMapper.selectFollowUserBatch(userIds,lastId,pageSize);
+                if(userFollowerVOS==null||userFollowerVOS.isEmpty())
+                {
+                    return Result.ok("当前lastId后面没有数据");
+                }
+                if(userFollowerVOS==null||userFollowerVOS.isEmpty())
+                {
+                    return Result.ok("暂无粉丝");
+                }
+                //存入redis
+                Set<ZSetOperations.TypedTuple<String>> tuples = userFollowerVOList.stream().map(
+                                userFollowerVO -> {
+                                    String value = null;
+                                    double score = userFollowerVO.getFollowTime().atZone(ZoneId.systemDefault()).toInstant().getEpochSecond();
+                                    try {
+                                        value = objectMapper.writeValueAsString(userFollowerVO);
+                                    } catch (JsonProcessingException e) {
+                                        throw new RuntimeException(e);
+                                    }
+                                    return ZSetOperations.TypedTuple.of(value, score);
+                                })
+                        .collect(Collectors.toSet());
+                if(!(tuples==null||tuples.isEmpty())) {
+                    zSetOperations.add(followerKey, tuples);
+                    stringRedisTemplate.expire(followerKey,7, TimeUnit.DAYS);
+                }
+                //判断是否有其他数据
+                currentLastId=userFollowerVOS.get(userFollowerVOS.size()-1).getId();
+                hasmore= userFollowerVOS.size()<userFollowerVOList.size();
+            }
+            //封装数据
+            PageLikeVO<UserFollowerVO> pageLikeVO=new PageLikeVO<>();
+            pageLikeVO.setDateList(userFollowerVOS);
+            pageLikeVO.setHasMore(hasmore);
+            pageLikeVO.setLastId(currentLastId);
+            return Result.ok(pageLikeVO);
+        }
+
+
+    /**
+     * 获取关注的音乐人列表
+     * @param pageDTO
+     * @return
+     */
+    @Override
+    public Result getFollowListMusic(PageDTO pageDTO)
+    {
+        //从redis中查询
+        Long currentUserId = SecurityUtil.getCurrentUserId();
+        String followKey=RedisCacheConstants.USER_FOLLOW+":"+currentUserId+"music";
+        List<UserFollowerVO> userFollowerVOS=new ArrayList<>();
+        ZSetOperations<String, String> zSetOperations = stringRedisTemplate.opsForZSet();
+        //总数量用于计数
+        Long totalSize=zSetOperations.size(followKey);
+        Integer pageSize=pageDTO.getSize();
+        Long start=0L;
+        Long end=0L;
+        Long currentLastId=0L;
+        Boolean hasmore=false;
+        //判断是不是从头开始查找的
+        if(totalSize!=null&&totalSize>0) {
+            if (pageDTO.getLastId()==null||pageDTO.getLastId().trim().isEmpty()) {
+                end = Math.min(pageSize - 1, totalSize - 1);
+            } else {
+                Long lastId = Long.parseLong(pageDTO.getLastId());
+                //定位到当前lastId
+                UserFollowerVO user = followMapper.selectFollowedUser(lastId,currentUserId);
+                try {
+                    String s = objectMapper.writeValueAsString(user);
+                    Long rank = zSetOperations.rank(followKey, s);
+                    if (rank == null) {
+                        return Result.fail("未找到相关记录");
+                    }
+                    Long Rank = totalSize - rank - 1;
+                    if(Rank<0)
+                    {
+                        return Result.ok("该lastId后面没有数据了");
+                    }
+                    start = totalSize - rank - 1;
+                    end = Math.min(start + pageSize - 1, totalSize - 1);
+                } catch (JsonProcessingException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+            //从redis中获取
+            Set<ZSetOperations.TypedTuple<String>> typedTuples = zSetOperations.reverseRangeWithScores(followKey, start, end);
+            for (ZSetOperations.TypedTuple<String> typedTuple : typedTuples) {
+                String value = typedTuple.getValue();
+                try {
+                    UserFollowerVO userFollowerVO = objectMapper.readValue(value, UserFollowerVO.class);
+                    userFollowerVOS.add(userFollowerVO);
+                } catch (JsonProcessingException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+            //判断是否还有数据
+            hasmore = end < totalSize - 1;
+            //当前页的最后元素的id
+            currentLastId = userFollowerVOS.get(userFollowerVOS.size() - 1).getId();
+        }
+        //如果没有找到，从数据库中找
+        if(userFollowerVOS==null||userFollowerVOS.isEmpty())
+        {
+            Long lastId=null;
+            if( !(pageDTO.getLastId()== null||pageDTO.getLastId().trim().isEmpty()))
+            {
+                lastId=Long.parseLong(pageDTO.getLastId());
+            }
+            List<UserFollowerVO> userFollowerVOList=new ArrayList<>();
+            List<Long> userIds = followMapper.selectFollowUserIdsMusician(currentUserId);
+            if (userIds == null || userIds.isEmpty()) {
+                return Result.ok("暂无关注的音乐人");
+            }
+            userFollowerVOList=followMapper.selectFollowedAllMuscian(userIds);
+            if(userFollowerVOList==null||userFollowerVOList.isEmpty())
+            {
+                return Result.ok("暂无关注的音乐人");
+            }
+            userFollowerVOS=followMapper.selectFollowedUserBatchMuscian(userIds,lastId,pageSize);
+            if(userFollowerVOS==null||userFollowerVOS.isEmpty())
+            {
+                return Result.ok("当前lastId后面没有数据");
+            }
+            if(userFollowerVOS==null||userFollowerVOS.isEmpty())
+            {
+                return Result.ok("暂无关注的音乐人");
+            }
+            //存入redis
+            Set<ZSetOperations.TypedTuple<String>> tuples = userFollowerVOList.stream().map(
+                            userFollowerVO -> {
+                                String value = null;
+                                double score = userFollowerVO.getFollowTime().atZone(ZoneId.systemDefault()).toInstant().getEpochSecond();
+                                try {
+                                    value = objectMapper.writeValueAsString(userFollowerVO);
+                                } catch (JsonProcessingException e) {
+                                    throw new RuntimeException(e);
+                                }
+                                return ZSetOperations.TypedTuple.of(value, score);
+                            })
+                    .collect(Collectors.toSet());
+            if(!(tuples==null||tuples.isEmpty())) {
+                zSetOperations.add(followKey, tuples);
+                stringRedisTemplate.expire(followKey,7, TimeUnit.DAYS);
+            }
+            //判断是否有其他数据
+            currentLastId=userFollowerVOS.get(userFollowerVOS.size()-1).getId();
+            hasmore= userFollowerVOS.size()<userFollowerVOList.size();
+        }
+        //封装数据
+        PageLikeVO<UserFollowerVO> pageLikeVO=new PageLikeVO<>();
+        pageLikeVO.setDateList(userFollowerVOS);
+        pageLikeVO.setHasMore(hasmore);
+        pageLikeVO.setLastId(currentLastId);
+        return Result.ok(pageLikeVO);
+    }
+    /**
+     * 获取关注的普通人列表
+     * @param pageDTO
+     * @return
+     */
+    @Override
+    public Result getFollowListNormal(PageDTO pageDTO)
+    {
+        //从redis中查询
+        Long currentUserId = SecurityUtil.getCurrentUserId();
+        String followKey=RedisCacheConstants.USER_FOLLOW + ":" + currentUserId+"normal";
+        List<UserFollowerVO> userFollowerVOS=new ArrayList<>();
+        ZSetOperations<String, String> zSetOperations = stringRedisTemplate.opsForZSet();
+        //总数量用于计数
+        Long totalSize=zSetOperations.size(followKey);
+        Integer pageSize=pageDTO.getSize();
+        Long start=0L;
+        Long end=0L;
+        Long currentLastId=0L;
+        Boolean hasmore=false;
+        //判断是不是从头开始查找的
+        if(totalSize!=null&&totalSize>0) {
+            if (pageDTO.getLastId()==null||pageDTO.getLastId().trim().isEmpty()) {
+                end = Math.min(pageSize - 1, totalSize - 1);
+            } else {
+                Long lastId = Long.parseLong(pageDTO.getLastId());
+                //定位到当前lastId
+                UserFollowerVO user = followMapper.selectFollowedUser(lastId,currentUserId);
+                try {
+                    String s = objectMapper.writeValueAsString(user);
+                    Long rank = zSetOperations.rank(followKey, s);
+                    if (rank == null) {
+                        return Result.fail("未找到相关记录");
+                    }
+                    Long Rank = totalSize - rank - 1;
+                    if(Rank<0)
+                    {
+                        return Result.ok("该lastId后面没有数据了");
+                    }
+                    start = totalSize - rank - 1;
+                    end = Math.min(start + pageSize - 1, totalSize - 1);
+                } catch (JsonProcessingException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+            //从redis中获取
+            Set<ZSetOperations.TypedTuple<String>> typedTuples = zSetOperations.reverseRangeWithScores(followKey, start, end);
+            for (ZSetOperations.TypedTuple<String> typedTuple : typedTuples) {
+                String value = typedTuple.getValue();
+                try {
+                    UserFollowerVO userFollowerVO = objectMapper.readValue(value, UserFollowerVO.class);
+                    userFollowerVOS.add(userFollowerVO);
+                } catch (JsonProcessingException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+            //判断是否还有数据
+            hasmore = end < totalSize - 1;
+            //当前页的最后元素的id
+            currentLastId = userFollowerVOS.get(userFollowerVOS.size() - 1).getId();
+        }
+        //如果没有找到，从数据库中找
+        if(userFollowerVOS==null||userFollowerVOS.isEmpty())
+        {
+            Long lastId=null;
+            if( !(pageDTO.getLastId()== null||pageDTO.getLastId().trim().isEmpty()))
+            {
+                lastId=Long.parseLong(pageDTO.getLastId());
+            }
+            List<UserFollowerVO> userFollowerVOList=new ArrayList<>();
+            List<Long> userIds = followMapper.selectFollowUserIdsnormal(currentUserId);
+            if (userIds == null || userIds.isEmpty()) {
+                return Result.ok("暂无关注的普通用户");
+            }
+            userFollowerVOList=followMapper.selectFollowedAllNormal(userIds);
+            if(userFollowerVOList==null||userFollowerVOList.isEmpty())
+            {
+                return Result.ok("暂无关注的普通用户");
+            }
+            userFollowerVOS=followMapper.selectFollowedUserBatchNormal(userIds,lastId,pageSize);
+            if(userFollowerVOS==null||userFollowerVOS.isEmpty())
+            {
+                return Result.ok("当前lastId后面没有数据");
+            }
+            if(userFollowerVOS==null||userFollowerVOS.isEmpty())
+            {
+                return Result.ok("暂无关注的普通用户");
+            }
+            //存入redis
+            Set<ZSetOperations.TypedTuple<String>> tuples = userFollowerVOList.stream().map(
+                            userFollowerVO -> {
+                                String value = null;
+                                double score = userFollowerVO.getFollowTime().atZone(ZoneId.systemDefault()).toInstant().getEpochSecond();
+                                try {
+                                    value = objectMapper.writeValueAsString(userFollowerVO);
+                                } catch (JsonProcessingException e) {
+                                    throw new RuntimeException(e);
+                                }
+                                return ZSetOperations.TypedTuple.of(value, score);
+                            })
+                    .collect(Collectors.toSet());
+            if(!(tuples==null||tuples.isEmpty())) {
+                zSetOperations.add(followKey, tuples);
+                stringRedisTemplate.expire(followKey,7, TimeUnit.DAYS);
+            }
+            //判断是否有其他数据
+            currentLastId=userFollowerVOS.get(userFollowerVOS.size()-1).getId();
+            hasmore= userFollowerVOS.size()<userFollowerVOList.size();
+        }
+        //封装数据
+        PageLikeVO<UserFollowerVO> pageLikeVO=new PageLikeVO<>();
+        pageLikeVO.setDateList(userFollowerVOS);
+        pageLikeVO.setHasMore(hasmore);
+        pageLikeVO.setLastId(currentLastId);
+        return Result.ok(pageLikeVO);
+    }
+    }
+

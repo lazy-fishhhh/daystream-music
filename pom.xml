@@ -35,6 +35,23 @@
 	</properties>
 
 	<dependencies>
+        <!-- Jackson
+        将 Java 对象（POJO）序列化成 XML 字符串。
+        将 XML 字符串反序列化成 Java 对象（POJO）。
+        -->
+
+        <dependency>
+            <groupId>com.fasterxml.jackson.dataformat</groupId>
+            <artifactId>jackson-dataformat-xml</artifactId>
+        </dependency>
+
+        <!-- AMQP依赖  包含RabbitMQ客户端 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-amqp</artifactId>
+            <version>3.5.7</version>
+        </dependency>
+
         <!-- Lombok：简化实体类代码 -->
         <dependency>
             <groupId>org.projectlombok</groupId>

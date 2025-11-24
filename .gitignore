@@ -13,12 +13,50 @@ target/
 .springBeans
 .sts4-cache
 
-### IntelliJ IDEA ###
-.idea
+# IntelliJ IDEA 配置文件
+.idea/
 *.iws
 *.iml
 *.ipr
+out/
+!**/src/main/**/out/
+!**/src/test/**/out/
+# 忽略 src/test/ 目录下的所有文件（推荐）
+src/test/
+
+# Maven 相关
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+.mvn/timing.properties
+
+# Gradle 相关
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+# Java 编译产物
 *.class
+# 但通常我们直接忽略 target 目录，所以上面的 target/ 规则已经包含了这个
+
+# 日志文件
+*.log
+
+# 临时文件
+*.tmp
+*.bak
+*.swp
+*~
+
+# 操作系统相关文件
+.DS_Store
+Thumbs.db
 
 ### NetBeans ###
 /nbproject/private/
@@ -26,9 +64,7 @@ target/
 /dist/
 /nbdist/
 /.nb-gradle/
-build/
-!**/src/main/**/build/
-!**/src/test/**/build/
+
 
 ### VS Code ###
 .vscode/

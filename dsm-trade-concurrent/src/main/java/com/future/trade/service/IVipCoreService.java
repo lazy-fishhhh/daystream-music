@@ -8,7 +8,6 @@ import javax.transaction.Transactional;
 
 public interface IVipCoreService {
     VipStatusVO checkAndUpdateVipStatus() throws JsonProcessingException;
-    void processAutoRenewal();
 
     @Transactional
     Result<String> toggleAutoRenew(Integer autoRenew);
