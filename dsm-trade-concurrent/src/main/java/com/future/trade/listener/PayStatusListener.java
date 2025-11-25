@@ -17,8 +17,6 @@ import org.springframework.stereotype.Component;
 public class PayStatusListener {
     private final IVipOrderService vipOrderService;
 
-
-
     // 监听支付状态变更队列
     @RabbitListener(bindings = @QueueBinding(
             value = @Queue(name = "order.pay.queue", durable = "true"),
