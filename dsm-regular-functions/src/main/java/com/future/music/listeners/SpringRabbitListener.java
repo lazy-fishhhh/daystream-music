@@ -1,6 +1,7 @@
 package com.future.music.listeners;
 
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.core.ExchangeTypes;
 import org.springframework.amqp.rabbit.annotation.Exchange;
 import org.springframework.amqp.rabbit.annotation.Queue;
@@ -14,13 +15,9 @@ import java.util.Map;
  * 这个类测试用的
  * 需要消费者监听队列就自己创建一个listener
  */
-
+@Slf4j
 @Component
 public class SpringRabbitListener {
-    @RabbitListener(queues = "dsm_queue1")
-    public void q1MessageListener(String message) {
-        System.out.println("SpringRabbitListener: " + message);
-    }
 
     // 使用转换器后，消息体会被转换为 Map<String, String>
     @RabbitListener(queues = "converterTest")
@@ -42,4 +39,26 @@ public class SpringRabbitListener {
     public void q2MessageListener(String message) {
         System.out.println("SpringRabbitListener: " + message);
     }
+
+    @RabbitListener(queues = "test.queue")
+    public void errorMessageListener(String message) {
+        System.out.println("接收到了消费者的消息: " + message);
+        throw new RuntimeException("测试异常");
+    }
+
+//    @RabbitListener(queues = "simple.queue")
+    public void testMessageListener(String message) {
+        System.out.println("simple.queue接收到消息: " + message);
+    }
+
+    // 基于插件的延迟队列
+    @RabbitListener(bindings = @QueueBinding(
+            value = @Queue(name = "delay.queue", durable = "true"),
+            exchange = @Exchange(name = "delay.direct", delayed = "true"),
+            key = "hi"
+    ))
+    public void listenDelayQueue(String message) {
+        log.info("接收到delay.queue消息: " + message);
+    }
+
 }
