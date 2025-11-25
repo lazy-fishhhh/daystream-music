@@ -1,0 +1,53 @@
+spring:
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://39.96.214.163:3306/music
+    username: admin
+    password: PDbsBSMrye75eck7
+  data:
+    redis:
+      host: 39.96.214.163
+      port: 6379
+      password: AL1234@
+
+mybatis-plus:
+  configuration:
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+    map-underscore-to-camel-case: true
+    default-enum-type-handler: com.baomidou.mybatisplus.core.handlers.MybatisEnumTypeHandler
+    type-aliases-package: com.example.music.entity.pojo
+    mapper-locations: classpath:mapper/*.xml
+
+minio:
+  endpoint: http://39.96.214.163:9000
+  accessKey: asdfghjkl
+  secretKey: Lz112112!
+  bucketName: file
+servlet:
+  multipart:
+    max-file-size: 5GB
+    max-request-size: 5GB
+
+langchain4j:
+  open-ai:
+    chat-model:
+      api-key: ${API-KEY:sk-576746ec85384deea25770688e439042}
+      base-url: https://dashscope.aliyuncs.com/compatible-mode/v1
+      model-name: qwen-flash
+      log-requests: true    # 日志
+      log-responses: true   # 日志
+    # 流式输出
+    streaming-chat-model:
+      api-key: ${API-KEY:sk-576746ec85384deea25770688e439042}
+      base-url: https://dashscope.aliyuncs.com/compatible-mode/v1
+      model-name: qwen-flash
+      log-requests: true    # 日志
+      log-responses: true   # 日志
+    # 向量模型
+    embedding-model:
+      api-key: ${API-KEY:sk-576746ec85384deea25770688e439042}
+      base-url: https://dashscope.aliyuncs.com/compatible-mode/v1
+      model-name: text-embedding-v4
+logging:
+  level:
+    dev.langchain4j: debug
