@@ -2,6 +2,7 @@ package com.future.music.controller;
 
 
 import com.future.music.domain.dto.MusicPlayReportDTO;
+import com.future.music.domain.vo.EchoMusicVO;
 import com.future.music.domain.vo.MusicDetailVO;
 import com.future.music.domain.vo.MusicPlayVO;
 import com.future.music.service.IMusicService;
@@ -45,7 +46,7 @@ public class MusicController {
 
     @ApiOperation(value = "回显音乐")
     @GetMapping("/echo/{musicId}")
-    public Result<MusicDetailVO> echoMusic(@PathVariable Long musicId) {
+    public Result<EchoMusicVO> echoMusic(@PathVariable Long musicId) {
         return iMusicService.echoMusic(musicId);
     }
 

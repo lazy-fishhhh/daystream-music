@@ -18,7 +18,6 @@ public class Music {
     private Long albumId;            // 所属专辑ID
     private Long musicianId;         // 音乐人ID
     private Integer duration;        // 时长
-    private String lyricUrl;         // 歌词URL
     private String coverUrl;         // 封面URL
     private Integer bpm;             // 节奏（BPM）
     private String licenseType;      // 版权类型
@@ -28,11 +27,5 @@ public class Music {
     private Long downloadCount;      // 下载量
     private Integer status;          // 状态（0-待审核，1-上架，2-下架）
     private Long likeCount;          //点赞量
-    private Long commentCount;        //评论量
-    @TableField(exist = false)
-    private Integer isLike = 0;          //是否点赞（0-未点赞，1-已点赞）
-    @TableField(exist = false)
-    private List<MusicAudio> audioList; // 音频列表
-    @TableField(exist = false)
-    private String albumName;            // 所属专辑名字
+    private Long commentCount;       //评论量
 }

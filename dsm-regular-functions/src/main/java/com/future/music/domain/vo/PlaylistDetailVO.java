@@ -8,14 +8,14 @@ import java.util.List;
 
 @Data
 public class PlaylistDetailVO {
-    private String name;
-    private String cover;
-    private String description;
-    private Long musicCount;
-    private Long playCount;
-    private LocalDateTime createdTime;
-    private Long commentCount;
-    private Long collectionCount;
+    private String name;                // 歌单名字
+    private String cover;               // 封面
+    private String description;         // 简介
+    private Long musicCount;            // 音乐数
+    private Long playCount;             // 播放数
+    private LocalDateTime createdTime;  // 创建时间
+    private Long commentCount;          // 评论数
+    private Long collectionCount;       // 收藏数
 
-    private PageResp<MusicDetailVO> musicDetailVOList;
+    private PageResp<MusicDetailVO> musicDetailVOList;  // 音乐
 }
