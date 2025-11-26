@@ -1,9 +1,12 @@
 package com.future.trade.service;
 
+import com.future.trade.entity.SeckillActivity;
+import com.future.trade.entity.SeckillOrder;
 import com.future.trade.entity.dto.SeckillActivityDTO;
 import com.future.trade.entity.vo.SeckillActivityVO;
 import entity.pojo.util.Result;
 import jakarta.validation.Valid;
+
 
 
 public interface ISeckillActivityService {
@@ -15,4 +18,7 @@ public interface ISeckillActivityService {
      */
     public Result<String> addSeckillActivity(@Valid SeckillActivityDTO req);
 
+    Result<String> purchaseSeckillProduct(Long seckillActivityId);
+
+    SeckillOrder createSeckillOrder(Long seckillActivityId, Long userId, SeckillActivity activity);
 }

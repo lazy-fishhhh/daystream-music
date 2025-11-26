@@ -29,6 +29,11 @@
         <java.version>17</java.version>
     </properties>
     <dependencies>
+        <dependency>
+            <groupId>org.aspectj</groupId>
+            <artifactId>aspectjweaver</artifactId>
+        </dependency>
+
         <!-- 校验规范接口（JSR-303） -->
         <dependency>
             <groupId>javax.validation</groupId>
