@@ -1,9 +1,12 @@
 package com.future.trade.service.Impl;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.future.login.exception.BusinessException;
 import com.future.login.mapper.UserMapper;
 import com.future.login.util.SecurityUtil;
 import com.future.trade.service.IBasicOrderService;
+import constants.UserConstants;
 import entity.pojo.info.User;
 import entity.pojo.util.Result;
 import lombok.RequiredArgsConstructor;
@@ -77,7 +80,8 @@ public class BasicOrderService implements IBasicOrderService {
             if (receiver == null) {
                 log.warn("接收人不存在：receiverId={}", receiverId);
                 // 由于事务特性，上面扣减的钱会自动回滚
-                return Result.fail("接收人不存在");
+                throw new BusinessException(UserConstants.RECEIVER_NOT_FOUND, "接收人不存在");
+
             }
             Integer originalReceiverBalance = receiver.getWalletBalance();
 
