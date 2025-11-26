@@ -2,12 +2,17 @@ package com.future.login.handler;
 import com.future.login.exception.*;
 
 import entity.pojo.util.Result;
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.BindException;
+import org.springframework.validation.BindingResult;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import java.util.List;
@@ -19,6 +24,23 @@ import static code.UserErrorCode.PARAM_ERROR;
 @Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    /**
+     * 处理 @RequestParam / @PathVariable 参数校验失败的异常
+     * 例如：@NotNull, @Min, @Max 等直接作用在方法参数上的注解
+     */
+    @ExceptionHandler(ConstraintViolationException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST) // 设置HTTP响应状态码为 400 Bad Request
+    public Result<Void> handleConstraintViolationException(ConstraintViolationException e) {
+        // 从异常中提取所有的错误提示信息，并用逗号拼接起来
+        String errorMessage = e.getConstraintViolations().stream()
+                .map(ConstraintViolation::getMessage)
+                .collect(Collectors.joining("，"));
+
+        // 返回一个自定义的失败 Result 对象
+        return Result.fail(errorMessage);
+    }
+
 
     @ExceptionHandler(VipStatusException.class)
     public Result<?> handleVipStatusException(VipStatusException e) {

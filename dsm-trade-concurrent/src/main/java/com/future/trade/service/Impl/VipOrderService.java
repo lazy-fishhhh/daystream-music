@@ -15,6 +15,7 @@ import com.future.login.mapper.UserMapper;
 import com.future.login.util.SecurityUtil;
 import com.future.trade.entity.*;
 import com.future.trade.entity.enums.VipPackageEnum;
+import com.future.trade.entity.vo.OrderDetailVO;
 import com.future.trade.entity.vo.VipStatusVO;
 import com.future.trade.mapper.OrderItemMapper;
 import com.future.trade.mapper.OrderMapper;
@@ -24,15 +25,10 @@ import entity.pojo.info.User;
 import entity.pojo.util.PageReq;
 import entity.pojo.util.PageResp;
 import entity.pojo.util.Result;
-import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.jetbrains.annotations.NotNull;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
-import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.ApplicationContext;
-import org.springframework.context.ApplicationContextAware;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -104,7 +100,6 @@ public class VipOrderService implements IVipOrderService {
 
 
 
-
     /**
      * 购买VIP
      */
@@ -120,7 +115,6 @@ public class VipOrderService implements IVipOrderService {
             throw VipPackageException.notFound(packageName);
         }
         VipPackageEnum vipPackageEnum = vipPackageEnumOptional.get();
-
 
         // 1. 获取用户当前VIP状态
         VipStatusVO vipStatusVO;

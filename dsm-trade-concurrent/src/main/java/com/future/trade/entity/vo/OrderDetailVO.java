@@ -1,8 +1,7 @@
-package com.future.trade.entity;
+package com.future.trade.entity.vo;
 
 import lombok.Data;
 
-import javax.persistence.Column;
 import java.time.LocalDateTime;
 
 /**

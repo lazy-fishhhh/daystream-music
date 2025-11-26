@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
 <mapper namespace="com.future.trade.mapper.OrderMapper">
-    <select id="selectOrderDetailVOList" resultType="com.future.trade.entity.OrderDetailVO">
+    <select id="selectOrderDetailVOList" resultType="com.future.trade.entity.vo.OrderDetailVO">
         SELECT
             o.order_no,
             -- 用CASE转换为文字
