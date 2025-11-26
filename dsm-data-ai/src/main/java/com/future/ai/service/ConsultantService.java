@@ -7,5 +7,5 @@ import reactor.core.publisher.Flux;
 
 @AiService
 public interface ConsultantService {
-    Flux<String> chat(@UserMessage String message, @MemoryId String memoryId);
+    public Flux<String> chat(@UserMessage String message, @MemoryId String memoryId);
 }

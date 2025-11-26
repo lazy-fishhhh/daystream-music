@@ -33,7 +33,7 @@ public class CommonConfig {
 
     @Bean
     public ChatMemoryProvider chatMemoryProvider(){
-        ChatMemoryProvider chatMemoryProvider = new ChatMemoryProvider() {
+        return new ChatMemoryProvider() {
             @Override
             public ChatMemory get(Object memoryId) {
                 return MessageWindowChatMemory.builder()
@@ -43,7 +43,6 @@ public class CommonConfig {
                         .build();
             }
         };
-        return chatMemoryProvider;
     }
 
     //构建向量数据库操作对象

@@ -31,6 +31,11 @@
         </dependency>
         <dependency>
             <groupId>com.future</groupId>
+            <artifactId>dsm-data-ai</artifactId>
+            <version>0.0.1-SNAPSHOT</version>
+        </dependency>
+        <dependency>
+            <groupId>com.future</groupId>
             <artifactId>dsm-trade-concurrent</artifactId>
             <version>0.0.1-SNAPSHOT</version>
         </dependency>

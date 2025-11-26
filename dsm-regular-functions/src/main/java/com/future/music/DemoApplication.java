@@ -15,10 +15,10 @@ import org.springframework.web.bind.annotation.*;
 @MapperScan({"com.future.music.mapper"
             ,"com.future.login.mapper"
             ,"social.mapper"
-            ,"com.future.trade.mapper"
-            ,"com.future.trade.entity"})
+            ,"com.future.trade.mapper"})
 
 @ComponentScan(basePackages = {
+        "com.future.ai" ,
         "com.future.music",
         "com.future.login",
         "com.future.trade.service",

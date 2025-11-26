@@ -91,11 +91,11 @@
         </dependency>
 
         <!--  MyBatis-Spring  -->
-        <dependency>
-            <groupId>org.mybatis</groupId>
-            <artifactId>mybatis-spring</artifactId>
-            <version>3.0.3</version> <!--3.0.0+ 才兼容 Spring Boot 3.x -->
-        </dependency>
+<!--        <dependency>-->
+<!--            <groupId>org.mybatis</groupId>-->
+<!--            <artifactId>mybatis-spring</artifactId>-->
+<!--            <version>3.0.3</version> &lt;!&ndash;3.0.0+ 才兼容 Spring Boot 3.x &ndash;&gt;-->
+<!--        </dependency>-->
 
         <!-- MyBatis-Plus 3.5.6 -->
         <dependency>

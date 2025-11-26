@@ -1,4 +1,6 @@
 spring:
+  config:
+    import: file:./dsm-data-ai/src/main/resources/application.yaml
   application:
     name: music
   #数据库
