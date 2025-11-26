@@ -15,6 +15,7 @@ import com.future.login.mapper.UserMapper;
 import com.future.login.util.SecurityUtil;
 import com.future.trade.entity.*;
 import com.future.trade.entity.enums.VipPackageEnum;
+import com.future.trade.entity.vo.OrderDetailVO;
 import com.future.trade.entity.vo.VipStatusVO;
 import com.future.trade.mapper.OrderItemMapper;
 import com.future.trade.mapper.OrderMapper;

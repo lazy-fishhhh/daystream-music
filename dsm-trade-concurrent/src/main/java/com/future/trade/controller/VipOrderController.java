@@ -1,7 +1,7 @@
 package com.future.trade.controller;
 
 
-import com.future.trade.entity.OrderDetailVO;
+import com.future.trade.entity.vo.OrderDetailVO;
 import com.future.trade.service.IVipOrderService;
 import entity.pojo.util.PageReq;
 import entity.pojo.util.PageResp;
@@ -10,8 +10,6 @@ import io.swagger.annotations.ApiOperation;
 import lombok.RequiredArgsConstructor;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @ApiOperation("VIP订单管理")
 @RestController
