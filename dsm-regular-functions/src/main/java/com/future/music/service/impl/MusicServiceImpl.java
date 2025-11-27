@@ -235,7 +235,7 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
                 throw new RuntimeException("音乐保存失败");
             }
 
-            // 8. 保存歌词信息
+            // 保存歌词信息
             MusicLyric musicLyric = new MusicLyric();
             musicLyric.setMusicId(music.getId());
             musicLyric.setLyricUrl(lyricUrl);
@@ -350,21 +350,12 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
             // 4. 删除点赞信息
             QueryWrapper<LikeRecord> likeRecordQueryWrapper = new QueryWrapper<>();
             likeRecordQueryWrapper.eq("target_id", musicId)
-                    .eq("user_id", userId)
                     .eq("target_type", 1);
             likeRecordMapper.delete(likeRecordQueryWrapper);
-
-            // 5. 删除收藏信息
-            QueryWrapper<UserCollection> userCollectionQueryWrapper = new QueryWrapper<>();
-            userCollectionQueryWrapper.eq("target_id", musicId)
-                    .eq("user_id", userId)
-                    .eq("target_type", 1);
-            userCollectionMapper.delete(userCollectionQueryWrapper);
 
             // 6. 删除评论表
             QueryWrapper<Comment> commentQueryWrapper = new QueryWrapper<>();
             commentQueryWrapper.eq("target_id", musicId)
-                    .eq("user_id", userId)
                     .eq("target_type", 1);
             commentMapper.delete(commentQueryWrapper);
 

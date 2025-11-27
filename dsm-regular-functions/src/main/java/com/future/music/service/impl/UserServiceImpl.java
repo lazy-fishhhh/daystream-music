@@ -9,6 +9,7 @@ import com.future.login.domain.LoginUserDetails;
 import com.future.login.util.SecurityUtil;
 import com.future.music.domain.vo.MusicDetailVO;
 import com.future.music.domain.vo.PlaylistDetailVO;
+import com.future.music.domain.vo.PlaylistVO;
 import com.future.music.mapper.*;
 import com.future.music.service.IMusicService;
 import com.future.music.service.IUserService;
@@ -63,6 +64,9 @@ public class UserServiceImpl  implements IUserService {
 
     @Resource
     private IMusicService musicService;
+
+    @Resource
+    private PlayListMapper playlistMapper;
 
     //构造方法注入
     private final StringRedisTemplate stringRedisTemplate;
@@ -309,6 +313,32 @@ public class UserServiceImpl  implements IUserService {
         detailVO.setMusicDetailVOList(pageResult);
 
         return Result.ok(detailVO);
+    }
+
+    @Override
+    public Result<PageResp<PlaylistVO>> filterPlaylistByTagIds(List<Long> tags, int pageNum, int pageSize) {
+        if (tags == null || tags.isEmpty()) {
+            return Result.fail("标签不能为空");
+        }
+
+        Page<Playlist>  page = new Page<>(pageNum, pageSize);
+        IPage<Playlist> playlistPage = playlistMapper.selectPlaylistsByTagIds(page, tags);
+
+        // 转换为vo
+        List<PlaylistVO> voList = new ArrayList<>();
+        for (Playlist playlist : playlistPage.getRecords()) {
+            PlaylistVO vo = new PlaylistVO();
+            BeanUtils.copyProperties(playlist, vo);
+            voList.add(vo);
+        }
+
+        // 封装分页信息
+        PageResp<PlaylistVO> pageResult = new PageResp<>();
+        pageResult.setRecords(voList);
+        pageResult.setTotal(playlistPage.getTotal());
+        pageResult.setPages((int) playlistPage.getPages());
+
+        return Result.ok(pageResult);
     }
 
 }

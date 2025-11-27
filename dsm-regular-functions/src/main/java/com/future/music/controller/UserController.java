@@ -1,6 +1,7 @@
 package com.future.music.controller;
 
 import com.future.music.domain.vo.PlaylistDetailVO;
+import com.future.music.domain.vo.PlaylistVO;
 import com.future.music.service.IUserService;
 import entity.dto.PlayListDTO;
 import entity.pojo.music.Playlist;
@@ -12,6 +13,8 @@ import lombok.RequiredArgsConstructor;
 
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RequiredArgsConstructor
 @RestController
@@ -78,6 +81,18 @@ public class UserController {
                                               @RequestParam(defaultValue = "10") int pageSize,
                                               @PathVariable Long playlistId) {
         return userService.getPlaylistDetail(playlistId, pageNum, pageSize);
+    }
+
+    /**
+     * 根据标签筛选歌单
+     * @param tags 标签ID列表（从请求参数获取）
+     * @return 统一返回格式（成功/失败 + 数据）
+     */
+    @GetMapping("/by-tags")
+    public Result<PageResp<PlaylistVO>> filterPlaylistByTagIds(@RequestParam("tags") List<Long> tags,
+                                                               @RequestParam(defaultValue = "1") int pageNum,
+                                                               @RequestParam(defaultValue = "10") int pageSize){
+        return  userService.filterPlaylistByTagIds(tags, pageNum, pageSize);
     }
 
 }
