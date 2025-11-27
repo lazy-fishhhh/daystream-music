@@ -16,7 +16,7 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/userbase")
-@Api(tags = "用户基础社交功能(关注/点赞/收藏)")
+@Api(tags = "关注 点赞 收藏")
 public class UserBaseController {
     @Autowired
     private UserBaseService userBaseService;

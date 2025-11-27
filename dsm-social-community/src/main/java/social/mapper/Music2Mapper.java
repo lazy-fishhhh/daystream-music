@@ -24,4 +24,11 @@ public interface Music2Mapper extends BaseMapper<Music> {
                                   @Param("userId")Long userId);
     List<LikeMusicVO> selectLikeMusicVOBatchIds(@Param("lastId")Long lastId,@Param("pageSize")Integer pageSize,@Param("userId")Long userId);
     List<LikeMusicVO> selectLikeMusicVOAll(Long userId);
+    @Update("update music set comment_count=comment_count+1 where id=#{targetId}")
+
+    void commentCountUp(Long targetId);
+    @Update("update music set comment_count=comment_count-1 where id=#{targetId} and comment_count>0")
+    void commentCountLow(Long targetId);
+    @Select("SELECT comment_count FROM music WHERE id = #{targetId} FOR UPDATE")
+    Long selectCommentCount(Long targetId);
 }
