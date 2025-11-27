@@ -11,7 +11,10 @@ public enum VipPackageTypeEnum {
 
     BASIC("BASIC", "基础套餐"),
     PREMIUM("PREMIUM", "高级套餐"),
-    SUPER("SUPER", "超级套餐");
+    SUPER("SUPER", "超级套餐"),
+    SECKILL("SECKILL", "秒杀套餐");
+
+
 
     @EnumValue // MyBatis-Plus映射数据库存储值
     private final String code; // 数据库存储的枚举值

@@ -1,6 +1,6 @@
 package com.future.trade.service;
 
-import com.future.trade.entity.OrderDetailVO;
+import com.future.trade.entity.vo.OrderDetailVO;
 import entity.pojo.util.PageReq;
 import entity.pojo.util.PageResp;
 import entity.pojo.util.Result;

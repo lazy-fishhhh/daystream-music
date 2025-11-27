@@ -21,4 +21,7 @@ public class UserConstants {
     // 用户状态
     public static final int USER_STATUS_NORMAL = 0; // 封禁
     public static final int USER_STATUS_BANNED = 1; // 正常
+
+    // 错误码
+    public static final String RECEIVER_NOT_FOUND = "RECEIVER_NOT_FOUND";
 }

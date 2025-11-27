@@ -44,6 +44,7 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.disable())
                 .authorizeHttpRequests(auth -> auth
 
+                        .requestMatchers( "/ai/chat", "/resources/**").permitAll()
                         // 放行
                         .requestMatchers(
                                 "/login/getCaptcha",
@@ -59,14 +60,10 @@ public class SecurityConfig {
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
 
                 // 3. 配置认证失败处理器
-                // 3. 配置认证失败处理器
+                // 合并异常处理配置（关键：避免覆盖）
                 .exceptionHandling(exception -> exception
-                        .authenticationEntryPoint(authenticationEntryPoint)
-                )
-
-                // 4. 配置授权失败处理器
-                .exceptionHandling(exception -> exception
-                        .accessDeniedHandler(accessDeniedHandler)
+                        .authenticationEntryPoint(authenticationEntryPoint) // 未认证处理器
+                        .accessDeniedHandler(accessDeniedHandler) // 权限不足处理器
                 );
         return http.build();
     }
