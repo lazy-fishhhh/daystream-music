@@ -8,8 +8,12 @@ import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import util.JwtUtil;
+
+import static util.JwtUtil.createJWT;
 
 @Api("秒杀业务")
 @RequiredArgsConstructor
@@ -18,6 +22,20 @@ import org.springframework.web.bind.annotation.*;
 @Validated
 public class SeckillController {
     private final ISeckillActivityService seckillActivityService;
+    private final StringRedisTemplate stringRedisTemplate;
+    /**
+     * 生成1000token用于测试并发
+     */
+    @GetMapping("/generateToken")
+    @ApiOperation("生成1000token用于测试并发")
+    public void generateToken() {
+        // 生成1000个token 用于测试并发
+        for (int i = 0; i < 1000; i++) {
+            String token = createJWT(String.valueOf(i), 1000 * 60 * 5L);
+            stringRedisTemplate.opsForValue().set("testConcurrentToken:" + i ,token, 1000 * 60 * 5L);
+            System.out.println(token);
+        }
+    }
 
     /**
      * 新增秒杀商品（需管理员权限）
