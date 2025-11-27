@@ -71,28 +71,6 @@ public class UserController {
     }
 
 
-    /**
-     * 进入歌单详情
-     * @param playlistId 歌单ID（从路径参数获取）
-     * @return 统一返回格式（成功/失败 + 数据）
-     */
-    @GetMapping("/detail/{playlistId}")
-    public Result<PlaylistDetailVO> getDetail(@RequestParam(defaultValue = "1") int pageNum,
-                                              @RequestParam(defaultValue = "10") int pageSize,
-                                              @PathVariable Long playlistId) {
-        return userService.getPlaylistDetail(playlistId, pageNum, pageSize);
-    }
 
-    /**
-     * 根据标签筛选歌单
-     * @param tags 标签ID列表（从请求参数获取）
-     * @return 统一返回格式（成功/失败 + 数据）
-     */
-    @GetMapping("/by-tags")
-    public Result<PageResp<PlaylistVO>> filterPlaylistByTagIds(@RequestParam("tags") List<Long> tags,
-                                                               @RequestParam(defaultValue = "1") int pageNum,
-                                                               @RequestParam(defaultValue = "10") int pageSize){
-        return  userService.filterPlaylistByTagIds(tags, pageNum, pageSize);
-    }
 
 }

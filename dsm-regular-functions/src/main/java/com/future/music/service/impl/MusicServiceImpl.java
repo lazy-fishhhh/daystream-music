@@ -2,6 +2,7 @@ package com.future.music.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.core.toolkit.CollectionUtils;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.future.login.util.SecurityUtil;
@@ -453,54 +454,57 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
             return Result.fail("请先登录再进行该操作");
         }
 
-        // 1. 校验音乐ID有效性（非空且大于0）
-        if (musicId == null || musicId <= 0) {
-            return Result.fail("音乐ID无效");
+        try {
+            // 1. 校验音乐ID有效性（非空且大于0）
+            if (musicId == null || musicId <= 0) {
+                return Result.fail("音乐ID无效");
+            }
+
+            // 2. 查询音乐主信息
+            Music music = this.getById(musicId);
+            if (music == null) {
+                return Result.fail("音乐不存在");
+            }
+
+            // 3. 初始化VO并复制音乐主信息
+            EchoMusicVO echoMusicVO = new EchoMusicVO();
+            BeanUtils.copyProperties(music, echoMusicVO);
+
+            // 4. 查询该音乐关联的所有音频记录（多音质）
+            QueryWrapper<MusicAudio> wrapper = new QueryWrapper<>();
+            wrapper.eq("music_id", musicId); // 按音乐ID关联
+            List<MusicAudio> audioList = musicAudioMapper.selectList(wrapper);
+            if (CollectionUtils.isEmpty(audioList)) {
+                return Result.fail("未查询到该音乐的音频信息");
+            }
+            echoMusicVO.setAudioList(audioList); // 给VO设置音频列表（含音质、文件大小等信息）
+
+            // 补充专辑名称（通过专辑ID关联查询）
+            Album album = albumMapper.selectById(music.getAlbumId());
+            if (album != null) {
+                echoMusicVO.setAlbumName(album.getAlbumName());
+            }
+
+            // 5. 查询标签
+            List<String> tags = musicTagMapper.getTagNamesByMusicId(musicId);
+            echoMusicVO.setTags(tags);
+
+            // 歌词
+            QueryWrapper<MusicLyric> musicLyricWrapper = new QueryWrapper<>();
+            musicLyricWrapper.eq("music_id", musicId);
+            MusicLyric musicLyric = musicLyricMapper.selectOne(musicLyricWrapper);
+            if (musicLyric == null) {
+                return Result.fail("未查询到该音乐的歌词信息");
+            }
+            echoMusicVO.setLyricUrl(musicLyric.getLyricUrl());
+
+            // 返回成功结果（基础详情VO）
+            return Result.ok(echoMusicVO);
+
+        } catch (Exception e) {
+            // 返回友好提示（避免暴露技术细节）
+            return Result.fail("回显音乐详情失败"+e.getMessage());
         }
-
-        // 2. 查询音乐主信息
-        Music music = this.getById(musicId);
-        if (music == null) {
-            return Result.fail("音乐不存在");
-        }
-
-        // 3. 初始化VO并复制音乐主信息
-        EchoMusicVO echoMusicVO = new EchoMusicVO();
-        BeanUtils.copyProperties(music, echoMusicVO);
-
-        // 4. 查询该音乐关联的所有音频记录（多音质）
-        QueryWrapper<MusicAudio> wrapper = new QueryWrapper<>();
-        wrapper.eq("music_id", musicId); // 按音乐ID关联
-        List<MusicAudio> audioList = musicAudioMapper.selectList(wrapper);
-        if (audioList == null || audioList.size() <= 0) {
-            return Result.fail("未查询到该音乐的音频信息");
-        }
-        echoMusicVO.setAudioList(audioList); // 给VO设置音频列表（含音质、文件大小等信息）
-
-        // 补充专辑名称（通过专辑ID关联查询）
-        Album album = albumMapper.selectById(music.getAlbumId());
-        if (album != null) {
-            echoMusicVO.setAlbumName(album.getAlbumName());
-        }
-
-        // 5. 查询标签
-        List<String> tags = musicTagMapper.getTagNamesByMusicId(musicId);
-        echoMusicVO.setTags(tags);
-
-        // 歌词
-        QueryWrapper<MusicLyric> musicLyricWrapper = new QueryWrapper<>();
-        musicLyricWrapper.eq("music_id", musicId);
-        MusicLyric musicLyric = musicLyricMapper.selectOne(musicLyricWrapper);
-        if (musicLyric == null) {
-            return Result.fail("未查询到该音乐的歌词信息");
-        }
-        echoMusicVO.setLyricUrl(musicLyric.getLyricUrl());
-
-        // 专辑
-        echoMusicVO.setAlbumList(albumMapper.selectAlbumByUserId(SecurityUtil.getCurrentUserId()));
-
-        // 返回成功结果（基础详情VO）
-        return Result.ok(echoMusicVO);
     }
 
     /**
@@ -716,43 +720,48 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
      */
     @Override
     public Result<MusicDetailVO> getOneMusic(Long musicId){
-        // 1. 校验音乐ID有效性（非空且大于0）
-        if (musicId == null || musicId <= 0) {
-            return Result.fail("音乐ID无效");
+        try {
+            // 1. 校验音乐ID有效性（非空且大于0）
+            if (musicId == null || musicId <= 0) {
+                return Result.fail("音乐ID无效");
+            }
+
+            MusicVO musicVO = getMusicVO(musicId);
+            if (musicVO == null) {
+                return Result.fail("音乐不存在");
+            }
+
+            //  初始化VO并复制音乐主信息
+            MusicDetailVO musicDetailVO = new MusicDetailVO();
+            BeanUtils.copyProperties(musicVO, musicDetailVO);
+
+            //  查询标签
+            List<String> tags = musicTagMapper.getTagNamesByMusicId(musicId);
+            musicDetailVO.setTags(tags);
+
+            // 歌词
+            QueryWrapper<MusicLyric> musicLyricWrapper = new QueryWrapper<>();
+            musicLyricWrapper.eq("music_id", musicId);
+            MusicLyric musicLyric = musicLyricMapper.selectOne(musicLyricWrapper);
+            if (musicLyric == null) {
+                return Result.fail("未查询到该音乐的歌词信息");
+            }
+
+            // 解析结构化歌词（核心）
+            List<LyricLineDTO> syncLyric = LyricParseUtil.parse(
+                    musicLyric.getLyricContent(),
+                    musicLyric.getLyricType()
+            );
+            musicDetailVO.setLyricUrl(musicLyric.getLyricUrl());
+            musicDetailVO.setLyricType(musicLyric.getLyricType());
+            musicDetailVO.setSyncLyric(syncLyric);
+
+            // 4. 返回完整详情结果
+            return Result.ok(musicDetailVO);
+        }catch (Exception e){
+            return Result.fail("查询音乐详情失败：" + e.getMessage());
         }
 
-        MusicVO musicVO = getMusicVO(musicId);
-        if (musicVO == null) {
-            return Result.fail("音乐不存在");
-        }
-
-        //  初始化VO并复制音乐主信息
-        MusicDetailVO musicDetailVO = new MusicDetailVO();
-        BeanUtils.copyProperties(musicVO, musicDetailVO);
-
-        //  查询标签
-        List<String> tags = musicTagMapper.getTagNamesByMusicId(musicId);
-        musicDetailVO.setTags(tags);
-
-        // 歌词
-        QueryWrapper<MusicLyric> musicLyricWrapper = new QueryWrapper<>();
-        musicLyricWrapper.eq("music_id", musicId);
-        MusicLyric musicLyric = musicLyricMapper.selectOne(musicLyricWrapper);
-        if (musicLyric == null) {
-            return Result.fail("未查询到该音乐的歌词信息");
-        }
-
-        // 解析结构化歌词（核心）
-        List<LyricLineDTO> syncLyric = LyricParseUtil.parse(
-                musicLyric.getLyricContent(),
-                musicLyric.getLyricType()
-        );
-        musicDetailVO.setLyricUrl(musicLyric.getLyricUrl());
-        musicDetailVO.setLyricType(musicLyric.getLyricType());
-        musicDetailVO.setSyncLyric(syncLyric);
-
-        // 4. 返回完整详情结果
-        return Result.ok(musicDetailVO);
     }
 
     //搜索单曲
@@ -828,61 +837,65 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
 
     @Override
     public Result<MusicPlayVO> playMusic(Long musicId, Integer quality) {
-        // 1. 参数校验
-        // 音乐ID非空且为正数
-        if (musicId == null || musicId <= 0) {
-            return Result.fail("音乐ID出错");
-        }
-        // 音质类型合法（1-4）
-        if (quality == null || !(quality == 1 || quality == 2 || quality == 3 || quality == 4)) {
-            return Result.fail("音质类型出错");
-        }
-
-        // 2. 校验音乐是否存在且已上架
-        Music music = musicMapper.selectById(musicId);
-        if (music == null) {
-            return Result.fail("音乐不存在");
-        }
-        if (music.getStatus() != 1) { // 1-上架状态，其他状态（0-待审核、2-下架）不可播放
-            return Result.fail("该音乐暂不支持播放");
-        }
-
-        if (music.getIsVip() == 1){
-            QueryWrapper<Vip> queryWrapper = new QueryWrapper<>();
-            queryWrapper.eq("user_id", SecurityUtil.getCurrentUserId())
-                    .gt("end_time", new Date());
-            Vip vip = vipMapper.selectOne(queryWrapper);
-            if (vip == null) {
-                return Result.fail("请先充值VIP再播放");
+        try {
+            // 1. 参数校验
+            // 音乐ID非空且为正数
+            if (musicId == null || musicId <= 0) {
+                return Result.fail("音乐ID出错");
             }
-        }
+            // 音质类型合法（1-4）
+            if (quality == null || !(quality == 1 || quality == 2 || quality == 3 || quality == 4)) {
+                return Result.fail("音质类型出错");
+            }
 
-        // 3. 校验该音质的音频是否存在且文件有效
-        QueryWrapper<MusicAudio> audioWrapper = new QueryWrapper<>();
-        audioWrapper.eq("music_id", musicId)
-                .eq("quality_type", quality);
-        MusicAudio musicAudio = musicAudioMapper.selectOne(audioWrapper);
-        if (musicAudio == null) {
-            return Result.fail("不存在该音质的音频");
-        }
-        // 校验MinIO中音频文件是否存在
-        if (!minIoService.isObjectExists(musicAudio.getAudioUrl())) {
-            return Result.fail("音频文件已失效");
-        }
+            // 2. 校验音乐是否存在且已上架
+            Music music = musicMapper.selectById(musicId);
+            if (music == null) {
+                return Result.fail("音乐不存在");
+            }
+            if (music.getStatus() != 1) { // 1-上架状态，其他状态（0-待审核、2-下架）不可播放
+                return Result.fail("该音乐暂不支持播放");
+            }
 
-        // 4. 生成可直接播放的音频URL（MinIO预签名URL，避免暴露原始路径）
-        String playUrl = minIoService.generatePresignedUrl(musicAudio.getAudioUrl(), 3600); // 1小时有效
-        if (playUrl == null) {
-            return Result.fail("播放链接生成失败");
+            if (music.getIsVip() == 1){
+                QueryWrapper<Vip> queryWrapper = new QueryWrapper<>();
+                queryWrapper.eq("user_id", SecurityUtil.getCurrentUserId())
+                        .gt("end_time", new Date());
+                Vip vip = vipMapper.selectOne(queryWrapper);
+                if (vip == null) {
+                    return Result.fail("请先充值VIP再播放");
+                }
+            }
+
+            // 3. 校验该音质的音频是否存在且文件有效
+            QueryWrapper<MusicAudio> audioWrapper = new QueryWrapper<>();
+            audioWrapper.eq("music_id", musicId)
+                    .eq("quality_type", quality);
+            MusicAudio musicAudio = musicAudioMapper.selectOne(audioWrapper);
+            if (musicAudio == null) {
+                return Result.fail("不存在该音质的音频");
+            }
+            // 校验MinIO中音频文件是否存在
+            if (!minIoService.isObjectExists(musicAudio.getAudioUrl())) {
+                return Result.fail("音频文件已失效");
+            }
+
+            // 4. 生成可直接播放的音频URL（MinIO预签名URL，避免暴露原始路径）
+            String playUrl = minIoService.generatePresignedUrl(musicAudio.getAudioUrl(), 3600); // 1小时有效
+            if (playUrl == null) {
+                return Result.fail("播放链接生成失败");
+            }
+
+            // 组装返回VO
+            MusicPlayVO playVO = new MusicPlayVO();
+            MusicVO vo = getMusicVO(musicId);
+            BeanUtils.copyProperties(playVO, vo);
+            playVO.setAudioUrl(playUrl);
+
+            return Result.ok(playVO);
+        }catch (Exception e){
+            return Result.fail("播放失败"+e.getMessage());
         }
-
-        // 组装返回VO
-        MusicPlayVO playVO = new MusicPlayVO();
-        MusicVO vo = getMusicVO(musicId);
-        BeanUtils.copyProperties(playVO, vo);
-        playVO.setAudioUrl(playUrl);
-
-        return Result.ok(playVO);
     }
 
     private MusicVO getMusicVO(Long musicId) {

@@ -26,7 +26,5 @@ public interface IUserService {
 
     Result<Integer> getContinuousSignInDays();
 
-    Result<PlaylistDetailVO> getPlaylistDetail(Long playlistId, int pageNum, int pageSize);
 
-    Result<PageResp<PlaylistVO>> filterPlaylistByTagIds(List<Long> tags, int pageNum, int pageSize);
 }

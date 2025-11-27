@@ -1,10 +1,13 @@
 package com.future.music.controller;
 
 
+import com.future.login.util.SecurityUtil;
 import com.future.music.domain.dto.MusicPlayReportDTO;
+import com.future.music.domain.vo.AlbumVO;
 import com.future.music.domain.vo.EchoMusicVO;
 import com.future.music.domain.vo.MusicDetailVO;
 import com.future.music.domain.vo.MusicPlayVO;
+import com.future.music.mapper.AlbumMapper;
 import com.future.music.service.IMusicService;
 import entity.dto.MusicDTO;
 import entity.pojo.util.Result;
@@ -15,6 +18,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -24,6 +28,9 @@ public class MusicController {
 
     @Autowired
     private IMusicService iMusicService;
+
+    @Autowired
+    private AlbumMapper albumMapper;
 
     @ApiOperation(value = "上传音乐")
     @PostMapping
@@ -92,6 +99,14 @@ public class MusicController {
     @PostMapping("/play/report")
     public Result<Void> reportPlayStatus(@RequestBody MusicPlayReportDTO dto) {
         return iMusicService.reportPlayStatus(dto);
+    }
+
+    @GetMapping
+    public Result<List<AlbumVO>> getAlbums() {
+        if (SecurityUtil.getCurrentUserId() ==  null){
+            return Result.fail("请先登录再进行该操作");
+        }
+        return Result.ok(albumMapper.selectAlbumByUserId(SecurityUtil.getCurrentUserId()));
     }
 
 }

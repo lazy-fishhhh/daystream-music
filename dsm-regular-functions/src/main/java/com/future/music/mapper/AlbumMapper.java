@@ -23,4 +23,6 @@ public interface AlbumMapper extends BaseMapper<Album> {
             WHERE m.user_id = #{userId}                -- 筛选指定用户的音乐人数据
             """)
     List<AlbumVO> selectAlbumByUserId(@Param("userId") Long userId);
+
+
 }

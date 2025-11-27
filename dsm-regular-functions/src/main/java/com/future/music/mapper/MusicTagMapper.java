@@ -10,6 +10,16 @@ import java.util.List;
 
 @Mapper
 public interface MusicTagMapper extends BaseMapper<MusicTag> {
+
+    /**
+     * 按标签类型查询标签列表
+     * @param tagType 1=流派 2=心情 3=场景 4=乐器
+     * @return 对应类型标签列表
+     */
+    @Select("SELECT id, tag_name as tagName, tag_type as tagType FROM music_tag WHERE tag_type = #{tagType} ORDER BY id ASC")
+    List<MusicTag> selectTagsByType(Integer tagType);
+
+
     /**
      * 根据音乐ID查询对应的所有标签名
      * @param musicId 音乐ID

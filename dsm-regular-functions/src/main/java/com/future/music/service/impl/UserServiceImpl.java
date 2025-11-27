@@ -47,27 +47,6 @@ import static com.future.music.util.constants.CHECK_IN_KEY;
 @Service
 public class UserServiceImpl  implements IUserService {
 
-    @Resource
-    private PlaylistMusicMapper playlistMusicMapper;
-
-    @Resource
-    private LikeRecordMapper likeRecordMapper;
-
-    @Resource
-    private UserCollectionMapper userCollectionMapper;
-
-    @Resource
-    private AlbumMapper albumMapper;
-
-    @Resource
-    private MusicianMapper musicianMapper;
-
-    @Resource
-    private IMusicService musicService;
-
-    @Resource
-    private PlayListMapper playlistMapper;
-
     //构造方法注入
     private final StringRedisTemplate stringRedisTemplate;
     private final PlayListMapper playListMapper;
@@ -269,76 +248,6 @@ public class UserServiceImpl  implements IUserService {
         return Result.ok(continuousDays);
     }
 
-    /**
-     * 根据歌单ID查询歌单详情（包含基本信息和关联歌曲ID）
-     * @param playlistId 歌单ID
-     * @return 歌单详情（含歌曲ID列表），若不存在则返回null
-     */
-    @Override
-    public Result<PlaylistDetailVO> getPlaylistDetail(Long playlistId, int pageNum, int pageSize) {
-        if (playlistId == null || playlistId <= 0) {
-            return Result.fail("歌单ID出错");
-        }
 
-        // 1. 查询歌单基本信息
-        Playlist playlist = playListMapper.selectById(playlistId);
-        if (playlist == null) {
-            return Result.fail("歌单不存在");
-        }
-
-        // 2. 查询歌单包含的歌曲ID列表（关联表查询）
-        Page<Music> page = new Page<>(pageNum,pageSize);
-        IPage<Music> musicPage = playlistMusicMapper.selectMusicsByPlaylistId(page, playlistId);
-
-        // 3. 封装成VO（视图对象，用于返回给前端）
-        PlaylistDetailVO detailVO = new PlaylistDetailVO();
-        // 复制基本属性（使用BeanUtils简化代码）
-        BeanUtils.copyProperties(playlist, detailVO);
-
-        List<MusicDetailVO> voList = new ArrayList<>();
-        for (Music music : musicPage.getRecords()) {
-            Result<MusicDetailVO> result = musicService.getOneMusic(music.getId());
-            if (result.getErrorMsg() != null) {
-                return Result.fail(result.getErrorMsg());
-            }
-            MusicDetailVO vo = result.getData();
-            voList.add(vo);
-        }
-
-        PageResp<MusicDetailVO> pageResult = new PageResp<>();
-        pageResult.setRecords(voList);
-        pageResult.setTotal(musicPage.getTotal());
-        pageResult.setPages((int) musicPage.getPages());
-
-        detailVO.setMusicDetailVOList(pageResult);
-
-        return Result.ok(detailVO);
-    }
-
-    @Override
-    public Result<PageResp<PlaylistVO>> filterPlaylistByTagIds(List<Long> tags, int pageNum, int pageSize) {
-        if (tags == null || tags.isEmpty()) {
-            return Result.fail("标签不能为空");
-        }
-
-        Page<Playlist>  page = new Page<>(pageNum, pageSize);
-        IPage<Playlist> playlistPage = playlistMapper.selectPlaylistsByTagIds(page, tags);
-
-        // 转换为vo
-        List<PlaylistVO> voList = new ArrayList<>();
-        for (Playlist playlist : playlistPage.getRecords()) {
-            PlaylistVO vo = new PlaylistVO();
-            BeanUtils.copyProperties(playlist, vo);
-            voList.add(vo);
-        }
-
-        // 封装分页信息
-        PageResp<PlaylistVO> pageResult = new PageResp<>();
-        pageResult.setRecords(voList);
-        pageResult.setTotal(playlistPage.getTotal());
-        pageResult.setPages((int) playlistPage.getPages());
-
-        return Result.ok(pageResult);
-    }
 
 }
