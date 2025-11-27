@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="social.mapper.CommentMapper">
+
+<select id="commentList" resultType="social.domain.vo.CommentListVO">
+    select c.id,c.content,c.user_id,c.created_time,c.parent_id,c.like_count,
+           u.username,u.avatar,c.reply_count as childCount
+    from
+        comment c
+    left join user u on c.user_id = u.id
+    where c.target_id = #{targetId}
+    <if test="lastId!=null">
+        and c.id &lt; #{lastId}
+    </if>
+    and c.status = 1
+    and c.parent_id=0
+    order by c.created_time desc
+    limit #{size}
+</select>
+    <select id="commentListvo" resultType="social.domain.vo.CommentListVO">
+        select c.id,c.content,c.user_id,c.created_time,c.like_count,
+        u.username,u.avatar,c.reply_count as childCount
+        from
+        comment c
+        left join user u on c.user_id = u.id
+        where c.id = #{targetId}
+        and c.status = 1
+    </select>
+    <select id="commentListAllvo" resultType="social.domain.vo.CommentListVO">
+        select c.id,c.content,c.user_id,c.created_time,c.like_count,
+        u.username,u.avatar,c.reply_count as childCount
+        from
+        comment c
+        left join user u on c.user_id = u.id
+        where c.target_id = #{targetId}
+        and c.parent_id=0
+        and c.status = 1
+        order by c.created_time desc
+    </select>
+    <select id="replyCommentList" resultType="social.domain.vo.ReplyCommentListVO">
+        select c.id,c.content,c.user_id,c.created_time,c.parent_id,c.like_count,
+        u.username,u.avatar,c.reply_count as childCount,c.reply_to_user_id as replyUserId,
+        ru.username as replyUsername
+        from
+        comment c
+        left join user u on c.user_id = u.id
+        left join user ru on c.reply_to_user_id = ru.id
+        where c.parent_id = #{targetId}
+        <if test="lastId!=null">
+            and c.id &lt; #{lastId}
+        </if>
+        and c.status = 1
+        order by c.created_time desc
+        limit #{size}
+    </select>
+    <select id="hasmore" resultType="Long">
+        select count(1) from comment where parent_id = #{targetId} and id &lt; #{lastId} and status = 1
+    </select>
+    <select id="hasmoreparent" resultType="Long">
+        select count(1) from comment where target_id = #{targetId} and parent_id=0 and id &lt; #{lastId} and status = 1
+    </select>
+</mapper>

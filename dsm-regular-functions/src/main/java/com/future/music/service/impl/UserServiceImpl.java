@@ -9,14 +9,19 @@ import com.future.login.domain.LoginUserDetails;
 import com.future.login.util.SecurityUtil;
 import com.future.music.domain.vo.MusicDetailVO;
 import com.future.music.domain.vo.PlaylistDetailVO;
+import com.future.music.domain.vo.PlaylistVO;
+import com.future.music.domain.vo.SearchHistoryVO;
 import com.future.music.mapper.*;
 import com.future.music.service.IMusicService;
 import com.future.music.service.IUserService;
+import constants.SystemConstants;
 import entity.dto.PlayListDTO;
+import entity.dto.SearchDTO;
 import entity.pojo.music.Album;
 import entity.pojo.music.Music;
 import entity.pojo.music.Musician;
 import entity.pojo.music.Playlist;
+import entity.pojo.search.SearchHistory;
 import entity.pojo.social.LikeRecord;
 import entity.pojo.social.UserCollection;
 import entity.pojo.util.PageReq;
@@ -38,6 +43,7 @@ import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import static com.future.music.util.constants.CHECK_IN_KEY;
 
@@ -47,22 +53,10 @@ import static com.future.music.util.constants.CHECK_IN_KEY;
 public class UserServiceImpl  implements IUserService {
 
     @Resource
-    private PlaylistMusicMapper playlistMusicMapper;
-
-    @Resource
-    private LikeRecordMapper likeRecordMapper;
-
-    @Resource
-    private UserCollectionMapper userCollectionMapper;
-
-    @Resource
-    private AlbumMapper albumMapper;
-
-    @Resource
-    private MusicianMapper musicianMapper;
-
-    @Resource
     private IMusicService musicService;
+
+    @Resource
+    private SearchHistoryMapper searchHistoryMapper;
 
     //构造方法注入
     private final StringRedisTemplate stringRedisTemplate;
@@ -265,50 +259,94 @@ public class UserServiceImpl  implements IUserService {
         return Result.ok(continuousDays);
     }
 
-    /**
-     * 根据歌单ID查询歌单详情（包含基本信息和关联歌曲ID）
-     * @param playlistId 歌单ID
-     * @return 歌单详情（含歌曲ID列表），若不存在则返回null
-     */
     @Override
-    public Result<PlaylistDetailVO> getPlaylistDetail(Long playlistId, int pageNum, int pageSize) {
-        if (playlistId == null || playlistId <= 0) {
-            return Result.fail("歌单ID出错");
-        }
-
-        // 1. 查询歌单基本信息
-        Playlist playlist = playListMapper.selectById(playlistId);
-        if (playlist == null) {
-            return Result.fail("歌单不存在");
-        }
-
-        // 2. 查询歌单包含的歌曲ID列表（关联表查询）
-        Page<Music> page = new Page<>(pageNum,pageSize);
-        IPage<Music> musicPage = playlistMusicMapper.selectMusicsByPlaylistId(page, playlistId);
-
-        // 3. 封装成VO（视图对象，用于返回给前端）
-        PlaylistDetailVO detailVO = new PlaylistDetailVO();
-        // 复制基本属性（使用BeanUtils简化代码）
-        BeanUtils.copyProperties(playlist, detailVO);
-
-        List<MusicDetailVO> voList = new ArrayList<>();
-        for (Music music : musicPage.getRecords()) {
-            Result<MusicDetailVO> result = musicService.getOneMusic(music.getId());
-            if (result.getErrorMsg() != null) {
-                return Result.fail(result.getErrorMsg());
+    public Result<PageResp<?>> search(SearchDTO searchDTO){
+        try {
+            if (searchDTO.getType() == null){
+                return Result.fail("请选择搜索类型");
             }
-            MusicDetailVO vo = result.getData();
-            voList.add(vo);
+
+            PageResp<?> pageResp = new PageResp<>();
+
+            // 音乐
+            if (searchDTO.getType().equals(SystemConstants.MUSIC_SEARCH_TYPE)){
+                pageResp = musicService.searchMusic(searchDTO);
+            }
+            // 专辑
+            if (searchDTO.getType().equals(SystemConstants.ALBUM_SEARCH_TYPE)){
+
+            }
+            // 音乐人
+            if (searchDTO.getType().equals(SystemConstants.MUSICIAN_SEARCH_TYPE)){
+
+            }
+            // MV
+            if (searchDTO.getType().equals(SystemConstants.MV_SEARCH_TYPE)){
+
+            }
+            // 用户
+            if (searchDTO.getType().equals(SystemConstants.USER_SEARCH_TYPE)){
+
+            }
+            // 歌单
+            if (searchDTO.getType().equals(SystemConstants.PLAYLIST_SEARCH_TYPE)){
+
+            }
+
+            Long userId = SecurityUtil.getCurrentUserId();
+            if (userId != null){
+                QueryWrapper<SearchHistory> queryWrapper = new QueryWrapper<>();
+                queryWrapper.eq("user_id", userId)
+                        .eq("keyword", searchDTO.getKeyword());
+                // 检查是否存在相同的搜索记录
+                SearchHistory existingHistory = searchHistoryMapper.selectOne(queryWrapper);
+                if (existingHistory != null) {
+                    // 如果存在相同记录，更新搜索时间
+                    existingHistory.setSearchTime(LocalDateTime.now());
+                    searchHistoryMapper.updateById(existingHistory);
+                } else {
+                    // 如果不存在相同记录，写入新记录
+                    // 写入搜索历史
+                    SearchHistory searchHistory = new SearchHistory();
+                    searchHistory.setUserId(userId);
+                    searchHistory.setKeyword(searchDTO.getKeyword());
+                    searchHistoryMapper.insert(searchHistory);
+                }
+            }
+
+            return Result.ok(pageResp);
+        }catch (Exception e){
+            return Result.fail("搜索失败");
         }
-
-        PageResp<MusicDetailVO> pageResult = new PageResp<>();
-        pageResult.setRecords(voList);
-        pageResult.setTotal(musicPage.getTotal());
-        pageResult.setPages((int) musicPage.getPages());
-
-        detailVO.setMusicDetailVOList(pageResult);
-
-        return Result.ok(detailVO);
     }
+
+    @Override
+    public Result<List<SearchHistoryVO>> getSearchHistory(){
+        try {
+            // 1.获取当前用户
+            Long userId = SecurityUtil.getCurrentUserId();
+
+            // 2.查询搜索历史
+            List<SearchHistory> searchHistoryList = searchHistoryMapper.selectList(
+                    new LambdaQueryWrapper<SearchHistory>()
+                            .eq(SearchHistory::getUserId, userId)
+                            .orderByDesc(SearchHistory::getSearchTime)
+            );
+
+            // 3.转换为VO
+            List<SearchHistoryVO> searchHistoryVOList = new ArrayList<>();
+            for (SearchHistory searchHistory : searchHistoryList) {
+                SearchHistoryVO searchHistoryVO = new SearchHistoryVO();
+                BeanUtils.copyProperties(searchHistory, searchHistoryVO);
+                searchHistoryVOList.add(searchHistoryVO);
+            }
+
+            return Result.ok(searchHistoryVOList);
+        }catch (Exception e){
+            return Result.fail("获取搜索历史失败");
+        }
+    }
+
+
 
 }

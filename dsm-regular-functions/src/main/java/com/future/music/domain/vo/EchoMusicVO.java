@@ -24,5 +24,4 @@ public class EchoMusicVO {
     private List<MusicAudio> audioList; // 音频列表
     private List<String> tags;          // 歌曲标签（需关联标签表）
     private String albumName;           // 所属专辑名字
-    private List<AlbumVO> albumList;    // 专辑列表
 }

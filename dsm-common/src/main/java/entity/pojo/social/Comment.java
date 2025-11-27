@@ -24,4 +24,5 @@ public class Comment {
     private Integer status;          // 状态（0-删除，1-正常）
     private LocalDateTime createdTime; // 评论时间
     private LocalDateTime updatedTime; // 更新时间
+    private Long replyCount;        // 回复数
 }

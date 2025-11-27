@@ -1,6 +1,28 @@
+langchain4j:
+  open-ai:
+    chat-model:
+      api-key: ${API-KEY:sk-576746ec85384deea25770688e439042}
+      base-url: https://dashscope.aliyuncs.com/compatible-mode/v1
+      model-name: qwen-flash
+      log-responses: true
+      log-requests: true
+    # 流式输出
+    streaming-chat-model:
+      api-key: ${API-KEY:sk-576746ec85384deea25770688e439042}
+      base-url: https://dashscope.aliyuncs.com/compatible-mode/v1
+      model-name: qwen-flash
+      log-requests: true    # 日志
+      log-responses: true   # 日志
+    # 向量模型
+    embedding-model:
+      api-key: ${API-KEY:sk-576746ec85384deea25770688e439042}
+      base-url: https://dashscope.aliyuncs.com/compatible-mode/v1
+      model-name: text-embedding-v4
+logging:
+  level:
+    dev.langchain4j: debug
+
 spring:
-  config:
-    import: file:./dsm-data-ai/src/main/resources/application.yaml
   application:
     name: music
   #数据库

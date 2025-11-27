@@ -25,4 +25,12 @@ public interface Album2Mapper extends BaseMapper<Album> {
                                                    @Param("pageSize")Integer pageSize,
                                                    @Param("lastId")Long lastId);
     List<CollectioAlbumVO>selectAlbumListAll(Long userId);
+    //更新评论量
+    @Update("update album set comment_count=comment_count+1 where id=#{targetId}")
+    void albumCommentCountup(Long targetId);
+
+    @Update("update album set comment_count=comment_count-1 where id=#{targetId} and comment_count>0")
+    void albumCommentCountLow(Long targetId);
+    @Select("SELECT comment_count FROM album WHERE id = #{targetId} FOR UPDATE")
+    Long selectCommetCount(Long targetId);
 }
