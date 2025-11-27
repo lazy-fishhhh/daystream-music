@@ -31,6 +31,11 @@ public class SystemConstants {
     public static final int MAX_MUSIC_SIZE = 1024 * 1024 * 100;
     public static final int MAX_LYRIC_SIZE = 1024 * 1024;
 
-    //音乐统计时长
-    public static final double MIN_PLAY_RATIO = 0.3;
+    // 搜索类型
+    public static final int MUSIC_SEARCH_TYPE = 1;      // 音乐
+    public static final int PLAYLIST_SEARCH_TYPE = 2;   // 歌单
+     public static final int ALBUM_SEARCH_TYPE = 3;     // 专辑
+     public static final int MUSICIAN_SEARCH_TYPE = 4;  // 音乐人
+     public static final int MV_SEARCH_TYPE = 5;        // MV
+     public static final int USER_SEARCH_TYPE = 6;      // 用户
 }

@@ -1,11 +1,9 @@
 package com.future.music.service;
 
 
-import com.future.music.domain.vo.MusicDetailVO;
-import com.future.music.domain.vo.MusicVO;
-import com.future.music.domain.vo.PlaylistDetailVO;
-import com.future.music.domain.vo.PlaylistVO;
+import com.future.music.domain.vo.*;
 import entity.dto.PlayListDTO;
+import entity.dto.SearchDTO;
 import entity.pojo.music.Playlist;
 import entity.pojo.util.PageReq;
 import entity.pojo.util.PageResp;
@@ -26,5 +24,8 @@ public interface IUserService {
 
     Result<Integer> getContinuousSignInDays();
 
+    Result<PageResp<?>> search(SearchDTO searchDTO);
+
+    Result<List<SearchHistoryVO>> getSearchHistory();
 
 }

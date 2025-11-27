@@ -19,6 +19,7 @@ import com.future.music.service.IMusicService;
 import com.future.music.util.LyricParseUtil;
 import com.future.trade.entity.Vip;
 import com.future.trade.mapper.VipMapper;
+import constants.MusicConstants;
 import constants.SystemConstants;
 import entity.dto.MusicDTO;
 import entity.dto.SearchDTO;
@@ -959,7 +960,7 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
             }
 
             // 3. 校验统计条件
-            int threshold = (int) (totalSeconds * SystemConstants.MIN_PLAY_RATIO);
+            int threshold = (int) (totalSeconds * MusicConstants.MIN_PLAY_RATIO);
             if (playedSeconds < threshold) {
                 throw new RuntimeException("播放时长未达标，不统计播放量");
             }

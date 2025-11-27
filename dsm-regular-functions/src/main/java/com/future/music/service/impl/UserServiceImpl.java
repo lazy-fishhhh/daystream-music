@@ -10,14 +10,18 @@ import com.future.login.util.SecurityUtil;
 import com.future.music.domain.vo.MusicDetailVO;
 import com.future.music.domain.vo.PlaylistDetailVO;
 import com.future.music.domain.vo.PlaylistVO;
+import com.future.music.domain.vo.SearchHistoryVO;
 import com.future.music.mapper.*;
 import com.future.music.service.IMusicService;
 import com.future.music.service.IUserService;
+import constants.SystemConstants;
 import entity.dto.PlayListDTO;
+import entity.dto.SearchDTO;
 import entity.pojo.music.Album;
 import entity.pojo.music.Music;
 import entity.pojo.music.Musician;
 import entity.pojo.music.Playlist;
+import entity.pojo.search.SearchHistory;
 import entity.pojo.social.LikeRecord;
 import entity.pojo.social.UserCollection;
 import entity.pojo.util.PageReq;
@@ -39,6 +43,7 @@ import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import static com.future.music.util.constants.CHECK_IN_KEY;
 
@@ -46,6 +51,12 @@ import static com.future.music.util.constants.CHECK_IN_KEY;
 @RequiredArgsConstructor
 @Service
 public class UserServiceImpl  implements IUserService {
+
+    @Resource
+    private IMusicService musicService;
+
+    @Resource
+    private SearchHistoryMapper searchHistoryMapper;
 
     //构造方法注入
     private final StringRedisTemplate stringRedisTemplate;
@@ -246,6 +257,94 @@ public class UserServiceImpl  implements IUserService {
         }
 
         return Result.ok(continuousDays);
+    }
+
+    @Override
+    public Result<PageResp<?>> search(SearchDTO searchDTO){
+        try {
+            if (searchDTO.getType() == null){
+                return Result.fail("请选择搜索类型");
+            }
+
+            PageResp<?> pageResp = new PageResp<>();
+
+            // 音乐
+            if (searchDTO.getType().equals(SystemConstants.MUSIC_SEARCH_TYPE)){
+                pageResp = musicService.searchMusic(searchDTO);
+            }
+            // 专辑
+            if (searchDTO.getType().equals(SystemConstants.ALBUM_SEARCH_TYPE)){
+
+            }
+            // 音乐人
+            if (searchDTO.getType().equals(SystemConstants.MUSICIAN_SEARCH_TYPE)){
+
+            }
+            // MV
+            if (searchDTO.getType().equals(SystemConstants.MV_SEARCH_TYPE)){
+
+            }
+            // 用户
+            if (searchDTO.getType().equals(SystemConstants.USER_SEARCH_TYPE)){
+
+            }
+            // 歌单
+            if (searchDTO.getType().equals(SystemConstants.PLAYLIST_SEARCH_TYPE)){
+
+            }
+
+            Long userId = SecurityUtil.getCurrentUserId();
+            if (userId != null){
+                QueryWrapper<SearchHistory> queryWrapper = new QueryWrapper<>();
+                queryWrapper.eq("user_id", userId)
+                        .eq("keyword", searchDTO.getKeyword());
+                // 检查是否存在相同的搜索记录
+                SearchHistory existingHistory = searchHistoryMapper.selectOne(queryWrapper);
+                if (existingHistory != null) {
+                    // 如果存在相同记录，更新搜索时间
+                    existingHistory.setSearchTime(LocalDateTime.now());
+                    searchHistoryMapper.updateById(existingHistory);
+                } else {
+                    // 如果不存在相同记录，写入新记录
+                    // 写入搜索历史
+                    SearchHistory searchHistory = new SearchHistory();
+                    searchHistory.setUserId(userId);
+                    searchHistory.setKeyword(searchDTO.getKeyword());
+                    searchHistoryMapper.insert(searchHistory);
+                }
+            }
+
+            return Result.ok(pageResp);
+        }catch (Exception e){
+            return Result.fail("搜索失败");
+        }
+    }
+
+    @Override
+    public Result<List<SearchHistoryVO>> getSearchHistory(){
+        try {
+            // 1.获取当前用户
+            Long userId = SecurityUtil.getCurrentUserId();
+
+            // 2.查询搜索历史
+            List<SearchHistory> searchHistoryList = searchHistoryMapper.selectList(
+                    new LambdaQueryWrapper<SearchHistory>()
+                            .eq(SearchHistory::getUserId, userId)
+                            .orderByDesc(SearchHistory::getSearchTime)
+            );
+
+            // 3.转换为VO
+            List<SearchHistoryVO> searchHistoryVOList = new ArrayList<>();
+            for (SearchHistory searchHistory : searchHistoryList) {
+                SearchHistoryVO searchHistoryVO = new SearchHistoryVO();
+                BeanUtils.copyProperties(searchHistory, searchHistoryVO);
+                searchHistoryVOList.add(searchHistoryVO);
+            }
+
+            return Result.ok(searchHistoryVOList);
+        }catch (Exception e){
+            return Result.fail("获取搜索历史失败");
+        }
     }
 
 

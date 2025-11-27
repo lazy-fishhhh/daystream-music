@@ -26,4 +26,7 @@ public class MusicConstants {
     public static final String FILTER_DIMENSION_MOOD = "MOOD"; // 心情
     public static final String FILTER_DIMENSION_BPM = "BPM"; // 节奏
     public static final String FILTER_DIMENSION_INSTRUMENT = "INSTRUMENT"; // 乐器
+
+    //音乐统计时长
+    public static final double MIN_PLAY_RATIO = 0.3;
 }
