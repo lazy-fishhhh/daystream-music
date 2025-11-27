@@ -101,7 +101,8 @@ public class MusicController {
         return iMusicService.reportPlayStatus(dto);
     }
 
-    @GetMapping
+    @ApiOperation(value = "查询用户所有专辑")
+    @GetMapping("/albums")
     public Result<List<AlbumVO>> getAlbums() {
         if (SecurityUtil.getCurrentUserId() ==  null){
             return Result.fail("请先登录再进行该操作");
