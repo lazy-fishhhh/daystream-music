@@ -102,7 +102,7 @@ public class PlaylistServiceImpl implements IPlaylistService {
         }
 
         Page<Playlist>  page = new Page<>(pageNum, pageSize);
-        IPage<Playlist> playlistPage = playlistMapper.selectPlaylistsByTagIds(page, tags);
+        IPage<Playlist> playlistPage = playlistMapper.selectPlaylistsByTagIds(page, tags, tags.size());
 
         // 转换为vo
         List<PlaylistVO> voList = new ArrayList<>();
