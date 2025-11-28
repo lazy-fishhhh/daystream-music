@@ -16,4 +16,7 @@ public interface CommunityPostMapper extends BaseMapper<CommunityPost> {
     void communityCommentCountLow(Long targetId);
     @Select("SELECT comment_count FROM community_post WHERE id = #{targetId} FOR UPDATE")
     Long selectCommetCount(Long targetId);
+    @Update("update community_post set comment_count=comment_count-count where id=#{targetId}")
+    void communtiyCommentCountLowBatch(Long targetId,Long count);
+
 }

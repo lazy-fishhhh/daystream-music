@@ -35,5 +35,6 @@ public interface PlayList2Mapper extends BaseMapper<Playlist> {
     void playlistCommentCountLow(Long targetId);
     @Select("SELECT comment_count FROM playlist WHERE id = #{targetId} FOR UPDATE")
     Long selectCommentCount(Long targetId);
-
+    @Update("update playlist set comment_count=comment_count-count where id=#{targetId}")
+    void playCommentCountLowBatch(Long targetId,Long count);
 }

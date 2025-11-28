@@ -14,4 +14,6 @@ public interface CommentService {
     Result getCommentList(CommentListDTO commentListDTO);
     Result replyComment(CommentReplyDTO commentReplyDTO);
     Result getReplyCommentList(ReplyDTO replyDTO);
+
+    Result deleteComment(Long commentId);
 }

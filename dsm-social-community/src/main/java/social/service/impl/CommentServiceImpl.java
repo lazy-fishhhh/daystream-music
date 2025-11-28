@@ -28,9 +28,7 @@ import social.mapper.*;
 import social.service.CommentService;
 
 import java.time.ZoneId;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -158,20 +156,28 @@ public class CommentServiceImpl implements CommentService {
             return Result.fail("回复的评论不存在");
         }
         Integer targetType = comment.getTargetType();
+        Long parentId=null;
         //父评论存在时回复评论
         Comment replyComment = new Comment();
         replyComment.setTargetId(comment.getTargetId());
         replyComment.setTargetType(targetType);
         replyComment.setContent(content);
         replyComment.setUserId(currentUserId);
+        if(comment.getParentId()==0) {
+            parentId = targetId;
+        }else{
+            parentId=comment.getParentId();
+        }
+        replyComment.setParentId(parentId);
         replyComment.setReplyToUserId(comment.getUserId());
-        replyComment.setParentId(targetId);
+
         //更新回复数
         int insert = commentMapper.insert(replyComment);
         Long parentTargetId=comment.getTargetId();
         if (insert > 0) {
-            commentMapper.updateReplyCountup(targetId);
-            Long count = commentMapper.selectReplyCount(targetId);
+            //更新主评论的数量
+            commentMapper.updateReplyCountup(parentId);
+            Long count=commentMapper.selectReplyCount(parentId);
             //更新评论数
             long targetCount = 0;
             if (targetType == CommentEnum.MUSIC.getValue()) {
@@ -201,7 +207,6 @@ public class CommentServiceImpl implements CommentService {
         }
         return Result.fail("回复失败");
     }
-
     /**
      * 获取用户发表的评论列表
      */
@@ -310,6 +315,7 @@ public class CommentServiceImpl implements CommentService {
         {
             return Result.fail("父评论不存在");
         }
+
         Integer targetType = comment.getTargetType();
         Long targetId = comment.getTargetId();
         //判断目标是否存在
@@ -346,20 +352,20 @@ public class CommentServiceImpl implements CommentService {
             if (communityPost == null)
                 return Result.fail("目标动态已删除");
         }
-            Long lastId = null;
-            if (replyDTO.getLastId() != null && !replyDTO.getLastId().isEmpty()) {
+        Long lastId = null;
+        if (replyDTO.getLastId() != null && !replyDTO.getLastId().isEmpty()) {
                 lastId = Long.parseLong(replyDTO.getLastId());
             }
             //查找lastId后面的评论
             List<ReplyCommentListVO> commentListVOS= commentMapper.replyCommentList(parentId, lastId, pageSize);
-            if (commentListVOS == null) {
+            if (commentListVOS == null||commentListVOS.isEmpty()) {
                 return Result.ok("后面没有数据了");
             }
+        //记录下一页的lastId
+        curentLastId = commentListVOS.get(commentListVOS.size() - 1).getId();
             //判断是否还有更多数据
-            Long has=commentMapper.hasmore(parentId, lastId);
+            Long has=commentMapper.hasmore(parentId, curentLastId);
             hasmore=has>0;
-            //记录下一页的lastId
-            curentLastId = commentListVOS.get(commentListVOS.size() - 1).getId();
             for (ReplyCommentListVO commentListVO : commentListVOS) {
                 if (commentListVO.getUserId() == currentUserId) {
                     commentListVO.setIsSelf(true);
@@ -384,5 +390,84 @@ public class CommentServiceImpl implements CommentService {
         pageLikeVO.setDateList(commentListVOS);
         pageLikeVO.setHasMore(hasmore);
         return Result.ok(pageLikeVO);
+    }
+
+
+    /**
+     *  删除评论
+     * @param commentId
+     * @return
+     */
+    @Override
+    public Result deleteComment(Long commentId) {
+        //判断评论是否存在
+        LambdaQueryWrapper<Comment> lambdaQueryWrapper = new LambdaQueryWrapper<>();
+        lambdaQueryWrapper.eq(Comment::getId, commentId);
+        Comment comment = commentMapper.selectOne(lambdaQueryWrapper);
+        if (comment == null) {
+            return Result.fail("评论不存在");
+        }
+        if(comment.getStatus()==0){
+            return Result.fail("评论已删除，请勿重复操作");
+        }
+        Long targetId = comment.getTargetId();
+        Integer targetType = comment.getTargetType();
+
+        //获取本人的id
+        Long currentUserId = SecurityUtil.getCurrentUser().getId();
+        //判断是不是评论者
+        CommentVO commentVO =new CommentVO();
+        if(currentUserId.equals(comment.getUserId()))
+        {
+            //删除评论
+            DeleteCommentVO deleteCommentVO = updateCommentCount(comment);
+            return Result.ok(deleteCommentVO);
+        }
+        //看是不是作者删除别人的评论
+        Long targetId1 = commentMapper.selectTargetId(targetId, targetType, currentUserId);
+        if(targetId1!=null)
+        {
+            //删除评论
+            DeleteCommentVO deleteCommentVO = updateCommentCount(comment);
+            return Result.ok(deleteCommentVO);
+        }
+        return Result.fail("没有权限删除此评论");
+
+    }
+    private DeleteCommentVO updateCommentCount(Comment comment) {
+        Long replyCount = 0L;
+        Long targetCount = 0L;
+        Long parentId = comment.getParentId();
+        Long targetId = comment.getTargetId();
+        Integer targetType = comment.getTargetType();
+        Long commentId = comment.getId();
+            //如果删除的是父评论
+            if(parentId==0)
+            {
+                //获取父评论下所有的子评论
+                List<Long> deleteId = commentMapper.getDeleteId(commentId);
+                //删除评论
+                Long l = commentMapper.deleteComment(deleteId, commentId);
+                //更新目标的评论数
+               commentMapper.updateCommentCountByType(targetId,targetType,l);
+               replyCount=null;
+               targetCount=commentMapper.selectCommentCount(targetType,targetId);
+            }
+            //如果是子评论
+            else{
+                //直接删除
+                commentMapper.deleteComment(null, commentId);
+                //更新父评论的评论数
+                commentMapper.ParentCommentCount(parentId,1L);
+                //更新目标的评论数
+                commentMapper.updateCommentCountByType(targetId,targetType,1L);
+                //获取评论数
+                replyCount=commentMapper.selectReplyCount(parentId);
+                targetCount=commentMapper.selectCommentCount(targetType,targetId);
+            }
+            DeleteCommentVO deleteCommentVO = new DeleteCommentVO();
+            deleteCommentVO.setReplyCount(replyCount);
+            deleteCommentVO.setTargetCount(targetCount);
+            return deleteCommentVO;
     }
 }

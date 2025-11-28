@@ -4,6 +4,7 @@ import entity.pojo.util.Result;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 import social.domain.dto.CommentDTO;
@@ -40,5 +41,10 @@ public class CommentController {
     @PostMapping("/replyComment")
     public Result replyComment(@Valid @RequestBody CommentReplyDTO commentReplyDTO) {
         return commentService.replyComment(commentReplyDTO);
+    }
+    @ApiOperation(value = "删除评论",notes = "评论者可以删除自己的评论，评论歌曲/歌单/动态/专辑作者可以删除发布在自己作品下的评论")
+    @DeleteMapping("/deleteComment")
+    public Result deleteComment(@RequestParam @NotNull(message = "评论id不能为空") Long commentId) {
+        return commentService.deleteComment(commentId);
     }
 }
