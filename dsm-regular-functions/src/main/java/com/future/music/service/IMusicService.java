@@ -30,6 +30,7 @@ public interface IMusicService extends IService<Music> {
     Result<MusicDetailVO> getOneMusic(Long musicId);
 
     PageResp<MusicVO> searchMusic(SearchDTO dto);
+    PageResp<SearchAlbumVO> searchAlbum(SearchDTO dto);
 
     Result<MusicPlayVO> playMusic(Long musicId, Integer quality);
 

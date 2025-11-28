@@ -1,20 +1,19 @@
 package com.future.music.service.impl;
 
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.future.music.domain.vo.MusicDetailVO;
-import com.future.music.domain.vo.MusicFilterTagVO;
-import com.future.music.domain.vo.PlaylistDetailVO;
-import com.future.music.domain.vo.PlaylistVO;
+import com.future.login.mapper.UserMapper;
+import com.future.music.domain.vo.*;
 import com.future.music.mapper.MusicTagMapper;
-import com.future.music.mapper.PlayListMapper;
+import com.future.music.mapper.PlaylistMapper;
 import com.future.music.mapper.PlaylistMusicMapper;
 import com.future.music.service.IMusicService;
 import com.future.music.service.IPlaylistService;
 import constants.MusicTagTypeConstants;
-import entity.pojo.music.Music;
-import entity.pojo.music.MusicTag;
-import entity.pojo.music.Playlist;
+import entity.dto.SearchDTO;
+import entity.pojo.info.User;
+import entity.pojo.music.*;
 import entity.pojo.util.PageResp;
 import entity.pojo.util.Result;
 import jakarta.annotation.Resource;
@@ -32,13 +31,16 @@ public class PlaylistServiceImpl implements IPlaylistService {
     private IMusicService musicService;
 
     @Resource
-    private PlayListMapper playlistMapper;
+    private PlaylistMapper playlistMapper;
 
     @Resource
     private PlaylistMusicMapper playlistMusicMapper;
 
     @Resource
     private MusicTagMapper musicTagMapper;
+
+    @Resource
+    private UserMapper userMapper;
 
 
 
@@ -81,7 +83,7 @@ public class PlaylistServiceImpl implements IPlaylistService {
         PageResp<MusicDetailVO> pageResult = new PageResp<>();
         pageResult.setRecords(voList);
         pageResult.setTotal(musicPage.getTotal());
-        pageResult.setPages((int) musicPage.getPages());
+        pageResult.setPages(musicPage.getPages());
 
         detailVO.setMusicDetailVOList(pageResult);
 
@@ -114,7 +116,7 @@ public class PlaylistServiceImpl implements IPlaylistService {
         PageResp<PlaylistVO> pageResult = new PageResp<>();
         pageResult.setRecords(voList);
         pageResult.setTotal(playlistPage.getTotal());
-        pageResult.setPages((int) playlistPage.getPages());
+        pageResult.setPages(playlistPage.getPages());
 
         return Result.ok(pageResult);
     }
@@ -150,6 +152,55 @@ public class PlaylistServiceImpl implements IPlaylistService {
             BeanUtils.copyProperties(tag, vo);
             return vo;
         }).collect(Collectors.toList());
+    }
+
+
+    @Override
+    public PageResp<SearchPlaylistVO> searchPlaylist(SearchDTO dto){
+        // 1. 校验关键词
+        if (dto.getKeyword() == null || dto.getKeyword().trim().isEmpty()) {
+            return new PageResp<>();
+        }
+        String keyword = "%" + dto.getKeyword().trim() + "%"; // 模糊匹配前缀后缀
+
+        // 2. 构建分页参数
+        Page<Playlist> page = new Page<>(dto.getPageNum(), dto.getPageSize());
+
+        // 3. 构建多条件查询（音乐名、标签名、音乐人名字 模糊匹配）
+        QueryWrapper<Playlist> queryWrapper = new QueryWrapper<>();
+
+        queryWrapper.and(wrapper -> wrapper
+                        .eq("m.music_name", keyword)        // 条件1：音乐名
+                        .or().like("p.playlist_name", keyword)  // 条件2：歌单名
+                        .or().eq("mt.tag_name", keyword)    // 条件3：标签名
+                )
+                .eq("p.is_public", 1); // 全局过滤：所有条件都需满足公开=1
+
+        // 4. 执行多表联查+分页+排序（SQL已含ORDER BY play_count DESC）
+        IPage<Playlist> playlistPage = playlistMapper.searchPlaylistsByMultiCondition(page, queryWrapper);
+
+        // 5. 转换为PlaylistVO并填充关联信息（点赞状态、音频列表等）
+        List<SearchPlaylistVO> voList = new ArrayList<>();
+        for (Playlist playlist : playlistPage.getRecords()) {
+            SearchPlaylistVO vo = new SearchPlaylistVO();
+            BeanUtils.copyProperties(playlist, vo);
+
+            // 5.4 关联用户名（通过userId查user表）
+            User user = userMapper.selectById(playlist.getUserId());
+            if (user != null) {
+                vo.setUserName(user.getUsername());
+            }
+
+            voList.add(vo);
+        }
+
+        // 6. 封装分页结果
+        PageResp<SearchPlaylistVO> pageResult = new PageResp<>();
+        pageResult.setRecords(voList);
+        pageResult.setTotal(playlistPage.getTotal());
+        pageResult.setPages(playlistPage.getPages());
+
+        return pageResult;
     }
 
 }

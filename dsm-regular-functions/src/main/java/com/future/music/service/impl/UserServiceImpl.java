@@ -6,24 +6,20 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 
 import com.future.login.domain.LoginUserDetails;
+import com.future.login.mapper.UserMapper;
 import com.future.login.util.SecurityUtil;
-import com.future.music.domain.vo.MusicDetailVO;
-import com.future.music.domain.vo.PlaylistDetailVO;
-import com.future.music.domain.vo.PlaylistVO;
-import com.future.music.domain.vo.SearchHistoryVO;
+import com.future.music.domain.vo.*;
 import com.future.music.mapper.*;
 import com.future.music.service.IMusicService;
+import com.future.music.service.IMusicianService;
+import com.future.music.service.IPlaylistService;
 import com.future.music.service.IUserService;
 import constants.SystemConstants;
 import entity.dto.PlayListDTO;
 import entity.dto.SearchDTO;
-import entity.pojo.music.Album;
-import entity.pojo.music.Music;
-import entity.pojo.music.Musician;
+import entity.pojo.info.User;
 import entity.pojo.music.Playlist;
 import entity.pojo.search.SearchHistory;
-import entity.pojo.social.LikeRecord;
-import entity.pojo.social.UserCollection;
 import entity.pojo.util.PageReq;
 import entity.pojo.util.PageResp;
 import entity.pojo.util.Result;
@@ -35,15 +31,12 @@ import org.springframework.data.redis.connection.BitFieldSubCommands;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
-import util.AudioDurationUtil;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 
 import static com.future.music.util.constants.CHECK_IN_KEY;
 
@@ -58,9 +51,19 @@ public class UserServiceImpl  implements IUserService {
     @Resource
     private SearchHistoryMapper searchHistoryMapper;
 
+    @Resource
+    private IMusicianService musicianService;
+
+    @Resource
+    private IPlaylistService playlistService;
+
+
     //构造方法注入
     private final StringRedisTemplate stringRedisTemplate;
-    private final PlayListMapper playListMapper;
+    private final PlaylistMapper playListMapper;
+    @Autowired
+    private UserMapper userMapper;
+
     @Override
     public void createPlayList(PlayListDTO playListDTO) {
 
@@ -274,11 +277,11 @@ public class UserServiceImpl  implements IUserService {
             }
             // 专辑
             if (searchDTO.getType().equals(SystemConstants.ALBUM_SEARCH_TYPE)){
-
+                pageResp = musicService.searchAlbum(searchDTO);
             }
             // 音乐人
             if (searchDTO.getType().equals(SystemConstants.MUSICIAN_SEARCH_TYPE)){
-
+                pageResp = musicianService.searchMusician(searchDTO);
             }
             // MV
             if (searchDTO.getType().equals(SystemConstants.MV_SEARCH_TYPE)){
@@ -286,11 +289,11 @@ public class UserServiceImpl  implements IUserService {
             }
             // 用户
             if (searchDTO.getType().equals(SystemConstants.USER_SEARCH_TYPE)){
-
+                pageResp = searchUser(searchDTO);
             }
             // 歌单
             if (searchDTO.getType().equals(SystemConstants.PLAYLIST_SEARCH_TYPE)){
-
+                pageResp = playlistService.searchPlaylist(searchDTO);
             }
 
             Long userId = SecurityUtil.getCurrentUserId();
@@ -319,6 +322,37 @@ public class UserServiceImpl  implements IUserService {
             return Result.fail("搜索失败");
         }
     }
+    // 搜索用户
+    public PageResp<SearchUserVO> searchUser(SearchDTO dto) {
+        // 1. 校验关键词
+        if (dto.getKeyword() == null || dto.getKeyword().trim().isEmpty()) {
+            return new PageResp<>();
+        }
+        String keyword = "%" + dto.getKeyword().trim() + "%"; // 模糊匹配前缀后缀
+
+        // 2. 构建分页参数
+        Page<User> page = new Page<>(dto.getPageNum(), dto.getPageSize());
+        // 3. 执行查询
+        IPage<User> userIPage = userMapper.selectPage(page,
+                new LambdaQueryWrapper<User>()
+                        .like(User::getUsername, keyword)
+                        .eq(User::getUserStatus, 1));
+        // 4. 转换为VO
+        List<SearchUserVO> voList = new ArrayList<>();
+        for(User user : userIPage.getRecords()) {
+            SearchUserVO searchUserVO = new SearchUserVO();
+            BeanUtils.copyProperties(user,searchUserVO);
+            voList.add(searchUserVO);
+        }
+
+        PageResp<SearchUserVO> pageResp = new PageResp<>();
+        pageResp.setRecords(voList);
+        pageResp.setTotal(userIPage.getTotal());
+        pageResp.setPages(userIPage.getPages());
+
+        return pageResp;
+    }
+
 
     @Override
     public Result<List<SearchHistoryVO>> getSearchHistory(){
