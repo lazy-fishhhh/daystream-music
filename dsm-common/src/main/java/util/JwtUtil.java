@@ -2,6 +2,9 @@ package util;
 
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
+import jakarta.annotation.Resource;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
@@ -123,4 +126,5 @@ public class JwtUtil {
             // $2a$10$MrfwYY2cFGg/tM5qefy9ROEzFPksUReBLYXB3ML.MhqwnKm9ssDQu
         }
     */
+
 }

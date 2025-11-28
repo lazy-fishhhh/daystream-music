@@ -20,5 +20,5 @@ public interface ISeckillActivityService {
 
     Result<String> purchaseSeckillProduct(Long seckillActivityId);
 
-    SeckillOrder createSeckillOrder(Long seckillActivityId, Long userId, SeckillActivity activity);
+//    SeckillOrder createSeckillOrder(Long seckillActivityId, Long userId, SeckillActivity activity);
 }

@@ -28,4 +28,12 @@ public interface PlayList2Mapper extends BaseMapper<Playlist> {
                                                  @Param("pageSize")Integer pageSize);
 
     List<CollectonLIstVO> selectPlayListAll(Long userId);
+    @Update("update playlist set comment_count=comment_count+1 where id=#{targetId}")
+    void playlistCommentCountup(Long targetId);
+
+    @Update("update playlist set comment_count=comment_count-1 where id=#{targetId} and comment_count>0")
+    void playlistCommentCountLow(Long targetId);
+    @Select("SELECT comment_count FROM playlist WHERE id = #{targetId} FOR UPDATE")
+    Long selectCommentCount(Long targetId);
+
 }
