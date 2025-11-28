@@ -45,7 +45,7 @@ public class RejesterServiceImpl implements RejesterService {
             return Result.fail("密码8-20位,包含大写字母、数字和特殊字符,请输入正确的密码格式");
         }
         if (!RegexPatterns.matches(email, RegexPatterns.EMAIL_REGEX)) {
-            return Result.fail("请输入正确的邮箱");
+            return Result.fail("邮箱格式不正确，请输入正确的邮箱");
         }
         LambdaQueryWrapper<User> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(User::getEmail, email);

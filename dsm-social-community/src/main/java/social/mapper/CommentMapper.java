@@ -36,5 +36,36 @@ public interface CommentMapper extends BaseMapper<Comment> {
     void updateReplyCountLow(Long targetId);
     @Select("SELECT reply_count FROM comment WHERE id = #{targetId} FOR UPDATE")
     Long selectReplyCount(Long targetId);
-
+/**
+ * 获取需要删除的ID列表
+ *
+ * @param targetId 目标ID
+ * @return 返回需要删除的ID列表，类型为Long的列表
+ */
+    List<Long> getDeleteId(Long targetId);
+    Long deleteComment(@Param("ids")List<Long> ids,
+                       @Param("targetId")Long targetId);
+    void updateCommentCountByType(@Param("targetId")Long targetId,
+                                  @Param("type")Integer type,
+                                  @Param("count")Long count);
+    Long selectCommentCount(@Param("type")Integer type,
+                            @Param("targetId")Long targetId);
+    void ParentCommentCount(@Param("targetId")Long targetId,
+                            @Param("count")Long  count);
+    Long selectTargetId(@Param("targetId")Long targetId,
+                        @Param("type")Integer type,
+                        @Param("userId")Long userId);
+    @Select("""
+    WITH RECURSIVE comment_tree AS (
+        -- 初始：直接子评论
+        SELECT id FROM comment WHERE parent_id = #{parentId} AND status = 1
+        UNION ALL
+        -- 递归：子评论的子评论
+        SELECT c.id FROM comment c
+        INNER JOIN comment_tree ct ON c.parent_id = ct.id
+        WHERE c.status = 1
+    )
+    SELECT id FROM comment_tree;
+""")
+    List<Long> selectAllDescendantIds(@Param("parentId") Long parentId);
 }

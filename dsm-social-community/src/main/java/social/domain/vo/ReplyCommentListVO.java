@@ -43,10 +43,6 @@ public class ReplyCommentListVO {
      */
     private Boolean isSelf;
     /**
-     * 子评论的数量
-     */
-    private Long childCount;
-    /**
      * 被回复者的id
      */
     private Long replyUserId;

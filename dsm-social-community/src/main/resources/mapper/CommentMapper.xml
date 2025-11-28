@@ -41,7 +41,7 @@
     </select>
     <select id="replyCommentList" resultType="social.domain.vo.ReplyCommentListVO">
         select c.id,c.content,c.user_id,c.created_time,c.parent_id,c.like_count,
-        u.username,u.avatar,c.reply_count as childCount,c.reply_to_user_id as replyUserId,
+        u.username,u.avatar,c.reply_to_user_id as replyUserId,
         ru.username as replyUsername
         from
         comment c
@@ -61,4 +61,121 @@
     <select id="hasmoreparent" resultType="Long">
         select count(1) from comment where target_id = #{targetId} and parent_id=0 and id &lt; #{lastId} and status = 1
     </select>
+    <select id="getDeleteId" resultType="Long">
+        select id
+        from
+        comment
+        where parent_id = #{targetId}
+        and status = 1
+    </select>
+    <update id="deleteComment">
+        update comment
+        set status = 0
+        where
+        <if test="ids != null and ids.size() > 0">
+            id in
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+                #{id}
+        </foreach>
+            or
+        </if>
+        id = #{targetId}
+        and status = 1
+    </update>
+    <update id="updateCommentCountByType">
+        <if test="type == 1">
+            update music
+            set comment_count = comment_count -#{count}
+            where id = #{targetId}
+        </if>
+        <if test="type==2">
+            update playlist
+            set comment_count = comment_count -#{count}
+            where id = #{targetId}
+        </if>
+        <if test="type == 3">
+            update album
+            set comment_count = comment_count-#{count}
+            where id = #{targetId}
+        </if>
+        <if test="type == 4">
+            update community_post
+            set comment_count = comment_count - #{count}
+            where id = #{targetId}
+        </if>
+    </update>
+    <select id="selectCommentCount" resultType="Long">
+        <if test="type == 1">
+            select
+            comment_count
+            from
+            music
+            where id = #{targetId}
+        </if>
+        <if test="type==2">
+            select
+            comment_count
+            from
+            playlist
+            where id = #{targetId}
+        </if>
+        <if test="type == 3">
+            select
+            comment_count
+            from
+            album
+            where id = #{targetId}
+        </if>
+        <if test="type == 4">
+            select
+            comment_count
+            from
+            community_post
+            where id = #{targetId}
+        </if>
+    </select>
+    <update id="ParentCommentCount">
+        update comment
+        set reply_count = reply_count-#{count}
+        where id = #{targetId}
+    </update>
+    <select id="selectTargetId" resultType="Long">
+        <if test="type == 1">
+            select
+            id
+            from
+            music
+            where id = #{targetId}
+            and status = 1
+            and musician_id = #{userId}
+        </if>
+        <if test="type==2">
+            select
+            id
+            from
+            playlist
+            where id = #{targetId}
+            and is_public = 1
+            and user_id = #{userId}
+        </if>
+        <if test="type == 3">
+            select
+            id
+            from
+            album
+            where id = #{targetId}
+            and status = 1
+            and musician_id = #{userId}
+        </if>
+        <if test="type == 4">
+            select
+            id
+            from
+            community_post
+            where id = #{targetId}
+            and is_delete = 0
+            and user_id = #{userId}
+        </if>
+    </select>
+
 </mapper>

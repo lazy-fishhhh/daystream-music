@@ -3,6 +3,7 @@ package com.future.login.service.impl;
 import cn.hutool.core.util.IdUtil;
 import cn.hutool.core.util.RandomUtil;
 import com.future.login.service.EmailService;
+import constants.RegexPatterns;
 import entity.pojo.util.Result;
 import jakarta.annotation.Resource;
 import jakarta.mail.MessagingException;
@@ -36,6 +37,10 @@ public class EmailServiceImpl implements EmailService {
         if(toEmail==null||toEmail.trim()==null)
         {
             return Result.fail("收件邮箱不能为空");
+        }
+        if (!RegexPatterns.matches(toEmail, RegexPatterns.EMAIL_REGEX))
+        {
+            return Result.fail("邮箱格式不正确，请输入正确的邮箱");
         }
         //生成6位验证码
         String captcha = RandomUtil.randomNumbers(6);

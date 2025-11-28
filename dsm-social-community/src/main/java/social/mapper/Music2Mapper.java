@@ -31,4 +31,6 @@ public interface Music2Mapper extends BaseMapper<Music> {
     void commentCountLow(Long targetId);
     @Select("SELECT comment_count FROM music WHERE id = #{targetId} FOR UPDATE")
     Long selectCommentCount(Long targetId);
+    @Update("update music set comment_count=comment_count-count where id=#{targetId}")
+    void musicCommentCountLowBatch(Long targetId,Long count);
 }
