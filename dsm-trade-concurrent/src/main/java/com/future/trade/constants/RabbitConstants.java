@@ -17,6 +17,13 @@ public final class RabbitConstants {
      */
     public static final String VIP_DELAY_DIRECT_EXCHANGE = "vip.delay.direct";
 
+
+    /**
+     * 秒杀业务交换机
+     */
+    public static final String SECKILL_ORDER_EXCHANGE = "seckill.order.exchange";
+
+
     // ==================== 队列 (Queues) ====================
 
     /**
@@ -49,6 +56,11 @@ public final class RabbitConstants {
      */
     public static final String VIP_ORDER_TIMEOUT_QUEUE = "vip.order.timeout.queue";
 
+    /**
+     * 秒杀订单处理队列
+     */
+    public static final String SECKILL_ORDER_QUEUE = "seckill.order.queue";
+
     // ==================== 路由键 (Routing Keys) ====================
 
     /**
@@ -80,6 +92,15 @@ public final class RabbitConstants {
      * 订单超时取消路由键
      */
     public static final String ROUTING_KEY_ORDER_TIMEOUT = "vip.order.timeout";
+
+
+    /**
+     * 秒杀订单路由键
+     */
+    public static final String ROUTING_KEY_SECKILL_ORDER = "seckill.order";
+
+
+
 
     /**
      * 私有构造函数，防止该类被实例化

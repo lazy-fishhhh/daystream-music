@@ -8,10 +8,7 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.future.login.util.SecurityUtil;
 import com.future.music.domain.dto.LyricLineDTO;
 import com.future.music.domain.dto.MusicPlayReportDTO;
-import com.future.music.domain.vo.EchoMusicVO;
-import com.future.music.domain.vo.MusicDetailVO;
-import com.future.music.domain.vo.MusicPlayVO;
-import com.future.music.domain.vo.MusicVO;
+import com.future.music.domain.vo.*;
 import com.future.music.mapper.*;
 import com.future.music.service.IMinIoService;
 
@@ -831,7 +828,46 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
         PageResp<MusicVO> pageResult = new PageResp<>();
         pageResult.setRecords(voList);
         pageResult.setTotal(musicPage.getTotal());
-        pageResult.setPages((int) musicPage.getPages());
+        pageResult.setPages(musicPage.getPages());
+
+        return pageResult;
+    }
+
+    //搜索专辑
+    @Override
+    public PageResp<SearchAlbumVO> searchAlbum(SearchDTO dto) {
+        // 1. 校验关键词
+        if (dto.getKeyword() == null || dto.getKeyword().trim().isEmpty()) {
+            return new PageResp<>();
+        }
+        String keyword = "%" + dto.getKeyword().trim() + "%"; // 模糊匹配前缀后缀
+
+        // 2. 构建分页参数
+        Page<Album> page = new Page<>(dto.getPageNum(), dto.getPageSize());
+
+        // 4. 执行多表联查+分页+排序（SQL已含ORDER BY play_count DESC）
+        IPage<Album> albumPage = albumMapper.searchAlbumByKey(page, keyword);
+
+        // 5. 转换为SearchAlbumVO并填充关联信息（专辑名、音乐人名字等）
+        List<SearchAlbumVO> voList = new ArrayList<>();
+        for (Album album : albumPage.getRecords()) {
+            SearchAlbumVO vo = new SearchAlbumVO();
+            BeanUtils.copyProperties(album, vo);
+
+            // 关联音乐人名字（通过musicianId查musician表）
+            Musician musician = musicianMapper.selectById(album.getMusicianId());
+            if (musician != null) {
+                vo.setMusicianName(musician.getStageName());
+            }
+
+            voList.add(vo);
+        }
+
+        // 6. 封装分页结果
+        PageResp<SearchAlbumVO> pageResult = new PageResp<>();
+        pageResult.setRecords(voList);
+        pageResult.setTotal(albumPage.getTotal());
+        pageResult.setPages(albumPage.getPages());
 
         return pageResult;
     }
