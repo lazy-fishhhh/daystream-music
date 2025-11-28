@@ -19,6 +19,7 @@ import entity.dto.PlayListDTO;
 import entity.dto.SearchDTO;
 import entity.pojo.info.User;
 import entity.pojo.music.Playlist;
+import entity.pojo.search.HotSearch;
 import entity.pojo.search.SearchHistory;
 import entity.pojo.util.PageReq;
 import entity.pojo.util.PageResp;
@@ -56,6 +57,9 @@ public class UserServiceImpl  implements IUserService {
 
     @Resource
     private IPlaylistService playlistService;
+
+    @Resource
+    private HotSearchMapper hotSearchMapper;
 
 
     //构造方法注入
@@ -262,6 +266,36 @@ public class UserServiceImpl  implements IUserService {
         return Result.ok(continuousDays);
     }
 
+    // 获取热搜榜单
+    @Override
+    public Result<List<HotSearchVO>> getHotSearch() {
+        try {
+            LambdaQueryWrapper<HotSearch> queryWrapper = new LambdaQueryWrapper<HotSearch>()
+                    // sortOrder降序
+                    .orderByDesc(HotSearch::getSortOrder)
+                    // 搜索量降序
+                    .orderByDesc(HotSearch::getSearchCount)
+                    // 限制条数
+                    .last("LIMIT "+ SystemConstants.HOT_SEARCH_LIMIT);
+
+            List<HotSearch> hotSearchList = hotSearchMapper.selectList(queryWrapper);
+
+            // 转换为VO
+            List<HotSearchVO> hotSearchVOList = new ArrayList<>();
+            for (HotSearch hotSearch : hotSearchList) {
+                HotSearchVO hotSearchVO = new HotSearchVO();
+                hotSearchVO.setKeyword(hotSearch.getKeyword());
+                hotSearchVO.setSearchCount(hotSearch.getSearchCount());
+                hotSearchVOList.add(hotSearchVO);
+            }
+
+            return Result.ok(hotSearchVOList);
+        } catch (Exception e) {
+            return Result.fail("获取热搜榜单失败");
+        }
+    }
+
+    // 搜索
     @Override
     public Result<PageResp<?>> search(SearchDTO searchDTO){
         try {
@@ -296,6 +330,7 @@ public class UserServiceImpl  implements IUserService {
                 pageResp = playlistService.searchPlaylist(searchDTO);
             }
 
+            // 写入搜索历史
             Long userId = SecurityUtil.getCurrentUserId();
             if (userId != null){
                 QueryWrapper<SearchHistory> queryWrapper = new QueryWrapper<>();
@@ -315,6 +350,27 @@ public class UserServiceImpl  implements IUserService {
                     searchHistory.setKeyword(searchDTO.getKeyword());
                     searchHistoryMapper.insert(searchHistory);
                 }
+            }
+
+            // 写入热门搜索
+            QueryWrapper<HotSearch> queryWrapper = new QueryWrapper<>();
+            queryWrapper.eq("keyword", searchDTO.getKeyword());
+            // 检查是否存在相同的热门搜索记录
+            HotSearch existingHotSearch = hotSearchMapper.selectOne(queryWrapper);
+            if (existingHotSearch != null) {
+                // 如果存在相同记录，更新搜索计数和更新时间
+                existingHotSearch.setSearchCount(existingHotSearch.getSearchCount() + 1);
+                existingHotSearch.setUpdateTime(LocalDateTime.now());
+                hotSearchMapper.updateById(existingHotSearch);
+            } else {
+                // 如果不存在相同记录，写入新记录
+                // 写入热门搜索
+                HotSearch hotSearch = new HotSearch();
+                hotSearch.setKeyword(searchDTO.getKeyword());
+                hotSearch.setSearchCount(1);
+                hotSearch.setSortOrder(0);
+                hotSearch.setUpdateTime(LocalDateTime.now());
+                hotSearchMapper.insert(hotSearch);
             }
 
             return Result.ok(pageResp);
@@ -353,7 +409,7 @@ public class UserServiceImpl  implements IUserService {
         return pageResp;
     }
 
-
+    // 获取搜索历史
     @Override
     public Result<List<SearchHistoryVO>> getSearchHistory(){
         try {

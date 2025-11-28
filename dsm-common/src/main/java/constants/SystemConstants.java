@@ -34,8 +34,9 @@ public class SystemConstants {
     // 搜索类型
     public static final int MUSIC_SEARCH_TYPE = 1;      // 音乐
     public static final int PLAYLIST_SEARCH_TYPE = 2;   // 歌单
-     public static final int ALBUM_SEARCH_TYPE = 3;     // 专辑
-     public static final int MUSICIAN_SEARCH_TYPE = 4;  // 音乐人
-     public static final int MV_SEARCH_TYPE = 5;        // MV
-     public static final int USER_SEARCH_TYPE = 6;      // 用户
+    public static final int ALBUM_SEARCH_TYPE = 3;      // 专辑
+    public static final int MUSICIAN_SEARCH_TYPE = 4;   // 音乐人
+    public static final int MV_SEARCH_TYPE = 5;         // MV
+    public static final int USER_SEARCH_TYPE = 6;       // 用户
+    public static final int HOT_SEARCH_LIMIT = 10;      // 热搜榜单限制数量
 }
