@@ -33,4 +33,6 @@ public interface Album2Mapper extends BaseMapper<Album> {
     void albumCommentCountLow(Long targetId);
     @Select("SELECT comment_count FROM album WHERE id = #{targetId} FOR UPDATE")
     Long selectCommetCount(Long targetId);
+    @Update("update album set comment_count=comment_count-count where id=#{targetId}")
+    void albumCommentCountLowBatch(Long targetId,Long count);
 }

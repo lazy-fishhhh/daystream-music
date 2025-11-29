@@ -6,24 +6,21 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 
 import com.future.login.domain.LoginUserDetails;
+import com.future.login.mapper.UserMapper;
 import com.future.login.util.SecurityUtil;
-import com.future.music.domain.vo.MusicDetailVO;
-import com.future.music.domain.vo.PlaylistDetailVO;
-import com.future.music.domain.vo.PlaylistVO;
-import com.future.music.domain.vo.SearchHistoryVO;
+import com.future.music.domain.vo.*;
 import com.future.music.mapper.*;
 import com.future.music.service.IMusicService;
+import com.future.music.service.IMusicianService;
+import com.future.music.service.IPlaylistService;
 import com.future.music.service.IUserService;
 import constants.SystemConstants;
 import entity.dto.PlayListDTO;
 import entity.dto.SearchDTO;
-import entity.pojo.music.Album;
-import entity.pojo.music.Music;
-import entity.pojo.music.Musician;
+import entity.pojo.info.User;
 import entity.pojo.music.Playlist;
+import entity.pojo.search.HotSearch;
 import entity.pojo.search.SearchHistory;
-import entity.pojo.social.LikeRecord;
-import entity.pojo.social.UserCollection;
 import entity.pojo.util.PageReq;
 import entity.pojo.util.PageResp;
 import entity.pojo.util.Result;
@@ -35,15 +32,12 @@ import org.springframework.data.redis.connection.BitFieldSubCommands;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
-import util.AudioDurationUtil;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 
 import static com.future.music.util.constants.CHECK_IN_KEY;
 
@@ -58,9 +52,22 @@ public class UserServiceImpl  implements IUserService {
     @Resource
     private SearchHistoryMapper searchHistoryMapper;
 
+    @Resource
+    private IMusicianService musicianService;
+
+    @Resource
+    private IPlaylistService playlistService;
+
+    @Resource
+    private HotSearchMapper hotSearchMapper;
+
+
     //构造方法注入
     private final StringRedisTemplate stringRedisTemplate;
-    private final PlayListMapper playListMapper;
+    private final PlaylistMapper playListMapper;
+    @Autowired
+    private UserMapper userMapper;
+
     @Override
     public void createPlayList(PlayListDTO playListDTO) {
 
@@ -259,6 +266,36 @@ public class UserServiceImpl  implements IUserService {
         return Result.ok(continuousDays);
     }
 
+    // 获取热搜榜单
+    @Override
+    public Result<List<HotSearchVO>> getHotSearch() {
+        try {
+            LambdaQueryWrapper<HotSearch> queryWrapper = new LambdaQueryWrapper<HotSearch>()
+                    // sortOrder降序
+                    .orderByDesc(HotSearch::getSortOrder)
+                    // 搜索量降序
+                    .orderByDesc(HotSearch::getSearchCount)
+                    // 限制条数
+                    .last("LIMIT "+ SystemConstants.HOT_SEARCH_LIMIT);
+
+            List<HotSearch> hotSearchList = hotSearchMapper.selectList(queryWrapper);
+
+            // 转换为VO
+            List<HotSearchVO> hotSearchVOList = new ArrayList<>();
+            for (HotSearch hotSearch : hotSearchList) {
+                HotSearchVO hotSearchVO = new HotSearchVO();
+                hotSearchVO.setKeyword(hotSearch.getKeyword());
+                hotSearchVO.setSearchCount(hotSearch.getSearchCount());
+                hotSearchVOList.add(hotSearchVO);
+            }
+
+            return Result.ok(hotSearchVOList);
+        } catch (Exception e) {
+            return Result.fail("获取热搜榜单失败");
+        }
+    }
+
+    // 搜索
     @Override
     public Result<PageResp<?>> search(SearchDTO searchDTO){
         try {
@@ -274,11 +311,11 @@ public class UserServiceImpl  implements IUserService {
             }
             // 专辑
             if (searchDTO.getType().equals(SystemConstants.ALBUM_SEARCH_TYPE)){
-
+                pageResp = musicService.searchAlbum(searchDTO);
             }
             // 音乐人
             if (searchDTO.getType().equals(SystemConstants.MUSICIAN_SEARCH_TYPE)){
-
+                pageResp = musicianService.searchMusician(searchDTO);
             }
             // MV
             if (searchDTO.getType().equals(SystemConstants.MV_SEARCH_TYPE)){
@@ -286,13 +323,14 @@ public class UserServiceImpl  implements IUserService {
             }
             // 用户
             if (searchDTO.getType().equals(SystemConstants.USER_SEARCH_TYPE)){
-
+                pageResp = searchUser(searchDTO);
             }
             // 歌单
             if (searchDTO.getType().equals(SystemConstants.PLAYLIST_SEARCH_TYPE)){
-
+                pageResp = playlistService.searchPlaylist(searchDTO);
             }
 
+            // 写入搜索历史
             Long userId = SecurityUtil.getCurrentUserId();
             if (userId != null){
                 QueryWrapper<SearchHistory> queryWrapper = new QueryWrapper<>();
@@ -314,12 +352,64 @@ public class UserServiceImpl  implements IUserService {
                 }
             }
 
+            // 写入热门搜索
+            QueryWrapper<HotSearch> queryWrapper = new QueryWrapper<>();
+            queryWrapper.eq("keyword", searchDTO.getKeyword());
+            // 检查是否存在相同的热门搜索记录
+            HotSearch existingHotSearch = hotSearchMapper.selectOne(queryWrapper);
+            if (existingHotSearch != null) {
+                // 如果存在相同记录，更新搜索计数和更新时间
+                existingHotSearch.setSearchCount(existingHotSearch.getSearchCount() + 1);
+                existingHotSearch.setUpdateTime(LocalDateTime.now());
+                hotSearchMapper.updateById(existingHotSearch);
+            } else {
+                // 如果不存在相同记录，写入新记录
+                // 写入热门搜索
+                HotSearch hotSearch = new HotSearch();
+                hotSearch.setKeyword(searchDTO.getKeyword());
+                hotSearch.setSearchCount(1);
+                hotSearch.setSortOrder(0);
+                hotSearch.setUpdateTime(LocalDateTime.now());
+                hotSearchMapper.insert(hotSearch);
+            }
+
             return Result.ok(pageResp);
         }catch (Exception e){
             return Result.fail("搜索失败");
         }
     }
+    // 搜索用户
+    public PageResp<SearchUserVO> searchUser(SearchDTO dto) {
+        // 1. 校验关键词
+        if (dto.getKeyword() == null || dto.getKeyword().trim().isEmpty()) {
+            return new PageResp<>();
+        }
+        String keyword = "%" + dto.getKeyword().trim() + "%"; // 模糊匹配前缀后缀
 
+        // 2. 构建分页参数
+        Page<User> page = new Page<>(dto.getPageNum(), dto.getPageSize());
+        // 3. 执行查询
+        IPage<User> userIPage = userMapper.selectPage(page,
+                new LambdaQueryWrapper<User>()
+                        .like(User::getUsername, keyword)
+                        .eq(User::getUserStatus, 1));
+        // 4. 转换为VO
+        List<SearchUserVO> voList = new ArrayList<>();
+        for(User user : userIPage.getRecords()) {
+            SearchUserVO searchUserVO = new SearchUserVO();
+            BeanUtils.copyProperties(user,searchUserVO);
+            voList.add(searchUserVO);
+        }
+
+        PageResp<SearchUserVO> pageResp = new PageResp<>();
+        pageResp.setRecords(voList);
+        pageResp.setTotal(userIPage.getTotal());
+        pageResp.setPages(userIPage.getPages());
+
+        return pageResp;
+    }
+
+    // 获取搜索历史
     @Override
     public Result<List<SearchHistoryVO>> getSearchHistory(){
         try {

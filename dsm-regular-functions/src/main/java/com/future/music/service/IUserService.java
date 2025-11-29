@@ -24,6 +24,9 @@ public interface IUserService {
 
     Result<Integer> getContinuousSignInDays();
 
+    // 获取热搜榜单
+    Result<List<HotSearchVO>> getHotSearch();
+
     Result<PageResp<?>> search(SearchDTO searchDTO);
 
     Result<List<SearchHistoryVO>> getSearchHistory();
