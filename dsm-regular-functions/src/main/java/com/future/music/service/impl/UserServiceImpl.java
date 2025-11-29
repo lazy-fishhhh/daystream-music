@@ -287,6 +287,8 @@ public class UserServiceImpl  implements IUserService {
                     .orderByDesc(HotSearch::getSortOrder)
                     // 搜索量降序
                     .orderByDesc(HotSearch::getSearchCount)
+                    // 时间降序
+                    .orderByDesc(HotSearch::getUpdateTime)
                     // 限制条数
                     .last("LIMIT "+ SystemConstants.HOT_SEARCH_LIMIT);
 

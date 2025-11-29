@@ -36,4 +36,6 @@ public interface IMusicService extends IService<Music> {
 
     Result<Void> reportPlayStatus(MusicPlayReportDTO dto);
 
+    Result<PageResp<MusicVO>> filterMusicByTags(List<Long> tags, int pageNum, int pageSize);
+
 }

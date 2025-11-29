@@ -1056,4 +1056,32 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
         }
     }
 
+    @Override
+    public Result<PageResp<MusicVO>> filterMusicByTags(List<Long> tags, int pageNum, int pageSize){
+        // 1. 参数校验
+        if (CollectionUtils.isEmpty(tags)) {
+            return Result.fail("标签不能为空");
+        }
+
+        // 2. 分页查询
+        Page<Music> page = new Page<>(pageNum, pageSize);
+        IPage<Music> musicIPage = musicMapper.selectMusicsByTagIds(page, tags, tags.size());
+
+        // 3. 转换VO
+        List<MusicVO> voList = new ArrayList<>();
+        for (Music music : musicIPage.getRecords()) {
+            MusicVO musicVO = getMusicVO(music.getId());
+            voList.add(musicVO);
+        }
+
+        // 4. 封装分页结果
+        PageResp<MusicVO> resp = new PageResp<>();
+        resp.setRecords(voList);
+        resp.setTotal(musicIPage.getTotal());
+        resp.setPages(musicIPage.getPages());
+
+        // 5. 仅保留成功返回
+        return Result.ok(resp);
+    }
+
 }
