@@ -11,6 +11,7 @@ import org.apache.ibatis.annotations.Select;
 import org.mapstruct.Mapper;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 
 @Mapper
@@ -38,4 +39,18 @@ public interface MusicMapper extends BaseMapper<Music> {
             Page<Music> page,
             @Param("ew") QueryWrapper<Music> queryWrapper
     );
+
+    /**
+     * 根据标签ID列表筛选音乐（包含所有标签）
+     * @param page 分页对象（MyBatis-Plus分页）
+     * @param tagIds 标签ID列表
+     * @param tagSize 标签数量（用于校验是否包含所有标签）
+     * @return 分页的音乐列表
+     */
+    IPage<Music> selectMusicsByTagIds(
+            IPage<Music> page,
+            @Param("tagIds") List<Long> tagIds,
+            @Param("tagSize") Integer tagSize
+    );
+
 }

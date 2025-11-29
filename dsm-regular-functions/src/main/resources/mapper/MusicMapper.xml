@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<!-- namespace 必须和 MusicMapper 接口全类名一致 -->
+<mapper namespace="com.future.music.mapper.MusicMapper">
+
+    <!-- 分页查询符合所有标签的音乐（按点赞数降序） -->
+    <select id="selectMusicsByTagIds" resultType="entity.pojo.music.Music">
+        SELECT m.*
+        FROM music m
+        INNER JOIN music_tag_relation mtr ON m.id = mtr.music_id
+        WHERE mtr.tag_id IN
+        <foreach collection="tagIds" item="tagId" open="(" separator="," close=")">
+            #{tagId}
+        </foreach>
+        AND m.status = 1  <!-- 假设音乐也有公开状态，可根据实际业务调整 -->
+        GROUP BY m.id
+        HAVING COUNT(DISTINCT mtr.tag_id) = #{tagSize}  <!-- 确保包含所有传入的标签 -->
+        ORDER BY m.like_count DESC  <!-- 按点赞数降序排序 -->
+    </select>
+
+</mapper>
