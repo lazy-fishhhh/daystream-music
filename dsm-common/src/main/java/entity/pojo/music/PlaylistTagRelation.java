@@ -5,6 +5,6 @@ import lombok.Data;
 @Data
 public class PlaylistTagRelation {
     private Long id;
-    private Long playListId;
+    private Long playlistId;
     private Long tagId;
 }

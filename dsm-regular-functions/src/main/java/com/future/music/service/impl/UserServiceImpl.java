@@ -6,6 +6,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 
 import com.future.login.domain.LoginUserDetails;
+import com.future.login.exception.BusinessException;
 import com.future.login.mapper.UserMapper;
 import com.future.login.util.SecurityUtil;
 import com.future.music.domain.vo.*;
@@ -41,6 +42,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 
+import static com.future.music.code.PlaylistErrorCode.PLAYLIST_NAME_EXIST;
 import static com.future.music.util.constants.CHECK_IN_KEY;
 
 
@@ -78,7 +80,7 @@ public class UserServiceImpl  implements IUserService {
         lqw.eq(Playlist::getName, playListDTO.getName());
         Playlist playlist = playListMapper.selectOne(lqw);
         if (playlist != null){
-            throw new RuntimeException("歌单名称已存在,不允许重复");
+            throw new BusinessException(PLAYLIST_NAME_EXIST.getCode(),"歌单名称已存在,不允许重复");
         }
 
         LoginUserDetails loginUser = (LoginUserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
@@ -94,7 +96,7 @@ public class UserServiceImpl  implements IUserService {
         playListMapper.insert(playList);
 
          PlaylistTagRelation playListTagRelation = new PlaylistTagRelation();
-         playListTagRelation.setPlayListId(playList.getId());
+         playListTagRelation.setPlaylistId(playList.getId());
          playListTagRelation.setTagId((long) playListDTO.getTagId());
          playlistTagRelationMapper.insert(playListTagRelation);
     }
@@ -132,7 +134,7 @@ public class UserServiceImpl  implements IUserService {
         playListMapper.updateById(playlist);
 
         PlaylistTagRelation playListTagRelation = new PlaylistTagRelation();
-        playListTagRelation.setPlayListId(dto.getId());
+        playListTagRelation.setPlaylistId(dto.getId());
         playListTagRelation.setTagId((long) dto.getTagId());
         playlistTagRelationMapper.updateById(playListTagRelation);
     }
