@@ -20,14 +20,8 @@ import org.springframework.amqp.rabbit.annotation.Queue;
 import org.springframework.amqp.rabbit.annotation.QueueBinding;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import javax.naming.Binding;
-
-import java.time.LocalDateTime;
-
 import static code.BusinessErrorCode.BALANCE_NOT_ENOUGH;
 import static com.future.trade.constants.SeckillConstants.SECKILL_ORDER_EXIST;
 
@@ -43,8 +37,9 @@ public class SeckillOrderListener {
      * 监听秒杀订单队列（幂等性、原子扣余额、库存一致性）
      */
     @RabbitListener(bindings = @QueueBinding(
-            value = @Queue(value = RabbitConstants.SECKILL_ORDER_QUEUE, durable = "true"),
-            exchange = @Exchange(value = RabbitConstants.SECKILL_ORDER_EXCHANGE, type = ExchangeTypes.TOPIC),
+            value = @Queue(value = RabbitConstants.SECKILL_ORDER_QUEUE, durable = "true", declare = "true"),
+            exchange = @Exchange(value = RabbitConstants.SECKILL_ORDER_EXCHANGE,
+                                 type = ExchangeTypes.TOPIC, durable = "true"),
             key = RabbitConstants.ROUTING_KEY_SECKILL_ORDER
     ))
     @Transactional(rollbackFor = Exception.class)
@@ -79,6 +74,7 @@ public class SeckillOrderListener {
             seckillOrder.setOrderNo(String.valueOf(message.getOrderNo()));
             seckillOrder.setUserId(message.getUserId());
             seckillOrder.setActivityId(message.getActivityId());
+            seckillOrder.setProductType(message.getProductType());
             seckillOrder.setProductId(message.getProductId());
             seckillOrder.setSeckillPrice(Math.toIntExact(message.getPrice()));
             seckillOrder.setOrderStatus(OrderStatusEnum.PENDING_PAY);

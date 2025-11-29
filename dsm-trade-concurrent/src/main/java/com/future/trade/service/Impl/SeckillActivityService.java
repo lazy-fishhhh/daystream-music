@@ -1,13 +1,14 @@
 package com.future.trade.service.Impl;
 
+import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.future.login.exception.BusinessException;
 import com.future.login.mapper.UserMapper;
 import com.future.login.util.SecurityUtil;
 import com.future.trade.constants.RabbitConstants;
+import com.future.trade.constants.SeckillConstants;
 import com.future.trade.constants.SeckillErrorCode;
 import com.future.trade.entity.SeckillActivity;
-import com.future.trade.entity.SeckillOrder;
 import com.future.trade.entity.VipPackage;
 import com.future.trade.entity.dto.SeckillActivityDTO;
 import com.future.trade.entity.enums.ProductTypeEnum;
@@ -16,7 +17,6 @@ import com.future.trade.mapper.SeckillActivityMapper;
 import com.future.trade.mapper.SeckillOrderMapper;
 import com.future.trade.mapper.VipPackageMapper;
 import com.future.trade.service.ISeckillActivityService;
-import entity.pojo.info.User;
 import entity.pojo.util.Result;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -32,13 +32,13 @@ import util.RedisTemplateWorker;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.Collections;
+import java.util.concurrent.TimeUnit;
 
-import static code.BusinessErrorCode.BALANCE_NOT_ENOUGH;
 import static com.future.trade.constants.BasicOrderConstants.MAX_SECKILL_DAY;
 import static com.future.trade.constants.BasicOrderConstants.MAX_SECKILL_STOCK;
-import static com.future.trade.constants.RabbitConstants.ROUTING_KEY_SECKILL_ORDER;
-import static com.future.trade.constants.RabbitConstants.SECKILL_ORDER_EXCHANGE;
 import static com.future.trade.constants.SeckillConstants.*;
+import static constants.RedisCacheConstants.CACHE_NORMAL_TTL;
+import static constants.RedisCacheConstants.CACHE_SHORT_TTL;
 
 /**
  * 秒杀活动服务实现
@@ -226,6 +226,8 @@ public class SeckillActivityService implements ISeckillActivityService {
         return activity;
     }
 
+
+
     /**
      * 生成秒杀订单号
      */
@@ -233,68 +235,95 @@ public class SeckillActivityService implements ISeckillActivityService {
         return redisTemplateWorker.createId(SECKILL_ORDER_NO_PREFIX);
     }
 
-    @Override
+
+    /**
+     *  基础秒杀商品校验 + lua购买资格校验、减redis库存
+     *      异常处理：简单的异常
+     *  然后消息队列  扣减余额、减db库存、生成订单
+     *      异常处理：严重的异常
+     */
     public Result<String> purchaseSeckillProduct(Long seckillActivityId) {
+        // 1. 获取当前用户ID
         Long userId = SecurityUtil.getCurrentUserId();
-        // 前置检查：仅校验活动有效性
-        SeckillActivity activity = seckillActivityMapper.selectById(seckillActivityId);
-        if (activity == null) {
-            throw new BusinessException(SeckillErrorCode.ACTIVITY_NOT_FOUND.getCode(), "秒杀活动不存在");
-        }
-        if (activity.getStartTime().isAfter(LocalDateTime.now())) {
-            throw new BusinessException(SeckillErrorCode.ACTIVITY_NOT_STARTED.getCode(), "秒杀活动未开始");
-        }
-        if (activity.getEndTime().isBefore(LocalDateTime.now())) {
-            throw new BusinessException(SeckillErrorCode.ACTIVITY_ENDED.getCode(), "秒杀活动已结束");
+        if (userId == null) {
+            throw new BusinessException("401", "请先登录");
         }
 
-        // 执行lua脚本（原子校验库存 + 一人一单）
-        Long result = stringRedisTemplate.execute(
+        // 2. 前置校验：活动有效性
+        SeckillActivity activity = seckillActivityMapper.selectById(seckillActivityId);
+        if (activity == null) {
+            throw new BusinessException("404", "秒杀活动不存在");
+        }
+        LocalDateTime now = LocalDateTime.now();
+        if (activity.getStartTime().isAfter(now)) {
+            throw new BusinessException("400", "秒杀活动未开始");
+        }
+        if (activity.getEndTime().isBefore(now)) {
+            throw new BusinessException("400", "秒杀活动已结束");
+        }
+
+        // 3. Lua脚本原子校验：库存+一人一单（移除余额预校验）
+        Long luaResult = stringRedisTemplate.execute(
                 SECKILL_SCRIPT,
                 Collections.emptyList(),
                 seckillActivityId.toString(),
                 userId.toString()
         );
 
-        // 判断Lua执行结果
-        if (result == null) {
-            return Result.fail("秒杀失败，请重试");
+        // 4. 处理Lua结果
+        if (luaResult == null) {
+            throw new BusinessException("500", "秒杀失败，请重试");
         }
-        int r = result.intValue();
-        if (r != 0) {
-            return Result.fail(r == 1 ? "已售罄，下次手速要更快哦~" : "您已参与过秒杀，不可二次参与~");
+        int result = luaResult.intValue();
+        if (result == 400) {
+            throw new BusinessException("400", "已售罄，下次手速要更快哦~");
+        }
+        if (result == 401) {
+            throw new BusinessException("401", "您已参与过秒杀，不可二次参与~");
         }
 
-        // 生成订单号
+        // 5. 生成唯一订单号
         long orderNo = generateSeckillOrderNo();
-        // 设置幂等性key（30分钟过期，防止死锁）
-        String orderExistKey = SECKILL_ORDER_EXIST + orderNo;
-        stringRedisTemplate.opsForValue().set(orderExistKey, "1", 30, java.util.concurrent.TimeUnit.MINUTES);
 
-        // 构建消息体
+        // 6. 设置幂等性Key（30分钟过期）
+        String orderExistKey = SeckillConstants.SECKILL_ORDER_EXIST + orderNo;
+        stringRedisTemplate.opsForValue().set(orderExistKey, "1", CACHE_SHORT_TTL, TimeUnit.SECONDS);
+
+        // 7. 构建消息体
         SeckillOrderMsg msg = new SeckillOrderMsg();
         msg.setActivityId(seckillActivityId);
         msg.setUserId(userId);
         msg.setOrderNo(orderNo);
         msg.setPrice(Long.valueOf(activity.getSeckillPrice()));
+        msg.setProductType(activity.getProductType());
         msg.setProductId(activity.getProductId());
 
-        // 发送消息到RabbitMQ（异常捕获+回滚）
+        // 8. 记录待处理订单（补偿用）
+        String pendingKey = SeckillConstants.SECKILL_PENDING_ORDER + orderNo;
+        stringRedisTemplate.opsForValue().set(
+                pendingKey,
+                JSONUtil.toJsonStr(msg),
+                CACHE_NORMAL_TTL,
+                TimeUnit.SECONDS
+        );
+
+        // 9. 异步发送MQ消息
         try {
             rabbitTemplate.convertAndSend(
                     RabbitConstants.SECKILL_ORDER_EXCHANGE,
                     RabbitConstants.ROUTING_KEY_SECKILL_ORDER,
-                    msg);
-
+                    msg
+            );
         } catch (Exception e) {
-            // 消息发送失败：回滚Redis库存+删除幂等key
-            stringRedisTemplate.opsForValue().increment(SECKILL_ACTIVITY_STOCK_PREFIX + seckillActivityId, 1);
+            // 本地异常：回滚Redis库存
+            stringRedisTemplate.opsForValue().increment(SeckillConstants.SECKILL_ACTIVITY_STOCK_PREFIX + seckillActivityId, 1);
             stringRedisTemplate.delete(orderExistKey);
-            log.error("发送秒杀订单消息失败，订单号：{}", orderNo, e);
-            return Result.fail("秒杀失败，请重试");
+            stringRedisTemplate.delete(pendingKey);
+            log.error("发送秒杀消息失败，订单号：{}", orderNo, e);
+            throw new BusinessException("500", "秒杀失败，请重试");
         }
 
-        return Result.ok("秒杀成功，订单号：" + orderNo);
+        return Result.ok("秒杀成功, 订单号" + orderNo);
     }
 
 

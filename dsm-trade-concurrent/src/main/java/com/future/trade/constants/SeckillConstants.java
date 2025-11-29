@@ -7,4 +7,10 @@ public class SeckillConstants {
     public static final String SECKILL_ACTIVITY_STOCK_PREFIX = "SECKILL:ACTIVITY:STOCK:";
 
     public static final String SECKILL_ORDER_EXIST = "seckill:order:exist:";
+
+    public static final String SECKILL_PENDING_ORDER = "seckill:pending:order:";
+
+
+    public static final String SECKILL_ORDER_RETRY =  "seckill:order:retry:";
+
 }

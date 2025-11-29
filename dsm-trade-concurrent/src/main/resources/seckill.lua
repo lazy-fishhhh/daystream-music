@@ -26,7 +26,7 @@ local orderKey = SECKILL_ORDER_NO_PREFIX .. seckillActivityId
 -- redis.call('get', stockKey)这个获取的是字符串，无法与数字比较,要用tonumber转换成数字
 if(tonumber(redis.call('get', stockKey)) <= 0) then
     -- 3.2.库存不足，返回1
-    return 1
+    return 400
 end
 
 -- 3.2. 一人一单
@@ -34,7 +34,7 @@ end
 -- SISMEMBER 判断某个值是否在 set集合中  存在返回1 不存在返回0
 if(redis.call('sismember', orderKey, userId) == 1) then
     -- 3.3.存在，说明是重复下单，返回2
-    return 2
+    return 401
 end
 
 -- 3.4.扣库存 incrby stockKey -1
@@ -43,4 +43,4 @@ redis.call('incrby', stockKey, -1)
 redis.call('sadd', orderKey, userId)
 
 -- 3.6.返回成功标识（可根据业务需求返回，比如返回0代表成功）
-return 0
+return 200

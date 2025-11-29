@@ -13,7 +13,6 @@
     <artifactId>dsm-regular-functions</artifactId>
 
     <dependencies>
-
         <dependency>
             <groupId>com.future</groupId>
             <artifactId>dsm-common</artifactId>

@@ -1,10 +1,10 @@
-logging:
-  logback:
-    dateformat: "yyyy-MM-dd HH:mm:ss"
-
-spring:
-  rabbitmq:
-    host: 127.0.0.1
-    port: 5672
-    username: huayue
-    password: 123
+#logging:
+#  logback:
+#    dateformat: "yyyy-MM-dd HH:mm:ss"
+#
+#spring:
+#  rabbitmq:
+#    host: 127.0.0.1
+#    port: 5672
+#    username: huayue
+#    password: 123

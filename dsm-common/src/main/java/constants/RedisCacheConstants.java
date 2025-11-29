@@ -16,22 +16,27 @@ public class RedisCacheConstants {
     public static final Long LOCK_EXPIRE_TTL = 30L; // 30秒
 
     /**
-     * 短期缓存过期时间（适用于高频变动数据）：如在线状态、未读消息数
+     *
      */
-    public static final Long CACHE_SHORT_TTL = 60L; // 1分钟
+    public static final Long ONE_MINUTE_TTL = 60L;
 
     /**
-     * 普通缓存过期时间（适用于中等变动数据）：如用户信息、班级信息、文章列表
+     * 短期缓存过期时间（适用于高频变动数据）
+     */
+    public static final Long CACHE_SHORT_TTL =30 * 60L; // 30分钟
+
+    /**
+     * 普通缓存过期时间（适用于中等变动数据）
      */
     public static final Long CACHE_NORMAL_TTL = 60 * 60L; // 60分钟
 
     /**
-     * 长期缓存过期时间（适用于低频变动数据）：如心理知识、公告、权限配置
+     * 长期缓存过期时间（适用于低频变动数据）
      */
     public static final Long CACHE_LONG_TTL = 24 * 60 * 60L; // 1天
 
     /**
-     * 问卷缓存过期时间（问卷数据发布后相对稳定，但若更新需主动失效）
+     * 问卷缓存过期时间
      */
     public static final Long CACHE_QUESTIONNAIRE_TTL = 7 * 24 * 60 * 60L; // 7天
 
