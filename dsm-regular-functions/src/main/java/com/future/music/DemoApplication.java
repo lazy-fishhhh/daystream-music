@@ -16,7 +16,7 @@ import org.springframework.web.bind.annotation.*;
 @SpringBootApplication
 @RestController
 @MapperScan({
-        "com.future.login",
+        "com.future.login.mapper",
         "com.future.music.mapper"
             ,"social.mapper"
             ,"com.future.trade.mapper"})
