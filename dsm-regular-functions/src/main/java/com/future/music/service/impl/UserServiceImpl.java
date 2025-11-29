@@ -19,6 +19,7 @@ import entity.dto.PlayListDTO;
 import entity.dto.SearchDTO;
 import entity.pojo.info.User;
 import entity.pojo.music.Playlist;
+import entity.pojo.music.PlaylistTagRelation;
 import entity.pojo.search.HotSearch;
 import entity.pojo.search.SearchHistory;
 import entity.pojo.util.PageReq;
@@ -32,6 +33,7 @@ import org.springframework.data.redis.connection.BitFieldSubCommands;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -65,12 +67,13 @@ public class UserServiceImpl  implements IUserService {
     //构造方法注入
     private final StringRedisTemplate stringRedisTemplate;
     private final PlaylistMapper playListMapper;
+    private final PlaylistTagRelationMapper playlistTagRelationMapper;
     @Autowired
     private UserMapper userMapper;
 
+    @Transactional
     @Override
     public void createPlayList(PlayListDTO playListDTO) {
-
         LambdaQueryWrapper<Playlist> lqw = new LambdaQueryWrapper<>();
         lqw.eq(Playlist::getName, playListDTO.getName());
         Playlist playlist = playListMapper.selectOne(lqw);
@@ -88,11 +91,15 @@ public class UserServiceImpl  implements IUserService {
         playList.setIsPublic(playListDTO.getIsPublic());
         playList.setCreatedTime(LocalDateTime.now());
         playList.setUpdatedTime(LocalDateTime.now());
-
         playListMapper.insert(playList);
 
+         PlaylistTagRelation playListTagRelation = new PlaylistTagRelation();
+         playListTagRelation.setPlayListId(playList.getId());
+         playListTagRelation.setTagId((long) playListDTO.getTagId());
+         playlistTagRelationMapper.insert(playListTagRelation);
     }
 
+    @Transactional
     @Override
     public void updatePlayList(PlayListDTO dto) {
         LambdaQueryWrapper<Playlist> lqw = new LambdaQueryWrapper<>();
@@ -110,7 +117,7 @@ public class UserServiceImpl  implements IUserService {
             throw new RuntimeException("您没有权限修改此歌单");
         }
 
-    
+
         // 创建 PlayList 对象并设置 ID 属性
         Playlist playlist = new Playlist();
         //updateById是通过id来更新的，所以必须设置id
@@ -123,6 +130,11 @@ public class UserServiceImpl  implements IUserService {
 
         // 使用 MyBatis-Plus 的 updateById 方法
         playListMapper.updateById(playlist);
+
+        PlaylistTagRelation playListTagRelation = new PlaylistTagRelation();
+        playListTagRelation.setPlayListId(dto.getId());
+        playListTagRelation.setTagId((long) dto.getTagId());
+        playlistTagRelationMapper.updateById(playListTagRelation);
     }
 
     @Override
@@ -180,12 +192,12 @@ public class UserServiceImpl  implements IUserService {
         // 4. 获取今天是本月的第几天
         int dayOfMonth = LocalDate.now().getDayOfMonth();
         int offset = dayOfMonth - 1; // 偏移量，从0开始所以要-1
-        
+
         // 5. 检查用户是否已经签到
         // Redis的getBit命令：获取键对应偏移量的bit值（1=已签到，0=未签到）
         // 若键不存在，返回null（需通过Boolean.TRUE.equals判断，避免空指针）
         Boolean isCheckedIn = stringRedisTemplate.opsForValue().getBit(key, offset);
-        
+
         // 当key不存在时，getBit返回null，此时需要特殊处理
 
         if (Boolean.TRUE.equals(isCheckedIn)) {
@@ -196,7 +208,7 @@ public class UserServiceImpl  implements IUserService {
         // 将当前偏移量的bit值设为1（表示已签到）
         // SETBIT命令：原子操作，确保并发场景下不会重复签到
         stringRedisTemplate.opsForValue().setBit(key, offset, true);
-        
+
 //        // 7. 设置过期时间-到本年年底，避免数据永久存储
 //        if (!stringRedisTemplate.hasKey(key)) {
 //            // 计算本年底最后一天
@@ -205,7 +217,7 @@ public class UserServiceImpl  implements IUserService {
 //            long expireDays = ChronoUnit.DAYS.between(LocalDate.now(), endOfYear) + 1;
 //            stringRedisTemplate.expire(key, expireDays, TimeUnit.DAYS);
 //        }
-        
+
         return Result.ok("签到成功");
     }
 

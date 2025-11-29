@@ -26,4 +26,6 @@ public class PlayListDTO {
     @ApiModelProperty(value = "是否公开（1-公开，0-私有，默认1）")
     @IsZeroOrOne //自定义注解
     private int isPublic;
+    @NotNull(message = "歌单标签不能为空")
+    private int tagId;
 }

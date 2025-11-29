@@ -1,6 +1,5 @@
 package com.future.trade.listener;
 
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.future.login.exception.BusinessException;
 import com.future.login.mapper.UserMapper;
@@ -11,7 +10,6 @@ import com.future.trade.entity.message.SeckillOrderMsg;
 import com.future.trade.mapper.SeckillActivityMapper;
 import com.future.trade.mapper.SeckillOrderMapper;
 import entity.pojo.info.User;
-import kotlin.jvm.internal.Lambda;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.core.ExchangeTypes;
