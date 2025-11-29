@@ -6,6 +6,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 
 import com.future.login.domain.LoginUserDetails;
+import com.future.login.exception.BusinessException;
 import com.future.login.mapper.UserMapper;
 import com.future.login.util.SecurityUtil;
 import com.future.music.domain.vo.*;
@@ -19,6 +20,8 @@ import entity.dto.PlayListDTO;
 import entity.dto.SearchDTO;
 import entity.pojo.info.User;
 import entity.pojo.music.Playlist;
+import entity.pojo.music.PlaylistTagRelation;
+import entity.pojo.search.HotSearch;
 import entity.pojo.search.SearchHistory;
 import entity.pojo.util.PageReq;
 import entity.pojo.util.PageResp;
@@ -31,6 +34,7 @@ import org.springframework.data.redis.connection.BitFieldSubCommands;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -38,6 +42,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 
+import static com.future.music.code.PlaylistErrorCode.PLAYLIST_NAME_EXIST;
 import static com.future.music.util.constants.CHECK_IN_KEY;
 
 
@@ -57,21 +62,25 @@ public class UserServiceImpl  implements IUserService {
     @Resource
     private IPlaylistService playlistService;
 
+    @Resource
+    private HotSearchMapper hotSearchMapper;
+
 
     //构造方法注入
     private final StringRedisTemplate stringRedisTemplate;
     private final PlaylistMapper playListMapper;
+    private final PlaylistTagRelationMapper playlistTagRelationMapper;
     @Autowired
     private UserMapper userMapper;
 
+    @Transactional
     @Override
     public void createPlayList(PlayListDTO playListDTO) {
-
         LambdaQueryWrapper<Playlist> lqw = new LambdaQueryWrapper<>();
         lqw.eq(Playlist::getName, playListDTO.getName());
         Playlist playlist = playListMapper.selectOne(lqw);
         if (playlist != null){
-            throw new RuntimeException("歌单名称已存在,不允许重复");
+            throw new BusinessException(PLAYLIST_NAME_EXIST.getCode(),"歌单名称已存在,不允许重复");
         }
 
         LoginUserDetails loginUser = (LoginUserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
@@ -84,11 +93,15 @@ public class UserServiceImpl  implements IUserService {
         playList.setIsPublic(playListDTO.getIsPublic());
         playList.setCreatedTime(LocalDateTime.now());
         playList.setUpdatedTime(LocalDateTime.now());
-
         playListMapper.insert(playList);
 
+         PlaylistTagRelation playListTagRelation = new PlaylistTagRelation();
+         playListTagRelation.setPlaylistId(playList.getId());
+         playListTagRelation.setTagId((long) playListDTO.getTagId());
+         playlistTagRelationMapper.insert(playListTagRelation);
     }
 
+    @Transactional
     @Override
     public void updatePlayList(PlayListDTO dto) {
         LambdaQueryWrapper<Playlist> lqw = new LambdaQueryWrapper<>();
@@ -106,7 +119,7 @@ public class UserServiceImpl  implements IUserService {
             throw new RuntimeException("您没有权限修改此歌单");
         }
 
-    
+
         // 创建 PlayList 对象并设置 ID 属性
         Playlist playlist = new Playlist();
         //updateById是通过id来更新的，所以必须设置id
@@ -119,6 +132,11 @@ public class UserServiceImpl  implements IUserService {
 
         // 使用 MyBatis-Plus 的 updateById 方法
         playListMapper.updateById(playlist);
+
+        PlaylistTagRelation playListTagRelation = new PlaylistTagRelation();
+        playListTagRelation.setPlaylistId(dto.getId());
+        playListTagRelation.setTagId((long) dto.getTagId());
+        playlistTagRelationMapper.updateById(playListTagRelation);
     }
 
     @Override
@@ -176,12 +194,12 @@ public class UserServiceImpl  implements IUserService {
         // 4. 获取今天是本月的第几天
         int dayOfMonth = LocalDate.now().getDayOfMonth();
         int offset = dayOfMonth - 1; // 偏移量，从0开始所以要-1
-        
+
         // 5. 检查用户是否已经签到
         // Redis的getBit命令：获取键对应偏移量的bit值（1=已签到，0=未签到）
         // 若键不存在，返回null（需通过Boolean.TRUE.equals判断，避免空指针）
         Boolean isCheckedIn = stringRedisTemplate.opsForValue().getBit(key, offset);
-        
+
         // 当key不存在时，getBit返回null，此时需要特殊处理
 
         if (Boolean.TRUE.equals(isCheckedIn)) {
@@ -192,7 +210,7 @@ public class UserServiceImpl  implements IUserService {
         // 将当前偏移量的bit值设为1（表示已签到）
         // SETBIT命令：原子操作，确保并发场景下不会重复签到
         stringRedisTemplate.opsForValue().setBit(key, offset, true);
-        
+
 //        // 7. 设置过期时间-到本年年底，避免数据永久存储
 //        if (!stringRedisTemplate.hasKey(key)) {
 //            // 计算本年底最后一天
@@ -201,7 +219,7 @@ public class UserServiceImpl  implements IUserService {
 //            long expireDays = ChronoUnit.DAYS.between(LocalDate.now(), endOfYear) + 1;
 //            stringRedisTemplate.expire(key, expireDays, TimeUnit.DAYS);
 //        }
-        
+
         return Result.ok("签到成功");
     }
 
@@ -262,6 +280,38 @@ public class UserServiceImpl  implements IUserService {
         return Result.ok(continuousDays);
     }
 
+    // 获取热搜榜单
+    @Override
+    public Result<List<HotSearchVO>> getHotSearch() {
+        try {
+            LambdaQueryWrapper<HotSearch> queryWrapper = new LambdaQueryWrapper<HotSearch>()
+                    // sortOrder降序
+                    .orderByDesc(HotSearch::getSortOrder)
+                    // 搜索量降序
+                    .orderByDesc(HotSearch::getSearchCount)
+                    // 时间降序
+                    .orderByDesc(HotSearch::getUpdateTime)
+                    // 限制条数
+                    .last("LIMIT "+ SystemConstants.HOT_SEARCH_LIMIT);
+
+            List<HotSearch> hotSearchList = hotSearchMapper.selectList(queryWrapper);
+
+            // 转换为VO
+            List<HotSearchVO> hotSearchVOList = new ArrayList<>();
+            for (HotSearch hotSearch : hotSearchList) {
+                HotSearchVO hotSearchVO = new HotSearchVO();
+                hotSearchVO.setKeyword(hotSearch.getKeyword());
+                hotSearchVO.setSearchCount(hotSearch.getSearchCount());
+                hotSearchVOList.add(hotSearchVO);
+            }
+
+            return Result.ok(hotSearchVOList);
+        } catch (Exception e) {
+            return Result.fail("获取热搜榜单失败");
+        }
+    }
+
+    // 搜索
     @Override
     public Result<PageResp<?>> search(SearchDTO searchDTO){
         try {
@@ -296,6 +346,7 @@ public class UserServiceImpl  implements IUserService {
                 pageResp = playlistService.searchPlaylist(searchDTO);
             }
 
+            // 写入搜索历史
             Long userId = SecurityUtil.getCurrentUserId();
             if (userId != null){
                 QueryWrapper<SearchHistory> queryWrapper = new QueryWrapper<>();
@@ -315,6 +366,27 @@ public class UserServiceImpl  implements IUserService {
                     searchHistory.setKeyword(searchDTO.getKeyword());
                     searchHistoryMapper.insert(searchHistory);
                 }
+            }
+
+            // 写入热门搜索
+            QueryWrapper<HotSearch> queryWrapper = new QueryWrapper<>();
+            queryWrapper.eq("keyword", searchDTO.getKeyword());
+            // 检查是否存在相同的热门搜索记录
+            HotSearch existingHotSearch = hotSearchMapper.selectOne(queryWrapper);
+            if (existingHotSearch != null) {
+                // 如果存在相同记录，更新搜索计数和更新时间
+                existingHotSearch.setSearchCount(existingHotSearch.getSearchCount() + 1);
+                existingHotSearch.setUpdateTime(LocalDateTime.now());
+                hotSearchMapper.updateById(existingHotSearch);
+            } else {
+                // 如果不存在相同记录，写入新记录
+                // 写入热门搜索
+                HotSearch hotSearch = new HotSearch();
+                hotSearch.setKeyword(searchDTO.getKeyword());
+                hotSearch.setSearchCount(1);
+                hotSearch.setSortOrder(0);
+                hotSearch.setUpdateTime(LocalDateTime.now());
+                hotSearchMapper.insert(hotSearch);
             }
 
             return Result.ok(pageResp);
@@ -353,7 +425,7 @@ public class UserServiceImpl  implements IUserService {
         return pageResp;
     }
 
-
+    // 获取搜索历史
     @Override
     public Result<List<SearchHistoryVO>> getSearchHistory(){
         try {

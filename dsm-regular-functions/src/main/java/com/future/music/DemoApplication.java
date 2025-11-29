@@ -9,31 +9,44 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.EnableAspectJAutoProxy;
 import org.springframework.scheduling.annotation.EnableScheduling;
+import org.springframework.amqp.rabbit.annotation.EnableRabbit;
 import org.springframework.web.bind.annotation.*;
 
 @EnableAspectJAutoProxy(exposeProxy = true)
 @SpringBootApplication
 @RestController
-@MapperScan({"com.future.music.mapper"
-            ,"com.future.login.mapper"
+@MapperScan({
+        "com.future.login.mapper",
+        "com.future.music.mapper"
             ,"social.mapper"
             ,"com.future.trade.mapper"})
 
 @ComponentScan(basePackages = {
+        "com.future.login",
         "com.future.ai" ,
         "com.future.music",
-        "com.future.login",
         "com.future.trade.service",
         "com.future.trade.controller",
+        "com.future.trade.listener",
         "social",
         "config",
         "annotation",
         "util"
 })
 @EnableScheduling // 启用Spring定时任务机制
+@EnableRabbit // 启用Spring RabbitMQ功能
 public class DemoApplication {
 	public static void main(String[] args) {
 		SpringApplication.run(DemoApplication.class, args);
+	}
+
+	/**
+	 * 配置消息转换器，使用JSON格式序列化消息
+	 * 这对于@RabbitListener声明的交换机和队列正常工作非常重要
+	 */
+	@Bean
+	public MessageConverter messageConverter() {
+		return new Jackson2JsonMessageConverter();
 	}
 
 }

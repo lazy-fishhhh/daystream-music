@@ -5,6 +5,11 @@ package com.future.trade.constants;
  */
 public final class RabbitConstants {
 
+    /**
+     * 秒杀业务消费端容器工厂
+     */
+    public static final String  SECKILL_RABBIT_LISTENER_CONTAINER_FACTORY = "seckillRabbitListenerContainerFactory";
+
     // ==================== 交换机 (Exchanges) ====================
 
     /**
@@ -98,6 +103,8 @@ public final class RabbitConstants {
      * 秒杀订单路由键
      */
     public static final String ROUTING_KEY_SECKILL_ORDER = "seckill.order";
+
+
 
 
 
