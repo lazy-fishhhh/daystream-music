@@ -17,5 +17,9 @@ public interface IPlaylistService {
     Result<MusicFilterTagVO> getAllFilterTags();
 
     PageResp<SearchPlaylistVO> searchPlaylist(SearchDTO dto);
+    
+    Result<PageResp<List<PlaylistVO>>> queryMyPlaylistByCreateTime(int pageNum, int pageSize);
+    
+    Result<PageResp<List<PlaylistVO>>> queryMyPlaylistByCollect(int pageNum, int pageSize);
 
 }
