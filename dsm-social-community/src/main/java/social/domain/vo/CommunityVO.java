@@ -54,4 +54,8 @@ public class CommunityVO {
      * 是否点赞
      */
     private Boolean isLike;
+    /**
+     * 是否关注
+     */
+    private Boolean isFollow;
 }

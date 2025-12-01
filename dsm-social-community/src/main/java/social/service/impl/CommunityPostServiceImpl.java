@@ -96,6 +96,9 @@ public class CommunityPostServiceImpl implements CommunityPostService {
                     //判断是否点赞
                     boolean like = communityPostMapper.isLike(currentUserId, Long.parseLong(communityVO.getPostId()));
                     communityVO.setIsLike(like);
+                    //判断是否关注
+                    boolean follow = communityPostMapper.isFollow(currentUserId, communityVO.getUserId());
+                    communityVO.setIsFollow(follow);
                     return communityVO;
                 }
         ).collect(Collectors.toList());

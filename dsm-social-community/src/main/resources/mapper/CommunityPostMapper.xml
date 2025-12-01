@@ -65,4 +65,10 @@
         and target_type=3
         and is_canceled=0
     </select>
+    <select id="isFollow" resultType="boolean">
+        select count(*)>0
+        from user_follow
+        where user_id=#{userId}
+        and followed_user_id= #{authorId}
+    </select>
 </mapper>

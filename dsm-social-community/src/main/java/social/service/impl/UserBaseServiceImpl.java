@@ -1277,5 +1277,12 @@ public class UserBaseServiceImpl implements UserBaseService {
         pageLikeVO.setLastId(currentLastId.toString());
         return Result.ok(pageLikeVO);
     }
-    }
+
+    /*@Override
+    public Result getUserInfo() {
+        //从redis中获取
+        Long currentUserId = SecurityUtil.getCurrentUserId();
+        String key=
+    }*/
+}
 

@@ -16,7 +16,7 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/userbase")
-@Api(tags = "关注 点赞 收藏")
+@Api(tags = "关注 点赞 收藏 用户信息")
 public class UserBaseController {
     @Autowired
     private UserBaseService userBaseService;
@@ -93,5 +93,10 @@ public class UserBaseController {
     {
         return userBaseService.getFollowListNormal(pageDTO);
     }
-
+   /* @ApiOperation(value="获取当前登录用户的详细信息")
+    @GetMapping("/getUserInfo")
+    public Result getUserInfo()
+    {
+        return userBaseService.getUserInfo();
+    }*/
 }

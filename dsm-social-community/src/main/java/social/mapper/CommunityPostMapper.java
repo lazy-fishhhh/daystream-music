@@ -42,4 +42,6 @@ public interface CommunityPostMapper extends BaseMapper<CommunityPost> {
     PostDetailVO selectDetail(Long postId);
     boolean isLike(@Param("userId")Long userId,
                    @Param("postId")Long postId);
+    boolean isFollow(@Param("userId")Long userId,
+                     @Param("authorId")Long authorId);
 }
