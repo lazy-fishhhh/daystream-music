@@ -11,7 +11,7 @@
         comment c
     left join user u on c.user_id = u.id
     where c.target_id = #{targetId}
-    <if test="lastId!=null">
+    <if test="lastId!=null and lastId!=''">
         and c.id &lt; #{lastId}
     </if>
     and c.status = 1
@@ -48,7 +48,7 @@
         left join user u on c.user_id = u.id
         left join user ru on c.reply_to_user_id = ru.id
         where c.parent_id = #{targetId}
-        <if test="lastId!=null">
+        <if test="lastId!=null and lastId!=''">
             and c.id &lt; #{lastId}
         </if>
         and c.status = 1

@@ -434,7 +434,7 @@ public class UserBaseServiceImpl implements UserBaseService {
         List<LikeMusicVO> musicVOS=new ArrayList<>();
         Long start=0L;
         Long end=0L;
-        Long curentLastId=null;
+        String curentLastId=null;
         boolean hasmore=false;
         ZSetOperations<String, String> zSetOperations = stringRedisTemplate.opsForZSet();
         //获取zset的总长度，方便计算索引
@@ -555,7 +555,7 @@ public class UserBaseServiceImpl implements UserBaseService {
         List<CollectioAlbumVO> albumVOS=new ArrayList<>();
         Long start=0L;
         Long end=0L;
-        Long curentLastId=null;
+        String curentLastId=null;
         boolean hasmore=false;
         ZSetOperations<String, String> zSetOperations = stringRedisTemplate.opsForZSet();
         //获取zset的总长度，方便计算索引
@@ -673,7 +673,7 @@ public class UserBaseServiceImpl implements UserBaseService {
         List<CollectonLIstVO> playLists=new ArrayList<>();
         Long start=0L;
         Long end=0L;
-        Long curentLastId=null;
+        String curentLastId=null;
         boolean hasmore=false;
         ZSetOperations<String, String> zSetOperations = stringRedisTemplate.opsForZSet();
         //获取zset的总长度，方便计算索引
@@ -1040,7 +1040,7 @@ public class UserBaseServiceImpl implements UserBaseService {
             PageLikeVO<UserFollowerVO> pageLikeVO=new PageLikeVO<>();
             pageLikeVO.setDateList(userFollowerVOS);
             pageLikeVO.setHasMore(hasmore);
-            pageLikeVO.setLastId(currentLastId);
+            pageLikeVO.setLastId(currentLastId.toString());
             return Result.ok(pageLikeVO);
         }
 
@@ -1158,7 +1158,7 @@ public class UserBaseServiceImpl implements UserBaseService {
         PageLikeVO<UserFollowerVO> pageLikeVO=new PageLikeVO<>();
         pageLikeVO.setDateList(userFollowerVOS);
         pageLikeVO.setHasMore(hasmore);
-        pageLikeVO.setLastId(currentLastId);
+        pageLikeVO.setLastId(currentLastId.toString());
         return Result.ok(pageLikeVO);
     }
     /**
@@ -1274,7 +1274,7 @@ public class UserBaseServiceImpl implements UserBaseService {
         PageLikeVO<UserFollowerVO> pageLikeVO=new PageLikeVO<>();
         pageLikeVO.setDateList(userFollowerVOS);
         pageLikeVO.setHasMore(hasmore);
-        pageLikeVO.setLastId(currentLastId);
+        pageLikeVO.setLastId(currentLastId.toString());
         return Result.ok(pageLikeVO);
     }
     }

@@ -18,7 +18,7 @@ public class CommunityVOListDTO {
     /**
      * 上一页最后一个id 从头开始为null
      */
-    private Long lastId;
+    private String lastId;
     /**
      * 每页条数
      */

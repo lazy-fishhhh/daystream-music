@@ -29,7 +29,7 @@ public class CommunityVO {
     /**
      * 动态id
      */
-    private Long postId;
+    private String postId;
     /**
      * 动态内容
      */

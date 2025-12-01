@@ -32,7 +32,7 @@
         <foreach collection="userIds" item="id" open="(" separator="," close=")">
             #{id}
         </foreach>
-        <if test="lastId!=null">
+        <if test="lastId!=null and lastId!=''">
            and u.id &lt; lastId
         </if>
         order by f.follow_time desc
@@ -76,7 +76,7 @@
         <foreach collection="userIds" item="id" open="(" separator="," close=")">
             #{id}
         </foreach>
-        <if test="lastId!=null">
+        <if test="lastId!=null and lastId!=''">
             and u.id &lt; lastId
         </if>
         and ur.role_id in (3)

@@ -288,7 +288,7 @@ public class CommentServiceImpl implements CommentService {
             }
             //返回数据
             PageLikeVO<CommentListVO> pageLikeVO = new PageLikeVO<>();
-            pageLikeVO.setLastId(curentLastId);
+            pageLikeVO.setLastId(curentLastId.toString());
             pageLikeVO.setDateList(commentListVOS);
             pageLikeVO.setHasMore(hasmore);
             return Result.ok(pageLikeVO);
@@ -386,7 +386,7 @@ public class CommentServiceImpl implements CommentService {
         }
         //返回数据
         PageLikeVO<ReplyCommentListVO> pageLikeVO = new PageLikeVO<>();
-        pageLikeVO.setLastId(curentLastId);
+        pageLikeVO.setLastId(curentLastId.toString());
         pageLikeVO.setDateList(commentListVOS);
         pageLikeVO.setHasMore(hasmore);
         return Result.ok(pageLikeVO);

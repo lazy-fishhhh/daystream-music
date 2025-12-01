@@ -23,7 +23,7 @@
                 OR u.username LIKE  #{postkey}
                 )
             </if>
-            <if test="lastId!=null">
+            <if test="lastId!=null and lastId!=''">
                 and p.id &lt; #{lastId}
             </if>
         </where>

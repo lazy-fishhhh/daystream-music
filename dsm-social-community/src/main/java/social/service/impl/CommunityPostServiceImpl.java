@@ -78,7 +78,11 @@ public class CommunityPostServiceImpl implements CommunityPostService {
     //查询所有发布的动态
     @Override
     public Result getPost(CommunityVOListDTO communityVOListDTO) {
-        Long lastId=communityVOListDTO.getLastId();
+        Long lastId=null;
+        if(communityVOListDTO.getLastId()!=null)
+        {
+            lastId=Long.parseLong(communityVOListDTO.getLastId());
+        }
         Integer page=communityVOListDTO.getPageSize();
         String key=communityVOListDTO.getKeyword();
         Long userId=communityVOListDTO.getUserId();
@@ -90,14 +94,14 @@ public class CommunityPostServiceImpl implements CommunityPostService {
         }
         List<CommunityVO> result = communityVOS.stream().map(communityVO -> {
                     //判断是否点赞
-                    boolean like = communityPostMapper.isLike(currentUserId, communityVO.getPostId());
+                    boolean like = communityPostMapper.isLike(currentUserId, Long.parseLong(communityVO.getPostId()));
                     communityVO.setIsLike(like);
                     return communityVO;
                 }
         ).collect(Collectors.toList());
         //获取本页最后一个id
-        Long currentId=communityVOS.get(result.size()-1).getPostId();
-        Boolean hasMore=communityPostMapper.hasmore(userId,currentId,key);
+        String currentId=communityVOS.get(result.size()-1).getPostId();
+        Boolean hasMore=communityPostMapper.hasmore(userId,Long.parseLong(currentId),key);
         PageLikeVO<CommunityVO> pageLikeVO=new PageLikeVO<>();
         pageLikeVO.setDateList(result);
         pageLikeVO.setHasMore(hasMore);
@@ -121,13 +125,13 @@ public class CommunityPostServiceImpl implements CommunityPostService {
         //设置关注数
         Long currentUserId = SecurityUtil.getCurrentUserId();
         LambdaQueryWrapper<UserFollow> lambdaQueryWrapper=new LambdaQueryWrapper<>();
-        lambdaQueryWrapper.eq(UserFollow::getUserId,currentUserId);
+        lambdaQueryWrapper.eq(UserFollow::getUserId,communityPost.getUserId());
         Long count = followMapper.selectCount(lambdaQueryWrapper);
         detailVO.setFollowCount(count);
         //设置粉丝数
         LambdaQueryWrapper<UserFollow> lambdaQueryWrapper1=new LambdaQueryWrapper<>();
-        lambdaQueryWrapper1.eq(UserFollow::getFollowedUserId,currentUserId);
-        Long followerCount = followMapper.selectCount(lambdaQueryWrapper);
+        lambdaQueryWrapper1.eq(UserFollow::getFollowedUserId,communityPost.getUserId());
+        Long followerCount = followMapper.selectCount(lambdaQueryWrapper1);
         detailVO.setFollowerCount(followerCount);
         //是否关注作者
         lambdaQueryWrapper1.eq(UserFollow::getUserId,currentUserId)

@@ -7,7 +7,7 @@ public class PostDetailVO {
     /**
      * 动态id
      */
-    private Long postId;
+    private String postId;
     /**
      * 动态标题
      */

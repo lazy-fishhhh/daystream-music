@@ -14,7 +14,7 @@ public class LikeMusicVO {
     /**
      *歌曲id
      */
-    private Long id;
+    private String id;
     /**
      * 歌曲名
      */
@@ -22,7 +22,7 @@ public class LikeMusicVO {
     /**
      * 所属专辑id
      */
-    private Long albumId;
+    private String albumId;
     /**
      * 专辑名
      */
