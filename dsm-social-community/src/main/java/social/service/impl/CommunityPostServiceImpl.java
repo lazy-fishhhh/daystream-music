@@ -21,6 +21,7 @@ import social.mapper.FollowMapper;
 import social.mapper.LikeRecord1Mapper;
 import social.service.CommunityPostService;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -79,7 +80,7 @@ public class CommunityPostServiceImpl implements CommunityPostService {
     @Override
     public Result getPost(CommunityVOListDTO communityVOListDTO) {
         Long lastId=null;
-        if(communityVOListDTO.getLastId()!=null)
+        if(communityVOListDTO.getLastId()!=null&&!communityVOListDTO.getLastId().equals(""))
         {
             lastId=Long.parseLong(communityVOListDTO.getLastId());
         }
@@ -99,6 +100,19 @@ public class CommunityPostServiceImpl implements CommunityPostService {
                     //判断是否关注
                     boolean follow = communityPostMapper.isFollow(currentUserId, communityVO.getUserId());
                     communityVO.setIsFollow(follow);
+                    //是否是vip
+                    if(communityVO.getVipExpireTime()!=null)
+                    {
+                        if(LocalDateTime.now().isAfter(communityVO.getVipExpireTime()))
+                        {
+                            communityVO.setIsVip(false);
+                        }else{
+                            communityVO.setIsVip(true);
+                        }
+                    }
+                    else{
+                        communityVO.setIsVip(false);
+                    }
                     return communityVO;
                 }
         ).collect(Collectors.toList());
@@ -158,6 +172,19 @@ public class CommunityPostServiceImpl implements CommunityPostService {
             detailVO.setIsLike(true);
         }else {
             detailVO.setIsLike(false);
+        }
+        //是否是vip
+        if(detailVO.getVipExpireTime()!=null)
+        {
+            if(LocalDateTime.now().isAfter(detailVO.getVipExpireTime()))
+            {
+                detailVO.setIsVip(false);
+            }else{
+                detailVO.setIsVip(true);
+            }
+        }
+        else{
+            detailVO.setIsVip(false);
         }
         return Result.ok(detailVO);
         }

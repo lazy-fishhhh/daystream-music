@@ -1,6 +1,9 @@
 package social.domain.vo;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Data;
+
+import java.time.LocalDateTime;
 
 @Data
 public class PostDetailVO {
@@ -56,4 +59,11 @@ public class PostDetailVO {
      * 粉丝数
      */
     private Long followerCount;
+    /**
+     * 是否是vip
+     */
+    private Boolean isVip;
+    @JsonIgnore
+    private LocalDateTime vipExpireTime;
+
 }

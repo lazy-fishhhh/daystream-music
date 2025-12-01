@@ -51,7 +51,7 @@
     </select>
     <select id="selectDetail" resultType="social.domain.vo.PostDetailVO">
         select p.id as postId, p.title, p.content, p.create_time, p.like_count, p.comment_count,p.user_id as authorId,
-        u.username as authorName, u.avatar
+        u.username as authorName, u.avatar,u.vip_expire_time
         from
         community_post p
         left join user u on p.user_id=u.id
