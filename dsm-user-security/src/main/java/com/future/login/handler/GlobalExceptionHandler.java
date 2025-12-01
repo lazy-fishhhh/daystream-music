@@ -126,6 +126,6 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(Exception.class)
     public Result<?> handleException(Exception e) {
         log.error("系统异常: ", e);
-        return Result.fail(SYSTEM_ERROR.getCode(),"服务器出错啦~请联系技术人员排查");
+        return Result.fail(SYSTEM_ERROR.getCode(),"服务器出错啦~请联系技术人员排查"+e.getMessage());
     }
 }

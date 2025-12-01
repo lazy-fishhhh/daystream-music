@@ -10,10 +10,7 @@ import entity.pojo.info.User;
 import entity.pojo.info.UserRole;
 import entity.pojo.music.Album;
 import entity.pojo.music.Music;
-import entity.pojo.social.Comment;
-import entity.pojo.social.LikeRecord;
-import entity.pojo.social.Playlist;
-import entity.pojo.social.UserCollection;
+import entity.pojo.social.*;
 import entity.pojo.util.Result;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DuplicateKeyException;
@@ -70,6 +67,8 @@ public class UserBaseServiceImpl implements UserBaseService {
     private FollowMapper followMapper;
     @Autowired
     private UserRoleMapper userRoleMapper;
+    @Autowired
+    private CommunityPostMapper communityPostMapper;
     //点赞/取消点赞功能
     @Transactional(rollbackFor = Exception.class)
     @Override
@@ -86,7 +85,7 @@ public class UserBaseServiceImpl implements UserBaseService {
         if (likeEnumByvalue == null) {
             return Result.fail("请输入正确的点赞类型");
         }
-        //判断目标id的数据是否存在 目标类型 1-音乐 2-评论
+        //判断目标id的数据是否存在 目标类型 1-音乐 2-评论 3-动态
         if (targetType == LikeEnum.MUSIC.getValue()) {
             LambdaQueryWrapper<Music> musicWrapper = new LambdaQueryWrapper();
             musicWrapper.eq(Music::getId, targetId)
@@ -102,6 +101,17 @@ public class UserBaseServiceImpl implements UserBaseService {
             Comment comment = commentMapper.selectOne(commentWrapper);
             if (comment == null) {
                 return Result.fail("评论不存在");
+            }
+        }
+        else if(targetType==LikeEnum.COMMUNITY.getValue())
+        {
+            LambdaQueryWrapper<CommunityPost> lambdaQueryWrapper=new LambdaQueryWrapper<>();
+            lambdaQueryWrapper.eq(CommunityPost::getId,targetId)
+                    .eq(CommunityPost::getIsDeleted,0);
+            CommunityPost communityPost = communityPostMapper.selectOne(lambdaQueryWrapper);
+            if(communityPost==null)
+            {
+                return Result.fail("动态不存在");
             }
         }
         //根据点赞类型不同，处理不同的点赞
@@ -201,9 +211,9 @@ public class UserBaseServiceImpl implements UserBaseService {
             }
             return count;
         } else if (targetType == LikeEnum.COMMENT.getValue()) {
-            count= commentMapper.selectCount(targetId);
+            count = commentMapper.selectCount(targetId);
             if (isCancle) {
-                if(count>0) {
+                if (count > 0) {
                     commentMapper.updateLikeCountLow(targetId);
                     count--;
                 }
@@ -211,7 +221,20 @@ public class UserBaseServiceImpl implements UserBaseService {
                 commentMapper.updateLikeCountup(targetId);
                 count++;
             }
-            return count;
+        }else if(targetType==LikeEnum.COMMUNITY.getValue())
+            {
+                count=communityPostMapper.selectCount(targetId);
+                if(isCancle)
+                {
+                    if (count>0)
+                    {
+                        communityPostMapper.updateLikeCountLow(targetId);
+                        count--;
+                    }
+                 }else{
+                    communityPostMapper.updateLikeCountup(targetId);
+                    count++;
+                }
         }
         return  count;
     }

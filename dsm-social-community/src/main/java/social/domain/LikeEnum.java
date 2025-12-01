@@ -4,7 +4,8 @@ import lombok.AllArgsConstructor;
 @AllArgsConstructor
 public enum LikeEnum {
     MUSIC(1,"音乐"),
-    COMMENT(2,"评论");
+    COMMENT(2,"评论"),
+    COMMUNITY(3,"动态");
     private final Integer value;
     private final String des;
     public Integer getValue()
