@@ -13,6 +13,7 @@ import com.future.music.mapper.PlaylistMusicMapper;
 import com.future.music.service.IMusicService;
 import com.future.music.service.IPlaylistService;
 import constants.MusicTagTypeConstants;
+import entity.dto.PlaylistFilterDTO;
 import entity.dto.SearchDTO;
 import entity.pojo.info.User;
 import entity.pojo.music.*;
@@ -21,7 +22,6 @@ import entity.pojo.util.Result;
 import jakarta.annotation.Resource;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.beans.BeanUtils;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -96,17 +96,27 @@ public class PlaylistServiceImpl implements IPlaylistService {
 
     /**
      * 根据标签筛选歌单
-     * @param tags 标签ID列表（从请求参数获取）
+     * @param filterDTO 歌单筛选请求参数
      * @return 统一返回格式（成功/失败 + 数据）
      */
     @Override
-    public Result<PageResp<PlaylistVO>> filterPlaylistByTagIds(List<Long> tags, int pageNum, int pageSize) {
-        if (tags == null || tags.isEmpty()) {
+    public Result<PageResp<PlaylistVO>> filterPlaylistByTagIds(PlaylistFilterDTO filterDTO) {
+        if (filterDTO == null || filterDTO.getTags() == null || filterDTO.getTags().isEmpty()) {
             return Result.fail("标签不能为空");
         }
 
-        Page<Playlist>  page = new Page<>(pageNum, pageSize);
-        IPage<Playlist> playlistPage = playlistMapper.selectPlaylistsByTagIds(page, tags, tags.size());
+        // 获取分页参数，设置默认值
+        int pageNum = filterDTO.getPageNum() != null ? filterDTO.getPageNum() : 1;
+        int pageSize = filterDTO.getPageSize() != null ? filterDTO.getPageSize() : 10;
+        
+        Page<Playlist> page = new Page<>(pageNum, pageSize);
+        IPage<Playlist> playlistPage = playlistMapper.selectPlaylistsByTagIds(page,
+                                                                           filterDTO.getTags(),
+                                                                           filterDTO.getTags().size(),
+                                                                           filterDTO.getStartTime(), 
+                                                                           filterDTO.getEndTime(), 
+                                                                           filterDTO.getMinCollect(), 
+                                                                           filterDTO.getMaxCollect());
 
         // 转换为vo
         List<PlaylistVO> voList = new ArrayList<>();
@@ -277,3 +287,4 @@ public class PlaylistServiceImpl implements IPlaylistService {
 
 
 }
+

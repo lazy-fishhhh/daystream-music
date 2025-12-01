@@ -7,6 +7,7 @@ import com.future.music.service.IPlaylistService;
 import com.future.music.service.IUserService;
 import constants.MusicTagTypeConstants;
 import entity.dto.PlayListDTO;
+import entity.dto.PlaylistFilterDTO;
 import entity.pojo.music.Music;
 import entity.pojo.music.MusicTag;
 import entity.pojo.music.Playlist;
@@ -72,15 +73,14 @@ public class PlaylistController {
 
     /**
      * 根据标签筛选歌单
-     * @param tags 标签ID列表（从请求参数获取）
+     * @param filterDTO 歌单筛选请求参数（从请求体获取）
      * @return 统一返回格式（成功/失败 + 数据）
      */
-    @ApiOperation(value = "根据标签筛选歌单")
-    @GetMapping("/by-tags")
-    public Result<PageResp<PlaylistVO>> filterPlaylistByTagIds(@RequestParam("tags") List<Long> tags,
-                                                               @RequestParam(defaultValue = "1") int pageNum,
-                                                               @RequestParam(defaultValue = "10") int pageSize){
-        return  playlistService.filterPlaylistByTagIds(tags, pageNum, pageSize);
+    @ApiOperation(value = "根据标签、时间、收藏量筛选歌单")
+    @PostMapping("/by-tags")
+    public Result<PageResp<PlaylistVO>> filterPlaylistByTagIds(
+                    @Validated @RequestBody PlaylistFilterDTO filterDTO){
+        return playlistService.filterPlaylistByTagIds(filterDTO);
     }
 
     /**
@@ -113,3 +113,4 @@ public class PlaylistController {
 
 
 }
+
