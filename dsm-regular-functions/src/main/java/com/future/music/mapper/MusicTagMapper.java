@@ -30,4 +30,16 @@ public interface MusicTagMapper extends BaseMapper<MusicTag> {
             "JOIN music_tag_relation mtr ON mt.id = mtr.tag_id " +
             "WHERE mtr.music_id = #{musicId}")
     List<String> getTagNamesByMusicId(@Param("musicId") Long musicId);
+
+    /**
+     * 前缀匹配标签名，按关联歌曲数倒序（热门优先）
+     * 注：music_tag表需新增关联歌曲数字段music_count，或通过子查询统计
+     */
+    @Select("""
+        SELECT tag_name FROM music_tag 
+        WHERE tag_name LIKE #{pattern} 
+        LIMIT #{limit}
+    """)
+    List<String> selectSuggestTagNames(@Param("pattern") String pattern, @Param("limit") int limit);
+
 }

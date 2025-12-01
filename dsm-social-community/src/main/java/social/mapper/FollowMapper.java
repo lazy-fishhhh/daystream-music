@@ -31,4 +31,5 @@ public interface FollowMapper extends BaseMapper<UserFollow> {
   List<Long> selectFollowUserIdsMusician(Long userId);
   Long countHasMore(@Param("userId") Long userId,
                     @Param("lastId") Long lastId);
+
 }

@@ -13,7 +13,7 @@ public class CollectioAlbumVO {
     /**
      * 专辑id
      */
-    private Long Id;
+    private String Id;
     /**
      * 专辑名
      */

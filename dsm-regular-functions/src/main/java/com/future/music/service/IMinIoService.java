@@ -3,6 +3,7 @@ package com.future.music.service;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.awt.image.BufferedImage;
 import java.io.InputStream;
 import java.time.Instant;
 import java.util.List;
@@ -52,5 +53,15 @@ public interface IMinIoService {
     boolean isAllowedFile(MultipartFile file, String type);
 
     String generatePresignedUrl(String objectName, int expireSeconds);
+
+    /**
+     * 上传图片输入流到MinIO
+     */
+    public String uploadFileStream(InputStream is, String fileName, String contentType);
+
+    /**
+     * 从MinIO下载图片为BufferedImage
+     */
+    public BufferedImage downloadImage(String objectName);
 
 }

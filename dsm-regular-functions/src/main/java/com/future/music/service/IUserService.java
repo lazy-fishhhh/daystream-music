@@ -31,4 +31,6 @@ public interface IUserService {
 
     Result<List<SearchHistoryVO>> getSearchHistory();
 
+    Result<KeywordSuggestVO> getSuggestKeywords(String input);
+
 }

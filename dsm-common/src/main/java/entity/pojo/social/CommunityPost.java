@@ -1,11 +1,14 @@
 package entity.pojo.social;
 
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableId;
 import lombok.Data;
 
 import java.time.LocalDateTime;
 
 @Data
 public class CommunityPost {
+    @TableId(type = IdType.AUTO)
     private Long id; //主键id
     private Long userId; //发布用户id
     private String title;//标题

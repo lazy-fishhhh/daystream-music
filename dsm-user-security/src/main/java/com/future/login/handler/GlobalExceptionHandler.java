@@ -11,6 +11,7 @@ import org.springframework.validation.BindException;
 import org.springframework.validation.BindingResult;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -117,6 +118,19 @@ public class GlobalExceptionHandler {
         log.warn(message);
         return Result.fail(PARAM_ERROR.getCode(), message);
     }
+
+    /**
+     * 处理请求参数缺失异常
+     * 例如：@RequestParam(required = true) 但前端没传该参数
+     */
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public Result<Void> handleMissingServletRequestParameterException(MissingServletRequestParameterException e) {
+        String paramName = e.getParameterName();
+        String message = String.format("请求参数 '%s' 不能为空，请检查后重试", paramName);
+        log.warn("参数缺失: {}", message);
+        return Result.fail(PARAM_ERROR.getCode(), message);
+    }
     /**
      * 统一兜底：捕获所有其他未处理的异常，避免暴露敏感信息
      */
@@ -126,6 +140,6 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(Exception.class)
     public Result<?> handleException(Exception e) {
         log.error("系统异常: ", e);
-        return Result.fail(SYSTEM_ERROR.getCode(),"服务器出错啦~请联系技术人员排查");
+        return Result.fail(SYSTEM_ERROR.getCode(),"服务器出错啦~请联系技术人员排查"+e.getMessage());
     }
 }

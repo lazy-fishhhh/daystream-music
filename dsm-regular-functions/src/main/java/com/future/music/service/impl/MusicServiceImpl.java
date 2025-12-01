@@ -40,6 +40,7 @@ import social.mapper.CommentMapper;
 import util.AudioDurationUtil;
 
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -80,9 +81,6 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
 
     @Autowired
     private MusicTagRelationMapper musicTagRelationMapper;
-
-    @Autowired
-    private MusicPlayStatMapper musicPlayStatMapper;
 
     @Autowired
     private UserListenHistoryMapper userListenHistoryMapper;
@@ -973,81 +971,64 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
     public Result<Void> reportPlayStatus(MusicPlayReportDTO dto) {
         try {
             // 1. 参数校验
-            if (dto.getMusicId() == null || dto.getPlayedDuration() == null) {
-                throw new RuntimeException("上报参数不完整");
+            if (dto.getUserId() == null || dto.getMusicId() == null
+                    || dto.getPlayedDuration() == null
+                    || dto.getPlayStatus() == null) {
+                return Result.fail("上报参数不完整");
             }
             Long userId = dto.getUserId();
             Long musicId = dto.getMusicId();
             int playedSeconds = dto.getPlayedDuration();
+            int playStatus = dto.getPlayStatus();
 
-            Music music = musicMapper.selectById(musicId);
-            if (music == null) {
-                throw new RuntimeException("音乐不存在");
-            }
-            int totalSeconds = music.getDuration();
-
-            // 2. 未登录用户不计入播放量
-            if (userId == null) {
-                throw new RuntimeException("未登录用户，不统计播放量");
+            // 2. 校验歌曲存在
+            if (musicMapper.selectById(musicId) == null) {
+                return Result.fail("歌曲不存在");
             }
 
-            // 3. 校验统计条件
-            int threshold = (int) (totalSeconds * MusicConstants.MIN_PLAY_RATIO);
-            if (playedSeconds < threshold) {
-                throw new RuntimeException("播放时长未达标，不统计播放量");
+            // 3. 过滤无效上报（时长过短/进度异常）
+            if (playedSeconds < 1) {
+                return Result.fail("无效上报，不统计时长");
             }
 
-            // 4. 防重复统计（24小时内同一用户对同一首歌仅统计1次）
-//            LocalDateTime yesterday = LocalDateTime.now().minusDays(1);
-//            QueryWrapper<MusicPlayStat> statWrapper = new QueryWrapper<>();
-//            statWrapper.eq("user_id", userId)
-//                    .eq("music_id", musicId)
-//                    .ge("create_time", yesterday);
-//            if (musicPlayStatMapper.selectCount(statWrapper) > 0) {
-//                throw new RuntimeException("24小时内已统计过该歌曲播放量");
-//            }
+            // 4. 查询用户-歌曲今日已统计记录（按日期分组，避免跨天重复）
+            LocalDate today = LocalDate.now();
+            QueryWrapper<UserListenHistory> recordWrapper = new QueryWrapper<>();
+            recordWrapper.eq("user_id", userId)
+                    .eq("music_id", musicId)
+                    .eq("listen_time", today);
+            UserListenHistory existRecord = userListenHistoryMapper.selectOne(recordWrapper);
 
-            // 5. 统计播放量（音乐表play_count+1）
-            Music updateMusic = this.getById(musicId);
-            updateMusic.setPlayCount(updateMusic.getPlayCount() + 1);
-            if (!this.updateById(updateMusic)) {
-                throw new RuntimeException("播放量更新失败");
-            }
-
-            // 统计用户听歌记录
-            QueryWrapper<UserListenHistory> historyWrapper = new QueryWrapper<>();
-            historyWrapper.eq("music_id", musicId)
-                    .eq("user_id", userId);
-            UserListenHistory userListenHistory = userListenHistoryMapper.selectOne(historyWrapper);
-
-            if (userListenHistory == null) {
-                userListenHistory = new UserListenHistory();
-                userListenHistory.setUserId(userId);
-                userListenHistory.setMusicId(musicId);
-                userListenHistory.setListenCount(1);
-                if (userListenHistoryMapper.insert(userListenHistory) != 1) {
-                    throw new RuntimeException("统计用户听歌记录失败");
+            int threshold = (int) (dto.getTotalDuration() * MusicConstants.MIN_PLAY_RATIO);
+            // 6. 更新用户-歌曲听歌记录
+            if (existRecord != null) {
+                // 已存在记录：更新累计时长+最后更新时间
+                existRecord.setTotalListenSeconds(existRecord.getTotalListenSeconds() + playedSeconds);
+                // 若播放状态达标（同之前播放量统计条件），更新播放次数（避免重复）
+                if (playStatus == 3 && threshold <= playedSeconds) {
+                    existRecord.setListenCount(existRecord.getListenCount() + 1);
                 }
+                userListenHistoryMapper.updateById(existRecord);
             } else {
-                userListenHistory.setListenCount(userListenHistory.getListenCount() + 1);
-                if (userListenHistoryMapper.updateById(userListenHistory) != 1) {
-                    throw new RuntimeException("统计用户听歌记录失败");
+                if (playStatus == 3 && threshold > playedSeconds) {
+                    return Result.fail("播放状态达标，不统计时长");
                 }
+                // 新增记录
+                UserListenHistory newRecord = new UserListenHistory();
+                newRecord.setUserId(userId);
+                newRecord.setMusicId(musicId);
+                newRecord.setTotalListenSeconds(playedSeconds);
+                // 初始播放次数（达标则为1，否则为0）
+                newRecord.setListenCount(playStatus == 3 && threshold <= playedSeconds ? 1 : 0);
+                newRecord.setListenTime(today);
+                userListenHistoryMapper.insert(newRecord);
             }
 
-            // 6. 记录统计日志（用于防重复）
-            MusicPlayStat playStat = new MusicPlayStat();
-            playStat.setUserId(userId);
-            playStat.setMusicId(musicId);
-            playStat.setCreateTime(LocalDateTime.now());
-            musicPlayStatMapper.insert(playStat);
-
-            // 仅保留成功返回
             return Result.ok();
 
         } catch (Exception e) {
             TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
-            // 统一返回失败结果，优化错误提示（原提示“修改音乐失败”不符合当前方法语义）
+            // 统一返回失败结果
             return Result.fail("播放状态上报失败，请稍后重试：" + e.getMessage());
         }
     }

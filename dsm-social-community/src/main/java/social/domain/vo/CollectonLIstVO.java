@@ -13,7 +13,7 @@ public class CollectonLIstVO {
     /**
      * 歌单id
      */
-    private Long Id;
+    private String Id;
     /**
      * 歌单名
      */

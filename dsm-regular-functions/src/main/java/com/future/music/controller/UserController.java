@@ -3,10 +3,7 @@ package com.future.music.controller;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.future.login.exception.BusinessException;
 import com.future.login.util.SecurityUtil;
-import com.future.music.domain.vo.HotSearchVO;
-import com.future.music.domain.vo.PlaylistDetailVO;
-import com.future.music.domain.vo.PlaylistVO;
-import com.future.music.domain.vo.SearchHistoryVO;
+import com.future.music.domain.vo.*;
 import com.future.music.mapper.SearchHistoryMapper;
 import com.future.music.service.IUserService;
 import entity.dto.PlayListDTO;
@@ -54,6 +51,12 @@ public class UserController {
     @PostMapping("/search")
     public Result<PageResp<?>> search(@Validated @RequestBody SearchDTO searchDTO) {
         return userService.search(searchDTO);
+    }
+
+    @ApiOperation(value = "关键词联想（实时输入提示）")
+    @GetMapping("/search/suggest")
+    public Result<KeywordSuggestVO> getSuggestKeywords(@RequestParam String input) {
+        return userService.getSuggestKeywords(input);
     }
 
     @ApiOperation(value = "获取热搜榜单")

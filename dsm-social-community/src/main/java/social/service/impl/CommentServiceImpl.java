@@ -288,7 +288,7 @@ public class CommentServiceImpl implements CommentService {
             }
             //返回数据
             PageLikeVO<CommentListVO> pageLikeVO = new PageLikeVO<>();
-            pageLikeVO.setLastId(curentLastId);
+            pageLikeVO.setLastId(curentLastId.toString());
             pageLikeVO.setDateList(commentListVOS);
             pageLikeVO.setHasMore(hasmore);
             return Result.ok(pageLikeVO);
@@ -386,7 +386,7 @@ public class CommentServiceImpl implements CommentService {
         }
         //返回数据
         PageLikeVO<ReplyCommentListVO> pageLikeVO = new PageLikeVO<>();
-        pageLikeVO.setLastId(curentLastId);
+        pageLikeVO.setLastId(curentLastId.toString());
         pageLikeVO.setDateList(commentListVOS);
         pageLikeVO.setHasMore(hasmore);
         return Result.ok(pageLikeVO);
@@ -425,8 +425,7 @@ public class CommentServiceImpl implements CommentService {
         }
         //看是不是作者删除别人的评论
         Long targetId1 = commentMapper.selectTargetId(targetId, targetType, currentUserId);
-        if(targetId1!=null)
-        {
+        if(targetId1!=null) {
             //删除评论
             DeleteCommentVO deleteCommentVO = updateCommentCount(comment);
             return Result.ok(deleteCommentVO);

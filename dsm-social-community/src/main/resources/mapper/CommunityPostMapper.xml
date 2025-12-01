@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="social.mapper.CommunityPostMapper">
+
+    <select id="selectCommunityPost" resultType="social.domain.vo.CommunityVO">
+        select u.username,u.avatar,u.introduction,
+        u.vip_expire_time, p.id as postId, p.title, p.content, p.create_time,
+        p.like_count, p.comment_count,p.user_id
+        from community_post p
+        left join user u on p.user_id=u.id
+        <where>
+           p.is_deleted=0
+            <if test="userId!=null">
+               and  p.user_id=#{userId}
+            </if>
+            <if test="key!=null and key!=''">
+                <bind name="postkey" value="'%' + key + '%'"/>
+                AND (
+                p.title LIKE #{postkey}
+                OR p.content LIKE  #{postkey}
+                OR u.username LIKE  #{postkey}
+                )
+            </if>
+            <if test="lastId!=null and lastId!=''">
+                and p.id &lt; #{lastId}
+            </if>
+        </where>
+        order by p.create_time desc
+        limit #{pageSize}
+    </select>
+    <select id="hasmore" resultType="boolean">
+        select count(1)>0
+        from community_post p
+        left join user u on p.user_id=u.id
+        where p.is_deleted=0
+        <if test="userId!=null">
+                and  p.user_id= #{userId}
+        </if>
+        <if test="key!=null and key!=''">
+                <bind name="postkey" value="'%' + key + '%'"/>
+                AND (p.title LIKE #{postkey}
+                OR p.content LIKE  #{postkey}
+                OR u.username LIKE  #{postkey})
+        </if>
+        <if test="lastId!=null">
+                and p.id &lt; #{lastId}
+        </if>
+        limit 1
+    </select>
+    <select id="selectDetail" resultType="social.domain.vo.PostDetailVO">
+        select p.id as postId, p.title, p.content, p.create_time, p.like_count, p.comment_count,p.user_id as authorId,
+        u.username as authorName, u.avatar,u.vip_expire_time
+        from
+        community_post p
+        left join user u on p.user_id=u.id
+        where p.id=#{postId}
+    </select>
+    <select id="isLike" resultType="boolean">
+        select count(*)>0
+        from like_record
+        where user_id=#{userId}
+        and target_id=#{postId}
+        and target_type=3
+        and is_canceled=0
+    </select>
+    <select id="isFollow" resultType="boolean">
+        select count(*)>0
+        from user_follow
+        where user_id=#{userId}
+        and followed_user_id= #{authorId}
+    </select>
+</mapper>
