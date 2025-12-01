@@ -24,7 +24,7 @@
         where
         c.user_id=#{userId}
         and c.is_canceled=0
-        <if test="lastId!=null">
+        <if test="lastId!=null and lastId!=''">
             and a.id &lt; #{lastId}
         </if>
         order by c.updated_time desc

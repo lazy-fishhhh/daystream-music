@@ -8,4 +8,6 @@ import java.util.List;
 @Service
 public interface Minio2Service {
     Result uploadFile(MultipartFile file);
+
+    Result deleteFile(String fileUrl);
 }

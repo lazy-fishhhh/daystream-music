@@ -3,6 +3,7 @@ package social.service.impl;
 import cn.hutool.core.lang.UUID;
 import entity.pojo.util.Result;
 import io.minio.*;
+import io.minio.errors.*;
 import io.minio.http.Method;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
@@ -10,6 +11,11 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import social.service.Minio2Service;
+
+import java.io.IOException;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
+
 @Service
 @Slf4j
 public class Minio2ServiceImpl implements Minio2Service {
@@ -42,17 +48,44 @@ public class Minio2ServiceImpl implements Minio2Service {
                             .stream(file.getInputStream(), file.getSize(), -1)
                             .contentType(file.getContentType()).build());
             //返回文件url
-            return Result.ok(minioClient.getPresignedObjectUrl(
+            /**return Result.ok(minioClient.getPresignedObjectUrl(
                     GetPresignedObjectUrlArgs
                             .builder()
                             .bucket(bucketName)
                             .object(fileName)
                             .method(Method.GET)
                             .build()
-            ));
+            ));*/
+            return Result.ok("http://39.96.214.163:9000/"+bucketName+"/"+fileName);
         } catch (Exception e) {
             log.error("文件上传到 MinIO 失败: {}", e.getMessage(), e);
             return Result.fail("文件上传失败");
+        }
+    }
+    //删除文件
+    @Override
+    public Result deleteFile(String fileUrl) {
+        String minioEndpoint = "http://39.96.214.163:9000";
+        if(!fileUrl.startsWith(minioEndpoint)){
+            return Result.fail("无效的url");
+        }
+        //提取完整路径
+        String url=fileUrl.substring((minioEndpoint+"/").length());
+        //从url中获取文件名
+        String[] Name=url.split("/");
+        String fileName=Name[1]+"/"+Name[2];
+        try {
+            minioClient.removeObject(
+                    RemoveObjectArgs
+                            .builder().
+                            bucket(bucketName).
+                            object(fileName).
+                            build()
+            );
+            return Result.ok("文件删除成功");
+        } catch (Exception e) {
+            log.error("文件删除失败: {}", e.getMessage(), e);
+            return Result.fail("文件删除失败");
         }
     }
 }

@@ -29,7 +29,7 @@
         where
             l.user_id=#{userId}
          and l.is_canceled=0
-        <if test="lastId != null">
+        <if test="lastId != null and lastId != ''">
             and m.id &lt; #{lastId}  <!-- 查ID比lastId小的 -->
         </if>
         order by l.updated_time desc

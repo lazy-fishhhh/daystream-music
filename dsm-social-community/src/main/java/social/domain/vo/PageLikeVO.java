@@ -17,5 +17,5 @@ public class PageLikeVO<T> {
     /**
      * 本页最后一个音乐的id
      */
-    private Long lastId;
+    private String lastId;
 }
