@@ -29,6 +29,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.connection.BitFieldSubCommands;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -38,6 +39,8 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 import static com.future.music.util.constants.CHECK_IN_KEY;
 
@@ -60,6 +63,23 @@ public class UserServiceImpl  implements IUserService {
 
     @Resource
     private HotSearchMapper hotSearchMapper;
+
+    @Resource
+    private MusicTagMapper musicTagMapper;
+
+    @Resource
+    private MusicianMapper musicianMapper;
+
+    @Resource
+    private MusicMapper musicMapper;
+
+
+    @Resource
+    private RedisTemplate<String, Object> redisTemplate;
+    // 缓存前缀（过期时间5分钟，平衡实时性和性能）
+    private static final String CACHE_KEY_PREFIX = "suggest:keyword:";
+    private static final long CACHE_EXPIRE_SECONDS = 300;
+
 
 
     //构造方法注入
@@ -437,6 +457,50 @@ public class UserServiceImpl  implements IUserService {
         }catch (Exception e){
             return Result.fail("获取搜索历史失败");
         }
+    }
+
+    @Override
+    public Result<KeywordSuggestVO> getSuggestKeywords(String input) {
+        // 1. 参数校验
+        if (input == null || input.trim().isEmpty() || input.length() > 20) {
+            return Result.ok(new KeywordSuggestVO(List.of()));
+        }
+        input = input.trim();
+
+        // 2. 优先查Redis缓存
+        String cacheKey = CACHE_KEY_PREFIX + input;
+        List<String> cachedSuggest = (List<String>) redisTemplate.opsForValue().get(cacheKey);
+        if (cachedSuggest != null) {
+            // 缓存命中：刷新过期时间（续命）
+            redisTemplate.expire(cacheKey, CACHE_EXPIRE_SECONDS, TimeUnit.SECONDS);
+            // 截取返回数量
+            List<String> resultList = cachedSuggest.subList(0, Math.min(cachedSuggest.size(), 10));
+            KeywordSuggestVO vo = new KeywordSuggestVO();
+            vo.setSuggestList(resultList);
+            return Result.ok(vo);
+        }
+
+        // 3. 数据库查询（原有逻辑不变）
+        String likePattern = input + "%";
+        List<String> suggestList = new ArrayList<>();
+        suggestList.addAll(musicMapper.selectSuggestMusicNames(likePattern, 10));
+        suggestList.addAll(musicianMapper.selectSuggestMusicianNames(likePattern, 10));
+        suggestList.addAll(musicTagMapper.selectSuggestTagNames(likePattern, 10));
+
+        // 4. 去重+截取
+        List<String> finalSuggest = suggestList.stream()
+                .distinct()
+                .limit(10)
+                .collect(Collectors.toList());
+
+        // 5. 存入缓存（空结果1分钟过期，非空5分钟）
+        long expireSeconds = finalSuggest.isEmpty() ? 60 : CACHE_EXPIRE_SECONDS;
+        redisTemplate.opsForValue().set(cacheKey, finalSuggest, expireSeconds, TimeUnit.SECONDS);
+
+        // 6. 返回结果
+        KeywordSuggestVO vo = new KeywordSuggestVO();
+        vo.setSuggestList(finalSuggest);
+        return Result.ok(vo);
     }
 
 

@@ -46,6 +46,38 @@
 //    // 风格模板路径（可放在项目resources/templates/poster/下）
 //    private static final String STYLE_TEMPLATE_PATH = "templates/poster/style_%d.png";
 //
+//    /**
+//     * 生成简约风模板（蓝白渐变背景+轻微圆角阴影）
+//     */
+//    private BufferedImage createSimpleStyleTemplate() {
+//        // 1. 创建海报尺寸的画布（800×1200）
+//        BufferedImage template = new BufferedImage(POSTER_WIDTH, POSTER_HEIGHT, BufferedImage.TYPE_INT_RGB);
+//        Graphics2D g2d = template.createGraphics();
+//
+//        // 2. 设置抗锯齿
+//        g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+//
+//        // 3. 绘制蓝白渐变背景（从上到下：浅蓝 → 白色）
+//        GradientPaint gradient = new GradientPaint(
+//                0, 0, new Color(9, 4, 4), // 顶部浅蓝
+//                0, POSTER_HEIGHT, new Color(230, 15, 141) // 底部白色
+//        );
+//        g2d.setPaint(gradient);
+//        g2d.fillRect(0, 0, POSTER_WIDTH, POSTER_HEIGHT);
+//
+//        // 4. 绘制轻微边框阴影（增强质感）
+//        g2d.setColor(new Color(0, 0, 0, 10)); // 透明黑色阴影
+//        g2d.fillRoundRect(20, 20, POSTER_WIDTH - 40, POSTER_HEIGHT - 40, 30, 30);
+//
+//        // 5. 绘制中心白色卡片（承载内容，圆角设计）
+////        g2d.setColor(Color.WHITE);
+////        g2d.fillRoundRect(30, 30, POSTER_WIDTH - 60, POSTER_HEIGHT - 60, 20, 20);
+//
+//        // 6. 释放资源
+//        g2d.dispose();
+//        return template;
+//    }
+//
 //    @Override
 //    public Result<PosterVO> generatePoster(PosterGenerateDTO dto) {
 //        // 1. 参数校验
@@ -96,6 +128,9 @@
 //     * 加载风格模板图片（从resources读取）
 //     */
 //    private BufferedImage loadStyleTemplate(int style) throws IOException {
+//        if (style == 1) {
+//            return createSimpleStyleTemplate();
+//        }
 //        String templatePath = STYLE_TEMPLATE_PATH.formatted(style);
 //        try (InputStream is = getClass().getClassLoader().getResourceAsStream(templatePath)) {
 //            if (is == null) {
@@ -182,11 +217,9 @@
 //        InputStream is = new ByteArrayInputStream(os.toByteArray());
 //
 //        // 生成文件名（songId+时间戳+随机数.png）
-//        String fileName = "poster/song_%d_%d_%s.png".formatted(
-//                songId, System.currentTimeMillis(), RandomUtils.randomString(6)
-//        );
+//        String fileName = "poster/song_%d.png".formatted(songId);
 //
 //        // 上传到MinIO
-//        return minIoService.uploadFile(is, fileName, "image/png");
+//        return minIoService.uploadFileStream(is, fileName, "image/png");
 //    }
 //}

@@ -53,4 +53,10 @@ public interface MusicMapper extends BaseMapper<Music> {
             @Param("tagSize") Integer tagSize
     );
 
+    /**
+     * 前缀匹配歌曲名，按播放量倒序
+     */
+    @Select("SELECT music_name FROM music WHERE status = 1 AND music_name LIKE #{pattern} ORDER BY play_count DESC LIMIT #{limit}")
+    List<String> selectSuggestMusicNames(@Param("pattern") String pattern, @Param("limit") int limit);
+
 }
