@@ -34,7 +34,6 @@ public class Playlist {
     private LocalDateTime createdTime;
     @TableField("updated_time")
     private LocalDateTime updatedTime;
-    private Long likeCount;
     private Long collectCount;
     private Long commentCount;
 }
