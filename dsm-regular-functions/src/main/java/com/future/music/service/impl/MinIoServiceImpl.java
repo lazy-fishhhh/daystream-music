@@ -1,6 +1,7 @@
 package com.future.music.service.impl;
 
 import com.future.music.service.IMinIoService;
+import constants.SystemConstants;
 import io.minio.*;
 import io.minio.errors.*;
 import io.minio.http.Method;
@@ -10,6 +11,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -239,5 +242,41 @@ class MinIoServiceImpl implements IMinIoService {
         }
     }
 
+    /**
+     * 从MinIO下载图片为BufferedImage
+     */
+    @Override
+    public BufferedImage downloadImage(String objectName) {
+        try (InputStream is = minioClient.getObject(
+                GetObjectArgs.builder()
+                        .bucket(bucketName)
+                        .object(objectName.substring(objectName.lastIndexOf("/") + 1))
+                        .build()
+        )) {
+            return ImageIO.read(is);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /**
+     * 上传图片输入流到MinIO
+     */
+    @Override
+    public String uploadFileStream(InputStream is, String fileName, String contentType) {
+        try {
+            minioClient.putObject(
+                    PutObjectArgs.builder()
+                            .bucket(bucketName)
+                            .object(fileName)
+                            .stream(is, is.available(), -1)
+                            .contentType(contentType)
+                            .build()
+            );
+            return endpoint+ "/"+ bucketName + "/" + fileName; // 返回存储路径，后续可通过预签名URL访问
+        } catch (Exception e) {
+            return null;
+        }
+    }
 
 }
