@@ -19,7 +19,8 @@ import org.springframework.web.bind.annotation.*;
         "com.future.login.mapper",
         "com.future.music.mapper"
             ,"social.mapper"
-            ,"com.future.trade.mapper"})
+            ,"com.future.trade.mapper"
+			,"admin.mapper"})
 
 @ComponentScan(basePackages = {
         "com.future.login",
@@ -31,7 +32,8 @@ import org.springframework.web.bind.annotation.*;
         "social",
         "config",
         "annotation",
-        "util"
+        "util",
+		"admin"
 })
 @EnableScheduling // 启用Spring定时任务机制
 @EnableRabbit // 启用Spring RabbitMQ功能

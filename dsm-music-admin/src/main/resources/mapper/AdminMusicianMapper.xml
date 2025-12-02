@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="admin.mapper.AdminMusicianMapper">
+    <select id="getMusicianList" resultType="admin.domain.vo.MusicianVO">
+        select m.user_id,m.stage_name as nickname,u.email,m.status,m.created_time ,u.avatar
+        from
+        musician as m
+        left join user as u on m.user_id=u.id
+        <where>
+            <if test="status != null">
+                m.status = #{status}
+            </if>
+            <if test="key != null and key != ''">
+                AND (m.stage_name LIKE CONCAT('%', #{key}, '%')
+                OR u.email LIKE CONCAT('%', #{key}, '%'))
+            </if>
+        </where>
+        ORDER BY m.created_time DESC
+    </select>
+</mapper>

@@ -18,6 +18,8 @@ import org.springframework.stereotype.Service;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.stream.Collectors;
+
 @Service
 public class UserDetailServiceImpl implements UserDetailsService {
     @Autowired
@@ -45,9 +47,12 @@ public class UserDetailServiceImpl implements UserDetailsService {
         List<String> permission=permissionMapper.selectPermissionByUserId(user.getId());
         //获取用户角色
         List<String> roles = roleMapper.selectRoleByUserId(user.getId());
+        List<String> userrole = roles.stream().map(
+                        role -> "ROLE_" + role)
+                .collect(Collectors.toList());
         List<String> authorities=new ArrayList<>();
         authorities.addAll(permission);
-        authorities.addAll(roles);
+        authorities.addAll(userrole);
         return new LoginUserDetails(user,authorities);
     }
 }
