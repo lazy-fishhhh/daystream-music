@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.future.music.domain.vo.MusicVO;
 import entity.pojo.music.Music;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
@@ -59,4 +60,14 @@ public interface MusicMapper extends BaseMapper<Music> {
     @Select("SELECT music_name FROM music WHERE status = 1 AND music_name LIKE #{pattern} ORDER BY play_count DESC LIMIT #{limit}")
     List<String> selectSuggestMusicNames(@Param("pattern") String pattern, @Param("limit") int limit);
 
+
+
+    MusicVO selectMusicDetailById(Long musicId);
+
+    /**
+     * 批量查询音乐详情
+     * @param musicIds 音乐ID列表
+     * @return 音乐详情列表
+     */
+    List<MusicVO> selectMusicDetailByIds(@Param("musicIds") List<Long> musicIds);
 }

@@ -6,12 +6,14 @@ import com.future.login.util.SecurityUtil;
 import com.future.music.domain.vo.*;
 import com.future.music.mapper.SearchHistoryMapper;
 import com.future.music.service.IUserService;
+import com.future.music.service.impl.ScheduledTaskManager;
 import entity.dto.PlayListDTO;
 import entity.dto.SearchDTO;
 import entity.pojo.music.Playlist;
 import entity.pojo.search.SearchHistory;
 import entity.pojo.util.PageReq;
 import entity.pojo.util.PageResp;
+import entity.pojo.util.Recommendation;
 import entity.pojo.util.Result;
 import io.swagger.annotations.ApiOperation;
 import jakarta.annotation.Resource;
@@ -32,8 +34,14 @@ public class UserController {
 
     //构造方法注入
     private final IUserService userService;
+    private final ScheduledTaskManager scheduledTaskManager;
 
-
+    @ApiOperation("每日推荐（个性化推荐）")
+    @GetMapping("/recommend")
+    public Result<List<Recommendation>> recommend() {
+        List<Recommendation> recommend = scheduledTaskManager.getRecommend();
+        return Result.ok(recommend);
+    }
 
     @ApiOperation("签到功能")
     @GetMapping("/checkIn")
