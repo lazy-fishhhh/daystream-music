@@ -5,6 +5,9 @@ package constants;
  */
 public class RedisCacheConstants {
     // ================================== 缓存时效常量（单位：秒） ==================================
+
+    // 锁等待时间（3秒）
+    public static final long LOCK_WAIT_TIME = 3L;
     /**
      * 缓存空值的过期时间（防缓存穿透），适用于查询无结果的场景（如不存在的用户、问卷）
      */
@@ -129,4 +132,6 @@ public class RedisCacheConstants {
     public static String buildTokenBlacklistKey(String token) {
         return TOKEN_BLACKLIST_PREFIX + REDIS_SEPARATOR + token;
     }
+
+    public static final String LOCK_KEY_MUSIC_DETAIL = "lock:music:detail:";
 }

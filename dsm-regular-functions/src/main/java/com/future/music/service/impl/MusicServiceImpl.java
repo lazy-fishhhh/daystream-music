@@ -1,5 +1,6 @@
 package com.future.music.service.impl;
 
+import com.alibaba.fastjson2.JSON;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.toolkit.CollectionUtils;
@@ -17,19 +18,22 @@ import com.future.music.util.LyricParseUtil;
 import com.future.trade.entity.Vip;
 import com.future.trade.mapper.VipMapper;
 import constants.MusicConstants;
+import constants.RedisCacheConstants;
 import constants.SystemConstants;
 import entity.dto.MusicDTO;
 import entity.dto.SearchDTO;
 import entity.pojo.music.*;
 import entity.pojo.social.Comment;
 import entity.pojo.social.LikeRecord;
-import entity.pojo.social.UserCollection;
 import entity.pojo.util.PageResp;
 import entity.pojo.util.Result;
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletResponse;
+import org.redisson.api.RLock;
+import org.redisson.api.RedissonClient;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.interceptor.TransactionAspectSupport;
@@ -39,9 +43,8 @@ import util.AudioDurationUtil;
 
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 
 /**
  * 音乐服务实现类
@@ -94,6 +97,12 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
 
     @Resource
     private MusicLyricMapper musicLyricMapper;
+
+    @Resource
+    private StringRedisTemplate stringRedisTemplate;
+
+    @Autowired
+    private RedissonClient redissonClient; // 注入 Redisson 客户端
 
     /**
      * 保存音乐信息（包含音乐主信息、音频、歌词、封面）
@@ -365,6 +374,9 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
             if (musicMapper.deleteById(musicId) == 0) {
                 throw new RuntimeException("音乐删除失败");
             }
+            // 删除缓存
+            String cacheKey = MusicConstants.CACHE_KEY_MUSIC_DETAIL + musicId;
+            stringRedisTemplate.delete(cacheKey);
         } catch (Exception e) {
             // 发生异常时手动回滚事务
             TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
@@ -691,6 +703,10 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
                 throw new RuntimeException("音乐主信息更新失败");
             }
 
+            // 删除缓存
+            String cacheKey = MusicConstants.CACHE_KEY_MUSIC_DETAIL + musicId;
+            stringRedisTemplate.delete(cacheKey);
+
             // 6. 事务成功后，删除所有旧文件（歌词、封面、旧音频）
             if (!oldFilesToDelete.isEmpty()) {
                 minIoService.batchDeleteFiles(oldFilesToDelete);
@@ -717,47 +733,93 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
     @Override
     public Result<MusicDetailVO> getOneMusic(Long musicId){
         try {
-            // 1. 校验音乐ID有效性（非空且大于0）
+            // 1. 校验音乐ID有效性
             if (musicId == null || musicId <= 0) {
                 return Result.fail("音乐ID无效");
             }
 
-            MusicVO musicVO = getMusicVO(musicId);
-            if (musicVO == null) {
-                return Result.fail("音乐不存在");
+            // 2. 构建缓存 Key
+            String cacheKey = MusicConstants.CACHE_KEY_MUSIC_DETAIL + musicId;
+            String lockKey = RedisCacheConstants.LOCK_KEY_MUSIC_DETAIL + musicId;
+
+            // 3. 先查 Redis 缓存（手动反序列化）
+            String cacheJson = stringRedisTemplate.opsForValue().get(cacheKey);
+            if (cacheJson != null) {
+                if (cacheJson.isEmpty()) { // 空值缓存（防止穿透）
+                    return Result.fail("音乐不存在");
+                }
+                // 手动将 JSON 字符串解析为 MusicDetailVO（FastJSON2 实现）
+                MusicDetailVO cacheVO = JSON.parseObject(cacheJson, MusicDetailVO.class);
+                return Result.ok(cacheVO);
             }
 
-            //  初始化VO并复制音乐主信息
-            MusicDetailVO musicDetailVO = new MusicDetailVO();
-            BeanUtils.copyProperties(musicVO, musicDetailVO);
+            // 4. 缓存未命中，获取分布式锁（只允许一个线程查DB）
+            RLock lock = redissonClient.getLock(lockKey);
+            boolean isLockAcquired = false;
+            try {
+                // 尝试获取锁：最多等待 3 秒，获取成功后 30 秒自动释放
+                isLockAcquired = lock.tryLock(RedisCacheConstants.LOCK_WAIT_TIME, RedisCacheConstants.LOCK_EXPIRE_TTL, TimeUnit.SECONDS);
+                if (!isLockAcquired) {
+                    // 未获取到锁（其他线程正在重建缓存），返回友好提示或过期缓存
+                    return Result.fail("当前查询人数较多，请稍后重试");
+                }
 
-            //  查询标签
-            List<String> tags = musicTagMapper.getTagNamesByMusicId(musicId);
-            musicDetailVO.setTags(tags);
+                // 5. 第二次查缓存（双重检查：防止其他线程已重建缓存）
+                cacheJson = stringRedisTemplate.opsForValue().get(cacheKey);
+                if (cacheJson != null) {
+                    if (cacheJson.isEmpty()) {
+                        return Result.fail("音乐不存在");
+                    }
+                    MusicDetailVO cacheVO = JSON.parseObject(cacheJson, MusicDetailVO.class);
+                    return Result.ok(cacheVO);
+                }
 
-            // 歌词
-            QueryWrapper<MusicLyric> musicLyricWrapper = new QueryWrapper<>();
-            musicLyricWrapper.eq("music_id", musicId);
-            MusicLyric musicLyric = musicLyricMapper.selectOne(musicLyricWrapper);
-            if (musicLyric == null) {
-                return Result.fail("未查询到该音乐的歌词信息");
+                // 6. 锁内查 DB 聚合数据（只有一个线程执行，避免 DB 压力）
+                MusicVO musicVO = getMusicVO(musicId);
+                if (musicVO == null) {
+                    // 缓存空值（5分钟过期，防止穿透）
+                    stringRedisTemplate.opsForValue().set(cacheKey, "", 300, TimeUnit.SECONDS);
+                    return Result.fail("音乐不存在");
+                }
+
+                MusicDetailVO musicDetailVO = new MusicDetailVO();
+                BeanUtils.copyProperties(musicVO, musicDetailVO);
+
+                // 查询标签
+                List<String> tags = musicTagMapper.getTagNamesByMusicId(musicId);
+                musicDetailVO.setTags(tags);
+
+                // 查询歌词
+                QueryWrapper<MusicLyric> musicLyricWrapper = new QueryWrapper<>();
+                musicLyricWrapper.eq("music_id", musicId);
+                MusicLyric musicLyric = musicLyricMapper.selectOne(musicLyricWrapper);
+                if (musicLyric == null) {
+                    return Result.fail("未查询到该音乐的歌词信息");
+                }
+
+                // 解析结构化歌词
+                List<LyricLineDTO> syncLyric = LyricParseUtil.parse(
+                        musicLyric.getLyricContent(),
+                        musicLyric.getLyricType()
+                );
+                musicDetailVO.setLyricUrl(musicLyric.getLyricUrl());
+                musicDetailVO.setLyricType(musicLyric.getLyricType());
+                musicDetailVO.setSyncLyric(syncLyric);
+
+                // 7. 写入缓存（设置 1 小时过期）
+                String jsonStr = JSON.toJSONString(musicDetailVO);
+                stringRedisTemplate.opsForValue().set(cacheKey, jsonStr, MusicConstants.CACHE_TTL_SECONDS, TimeUnit.SECONDS);
+
+                return Result.ok(musicDetailVO);
+            } finally {
+                // 8. 释放锁（必须在 finally 中执行，避免锁泄露）
+                if (isLockAcquired && lock.isHeldByCurrentThread()) {
+                    lock.unlock();
+                }
             }
-
-            // 解析结构化歌词（核心）
-            List<LyricLineDTO> syncLyric = LyricParseUtil.parse(
-                    musicLyric.getLyricContent(),
-                    musicLyric.getLyricType()
-            );
-            musicDetailVO.setLyricUrl(musicLyric.getLyricUrl());
-            musicDetailVO.setLyricType(musicLyric.getLyricType());
-            musicDetailVO.setSyncLyric(syncLyric);
-
-            // 4. 返回完整详情结果
-            return Result.ok(musicDetailVO);
-        }catch (Exception e){
+        } catch (Exception e) {
             return Result.fail("查询音乐详情失败：" + e.getMessage());
         }
-
     }
 
     //搜索单曲
