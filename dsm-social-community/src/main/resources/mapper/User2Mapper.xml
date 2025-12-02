@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="social.mapper.User2Mapper">
+    <select id="roleIds" resultType="Integer">
+        select role_id
+        from
+        user_role
+        where
+        user_id=#{userId}
+    </select>
+    <select id="userInfo" resultType="social.domain.vo.UserInfoVO">
+        select u.id,u.username,u.email,u.avatar,u.phone,
+        u.gender,u.introduction,u.vip_expire_time,u.wallet_balance,u.total_point,u.created_time
+        from
+        user u
+        where
+        u.id=#{id}
+    </select>
+    <select id="otherUserInfo" resultType="social.domain.vo.OtherUserVO">
+        select id,username,avatar,gender,introduction,vip_expire_time
+        from
+        user
+        where id=#{userId}
+    </select>
+</mapper>

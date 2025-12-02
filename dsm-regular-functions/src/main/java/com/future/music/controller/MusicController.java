@@ -3,12 +3,12 @@ package com.future.music.controller;
 
 import com.future.login.util.SecurityUtil;
 import com.future.music.domain.dto.MusicPlayReportDTO;
-import com.future.music.domain.vo.AlbumVO;
 import com.future.music.domain.vo.EchoMusicVO;
 import com.future.music.domain.vo.MusicDetailVO;
 import com.future.music.domain.vo.MusicPlayVO;
-import com.future.music.mapper.AlbumMapper;
 import com.future.music.service.IMusicService;
+import com.future.player.entity.vo.AlbumVO;
+import com.future.player.mapper.AlbumMapper;
 import entity.dto.MusicDTO;
 import entity.pojo.util.Result;
 import io.swagger.annotations.Api;

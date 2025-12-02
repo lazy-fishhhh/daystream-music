@@ -15,6 +15,8 @@ import com.future.music.service.IMinIoService;
 
 import com.future.music.service.IMusicService;
 import com.future.music.util.LyricParseUtil;
+import com.future.player.entity.vo.AlbumVO;
+import com.future.player.mapper.AlbumMapper;
 import com.future.trade.entity.Vip;
 import com.future.trade.mapper.VipMapper;
 import constants.MusicConstants;
@@ -903,22 +905,16 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
         String keyword = "%" + dto.getKeyword().trim() + "%"; // 模糊匹配前缀后缀
 
         // 2. 构建分页参数
-        Page<Album> page = new Page<>(dto.getPageNum(), dto.getPageSize());
+        Page<AlbumVO> page = new Page<>(dto.getPageNum(), dto.getPageSize());
 
         // 4. 执行多表联查+分页+排序（SQL已含ORDER BY play_count DESC）
-        IPage<Album> albumPage = albumMapper.searchAlbumByKey(page, keyword);
+        IPage<AlbumVO> albumPage = albumMapper.searchAlbumByKey(page, keyword);
 
         // 5. 转换为SearchAlbumVO并填充关联信息（专辑名、音乐人名字等）
         List<SearchAlbumVO> voList = new ArrayList<>();
-        for (Album album : albumPage.getRecords()) {
+        for (AlbumVO album : albumPage.getRecords()) {
             SearchAlbumVO vo = new SearchAlbumVO();
             BeanUtils.copyProperties(album, vo);
-
-            // 关联音乐人名字（通过musicianId查musician表）
-            Musician musician = musicianMapper.selectById(album.getMusicianId());
-            if (musician != null) {
-                vo.setMusicianName(musician.getStageName());
-            }
 
             voList.add(vo);
         }

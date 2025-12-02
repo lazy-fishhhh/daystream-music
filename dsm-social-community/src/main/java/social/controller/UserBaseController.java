@@ -93,10 +93,5 @@ public class UserBaseController {
     {
         return userBaseService.getFollowListNormal(pageDTO);
     }
-   /* @ApiOperation(value="获取当前登录用户的详细信息")
-    @GetMapping("/getUserInfo")
-    public Result getUserInfo()
-    {
-        return userBaseService.getUserInfo();
-    }*/
+
 }

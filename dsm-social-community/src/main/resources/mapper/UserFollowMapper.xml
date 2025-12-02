@@ -143,4 +143,5 @@
         j.followed_user_id=#{userId}
         and u.id &lt; #{lastId}
     </select>
+
 </mapper>

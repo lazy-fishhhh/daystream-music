@@ -1,5 +1,7 @@
 package social.service.impl;
 
+import cn.hutool.Hutool;
+import cn.hutool.core.bean.BeanUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -13,11 +15,13 @@ import entity.pojo.music.Music;
 import entity.pojo.social.*;
 import entity.pojo.util.Result;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.BeanUtils;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ZSetOperations;
 import social.domain.CollectionEnum;
 import social.domain.LikeEnum;
+import social.domain.RoleEnum;
 import social.domain.dto.CollectionDTO;
 import social.domain.dto.LikeDTO;
 import social.domain.dto.PageDTO;
@@ -36,8 +40,7 @@ import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
-import static constants.RedisCacheConstants.USER_COLLECTION;
-import static constants.RedisCacheConstants.USER_LIKE;
+import static constants.RedisCacheConstants.*;
 
 /**
  * 用户基础社交功能 点赞/收藏/关注/评论
@@ -1278,11 +1281,6 @@ public class UserBaseServiceImpl implements UserBaseService {
         return Result.ok(pageLikeVO);
     }
 
-    /*@Override
-    public Result getUserInfo() {
-        //从redis中获取
-        Long currentUserId = SecurityUtil.getCurrentUserId();
-        String key=
-    }*/
+
 }
 

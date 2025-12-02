@@ -1,5 +1,6 @@
 package social.domain.vo;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Data;
 
 import java.time.LocalDateTime;
@@ -25,6 +26,7 @@ public class CommunityVO {
     /**
      * vip过期时间(null为非vip)
      */
+    @JsonIgnore
     private LocalDateTime vipExpireTime;
     /**
      * 动态id
@@ -58,4 +60,8 @@ public class CommunityVO {
      * 是否关注
      */
     private Boolean isFollow;
+    /**
+     * 是否是vip
+     */
+    private Boolean isVip;
 }
