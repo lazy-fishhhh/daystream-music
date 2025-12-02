@@ -473,6 +473,7 @@ public class UserServiceImpl  implements IUserService {
         }
     }
 
+    // 搜索关键词
     @Override
     public Result<KeywordSuggestVO> getSuggestKeywords(String input) {
         // 1. 参数校验

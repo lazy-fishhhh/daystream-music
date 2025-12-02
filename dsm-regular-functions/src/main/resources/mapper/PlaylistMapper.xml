@@ -2,22 +2,50 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 
-<!-- namespace 必须和 Mapper 接口全类名一致 -->
+<!-- 确保 namespace 和 Mapper 接口全类名一致 -->
 <mapper namespace="com.future.music.mapper.PlaylistMapper">
 
     <!-- 分页查询符合标签的歌单 -->
     <select id="selectPlaylistsByTagIds" resultType="entity.pojo.music.Playlist">
         SELECT p.*
         FROM playlist p
-        INNER JOIN playlist_tag_relation ptr ON p.id = ptr.playlist_id
-        WHERE ptr.tag_id IN
-        <foreach collection="tagIds" item="tagId" open="(" separator="," close=")">
-            #{tagId}
-        </foreach>
-        AND p.is_public = 1
+        <if test="tagIds != null and tagIds.size() > 0">
+            INNER JOIN playlist_tag_relation ptr ON p.id = ptr.playlist_id
+            WHERE ptr.tag_id IN
+            <foreach collection="tagIds" item="tagId" open="(" separator="," close=")">
+                #{tagId}
+            </foreach>
+        </if>
+        <if test="tagIds == null or tagIds.size() == 0">
+            LEFT JOIN playlist_tag_relation ptr ON p.id = ptr.playlist_id
+            WHERE
+        </if>
+        <if test="tagIds != null and tagIds.size() > 0">
+            AND p.is_public = 1
+        </if>
+        <if test="tagIds == null or tagIds.size() == 0">
+            p.is_public = 1
+        </if>
+
+        <!-- 动态创建时间条件（特殊字符转义） -->
+        <if test="startTime != null and startTime != ''">
+            AND p.created_time &gt;= #{startTime}
+        </if>
+        <if test="endTime != null and endTime != ''">
+            AND p.created_time &lt;= #{endTime}
+        </if>
+
+        <!-- 动态收藏量条件（特殊字符转义） -->
+        <if test="minCollect != null">
+            AND p.collect_count &gt;= #{minCollect}
+        </if>
+        <if test="maxCollect != null">
+            AND p.collect_count &lt;= #{maxCollect}
+        </if>
+
         GROUP BY p.id
-        HAVING COUNT(DISTINCT ptr.tag_id) = #{tagSize}
         ORDER BY p.play_count DESC
     </select>
+
 
 </mapper>

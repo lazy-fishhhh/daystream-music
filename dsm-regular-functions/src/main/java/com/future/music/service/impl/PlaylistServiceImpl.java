@@ -1,9 +1,11 @@
 package com.future.music.service.impl;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.future.login.mapper.UserMapper;
+import com.future.login.util.SecurityUtil;
 import com.future.music.domain.vo.*;
 import com.future.music.mapper.MusicTagMapper;
 import com.future.music.mapper.PlaylistMapper;
@@ -11,12 +13,14 @@ import com.future.music.mapper.PlaylistMusicMapper;
 import com.future.music.service.IMusicService;
 import com.future.music.service.IPlaylistService;
 import constants.MusicTagTypeConstants;
+import entity.dto.PlaylistFilterDTO;
 import entity.dto.SearchDTO;
 import entity.pojo.info.User;
 import entity.pojo.music.*;
 import entity.pojo.util.PageResp;
 import entity.pojo.util.Result;
 import jakarta.annotation.Resource;
+import org.jetbrains.annotations.NotNull;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 
@@ -92,17 +96,27 @@ public class PlaylistServiceImpl implements IPlaylistService {
 
     /**
      * 根据标签筛选歌单
-     * @param tags 标签ID列表（从请求参数获取）
+     * @param filterDTO 歌单筛选请求参数
      * @return 统一返回格式（成功/失败 + 数据）
      */
     @Override
-    public Result<PageResp<PlaylistVO>> filterPlaylistByTagIds(List<Long> tags, int pageNum, int pageSize) {
-        if (tags == null || tags.isEmpty()) {
+    public Result<PageResp<PlaylistVO>> filterPlaylistByTagIds(PlaylistFilterDTO filterDTO) {
+        if (filterDTO == null || filterDTO.getTags() == null || filterDTO.getTags().isEmpty()) {
             return Result.fail("标签不能为空");
         }
 
-        Page<Playlist>  page = new Page<>(pageNum, pageSize);
-        IPage<Playlist> playlistPage = playlistMapper.selectPlaylistsByTagIds(page, tags, tags.size());
+        // 获取分页参数，设置默认值
+        int pageNum = filterDTO.getPageNum() != null ? filterDTO.getPageNum() : 1;
+        int pageSize = filterDTO.getPageSize() != null ? filterDTO.getPageSize() : 10;
+        
+        Page<Playlist> page = new Page<>(pageNum, pageSize);
+        IPage<Playlist> playlistPage = playlistMapper.selectPlaylistsByTagIds(page,
+                                                                           filterDTO.getTags(),
+                                                                           filterDTO.getTags().size(),
+                                                                           filterDTO.getStartTime(), 
+                                                                           filterDTO.getEndTime(), 
+                                                                           filterDTO.getMinCollect(), 
+                                                                           filterDTO.getMaxCollect());
 
         // 转换为vo
         List<PlaylistVO> voList = new ArrayList<>();
@@ -203,4 +217,74 @@ public class PlaylistServiceImpl implements IPlaylistService {
         return pageResult;
     }
 
+    @Override
+    public Result<PageResp<List<PlaylistVO>>> queryMyPlaylistByCreateTime(int pageNum, int pageSize) {
+
+        Long userId = SecurityUtil.getCurrentUserId();
+
+        if (userId == null) {
+            return Result.fail("用户未登录");
+        }
+
+        // 构建分页参数
+        Page<Playlist> page = new Page<>(pageNum, pageSize);
+
+        // 构建查询条件：按创建时间降序
+        LambdaQueryWrapper<Playlist> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.eq(Playlist::getUserId, userId)
+                .orderByDesc(Playlist::getCreatedTime);
+
+        // 执行查询
+        IPage<Playlist> playlistPage = playlistMapper.selectPage(page, queryWrapper);
+
+        // 转换为VO
+        PageResp<List<PlaylistVO>> pageResult = convertToPageResp(playlistPage);
+
+        return Result.ok(pageResult);
+    }
+
+    @Override
+    public Result<PageResp<List<PlaylistVO>>> queryMyPlaylistByCollect(int pageNum, int pageSize) {
+        // 获取当前用户ID
+        Long userId = SecurityUtil.getCurrentUserId();
+        if (userId == null) {
+            return Result.fail("用户未登录");
+        }
+
+        // 构建分页参数
+        Page<Playlist> page = new Page<>(pageNum, pageSize);
+
+        // 构建查询条件：按收藏量降序
+        LambdaQueryWrapper<Playlist> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.eq(Playlist::getUserId, userId)
+                .orderByDesc(Playlist::getCollectCount);
+
+        // 执行查询
+        IPage<Playlist> playlistPage = playlistMapper.selectPage(page, queryWrapper);
+
+        PageResp<List<PlaylistVO>> pageResult = convertToPageResp(playlistPage);
+
+        return Result.ok(pageResult);
+    }
+
+    @NotNull
+    private static PageResp<List<PlaylistVO>> convertToPageResp(IPage<Playlist> playlistPage) {
+        // 转换为VO
+        List<PlaylistVO> voList = new ArrayList<>();
+        for (Playlist playlist : playlistPage.getRecords()) {
+            PlaylistVO vo = new PlaylistVO();
+            BeanUtils.copyProperties(playlist, vo);
+            voList.add(vo);
+        }
+
+        // 封装分页结果
+        PageResp<List<PlaylistVO>> pageResult = new PageResp<>();
+        pageResult.setRecords(List.of(voList));
+        pageResult.setTotal(playlistPage.getTotal());
+        pageResult.setPages(playlistPage.getPages());
+        return pageResult;
+    }
+
+
 }
+

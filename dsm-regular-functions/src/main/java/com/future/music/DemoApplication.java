@@ -17,10 +17,10 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @MapperScan({
         "com.future.login.mapper",
-        "com.future.music.mapper"
-            ,"social.mapper"
-            ,"com.future.trade.mapper"
-			,"admin.mapper"})
+        "com.future.music.mapper",
+            "social.mapper",
+            "com.future.trade.mapper",
+            "com.future.player.mapper"})
 
 @ComponentScan(basePackages = {
         "com.future.login",
@@ -29,11 +29,11 @@ import org.springframework.web.bind.annotation.*;
         "com.future.trade.service",
         "com.future.trade.controller",
         "com.future.trade.listener",
+        "com.future.player",
         "social",
         "config",
         "annotation",
-        "util",
-		"admin"
+        "util"
 })
 @EnableScheduling // 启用Spring定时任务机制
 @EnableRabbit // 启用Spring RabbitMQ功能

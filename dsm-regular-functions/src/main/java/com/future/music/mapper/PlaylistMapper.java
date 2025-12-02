@@ -19,11 +19,15 @@ import java.util.List;
 //  从而将数据库表与 Java 实体类关联起来
 public interface PlaylistMapper extends BaseMapper<Playlist> {
 
-    // 根据标签筛选歌单
+    // 根据标签筛选歌单（参数来自PlaylistFilterDTO）
     IPage<Playlist> selectPlaylistsByTagIds(
             IPage<Playlist> page,
             @Param("tagIds") List<Long> tagIds,
-            @Param("tagSize") Integer tagSize
+            @Param("tagSize") Integer tagSize,
+            @Param("startTime") String startTime,
+            @Param("endTime") String endTime,
+            @Param("minCollect") Integer minCollect,
+            @Param("maxCollect") Integer maxCollect
     );
 
     // 搜索歌单
@@ -45,3 +49,4 @@ public interface PlaylistMapper extends BaseMapper<Playlist> {
     );
 
 }
+
