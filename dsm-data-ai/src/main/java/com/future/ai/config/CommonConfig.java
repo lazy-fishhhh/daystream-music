@@ -45,35 +45,35 @@ public class CommonConfig {
         };
     }
 
-    //构建向量数据库操作对象
-    @Bean
-    public EmbeddingStore store(){//依赖中有个embeddingStore对象，名字不能重复，所以设置成store
-        // 加载文档进内存
-        List<Document> documents = ClassPathDocumentLoader.loadDocuments("content", new ApachePdfBoxDocumentParser());
-        // 构建文档分割器对象
-        DocumentSplitter ds = new DocumentByParagraphSplitter(500, 50);
-        // 构建向量数据库操作对象
-        InMemoryEmbeddingStore store = new InMemoryEmbeddingStore();
-        // 构建一个EmbeddingStoreIngestor对象，完成文本数据切割，向量化，存储
-        EmbeddingStoreIngestor ingestor = EmbeddingStoreIngestor.builder()
-                .embeddingStore(store)
-                // 指定文档分割器
-                .documentSplitter(ds)
-                .embeddingModel(embeddingModel)
-                .build();
-        ingestor.ingest(documents);
-        return store;
-    }
-    //构建向量数据库检索对象
-    @Bean
-    public ContentRetriever contentRetriever(EmbeddingStore store){
-        return EmbeddingStoreContentRetriever.builder()
-                .embeddingStore(store)
-                .embeddingModel(embeddingModel)
-                .minScore(0.5)
-                .maxResults(3)
-                .build();
-    }
+//    //构建向量数据库操作对象
+//    @Bean
+//    public EmbeddingStore store(){//依赖中有个embeddingStore对象，名字不能重复，所以设置成store
+//        // 加载文档进内存
+//        List<Document> documents = ClassPathDocumentLoader.loadDocuments("content", new ApachePdfBoxDocumentParser());
+//        // 构建文档分割器对象
+//        DocumentSplitter ds = new DocumentByParagraphSplitter(500, 50);
+//        // 构建向量数据库操作对象
+//        InMemoryEmbeddingStore store = new InMemoryEmbeddingStore();
+//        // 构建一个EmbeddingStoreIngestor对象，完成文本数据切割，向量化，存储
+//        EmbeddingStoreIngestor ingestor = EmbeddingStoreIngestor.builder()
+//                .embeddingStore(store)
+//                // 指定文档分割器
+//                .documentSplitter(ds)
+//                .embeddingModel(embeddingModel)
+//                .build();
+//        ingestor.ingest(documents);
+//        return store;
+//    }
+//    //构建向量数据库检索对象
+//    @Bean
+//    public ContentRetriever contentRetriever(EmbeddingStore store){
+//        return EmbeddingStoreContentRetriever.builder()
+//                .embeddingStore(store)
+//                .embeddingModel(embeddingModel)
+//                .minScore(0.5)
+//                .maxResults(3)
+//                .build();
+//    }
 
 
 
