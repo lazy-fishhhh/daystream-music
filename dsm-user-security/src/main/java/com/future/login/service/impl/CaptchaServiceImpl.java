@@ -4,23 +4,26 @@ import cn.hutool.captcha.LineCaptcha;
 import cn.hutool.core.img.ImgUtil;
 import cn.hutool.core.util.IdUtil;
 import cn.hutool.core.util.RandomUtil;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.future.login.domain.dto.CaptchaDTO;
 import com.future.login.domain.vo.CaptchaVO;
 import com.future.login.service.CaptchaService;
 import entity.pojo.util.Result;
 import io.micrometer.common.util.StringUtils;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.awt.*;
+
+import java.io.IOException;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
 import static constants.RedisCacheConstants.USER_CAPTCHA;
 
 
+@Slf4j
 @Service
 public class CaptchaServiceImpl implements CaptchaService {
     //验证码过期时间五分钟
@@ -29,31 +32,36 @@ public class CaptchaServiceImpl implements CaptchaService {
     private StringRedisTemplate stringRedisTemplate;
     @Override
     public Result<CaptchaVO> creatCaptcha() {
-        //生成4位验证码
-        String captcha = RandomUtil.randomString(4);
-        //设置图形验证码的长 宽 验证码长度 干扰线数
-        LineCaptcha lineCaptcha=new LineCaptcha(110,40,4,10);
-        //设置图片颜色
-        lineCaptcha.setBackground(new Color(230,244,255));
-        //生成图片
-        Image image=lineCaptcha.createImage(captcha);
-        //转成base64
-        String jpg = ImgUtil.toBase64(image, "jpg");
+        try {
+            //生成4位验证码
+            String captcha = RandomUtil.randomString(4);
+            //设置图形验证码的长 宽 验证码长度 干扰线数
+            LineCaptcha lineCaptcha = new LineCaptcha(110, 40, 4, 10);
+            //设置图片颜色
+            lineCaptcha.setBackground(new Color(230, 244, 255));
+            //生成图片
+            Image image = lineCaptcha.createImage(captcha);
+            //转成base64
+            String jpg = ImgUtil.toBase64(image, "jpg");
 
-        /*
-         * 返回验证码对象
-         */
-        //生成唯一标识
-        String uuid= IdUtil.fastSimpleUUID();
-        CaptchaVO captchaVO=new CaptchaVO();
-        captchaVO.setCaptchaUUId(uuid);
-        captchaVO.setContent(captcha);
-        captchaVO.setCaptchaBase64Image("data:image/png;base64,"+jpg);
-        captchaVO.setExpireSeconds(EXPECT_SECONDS);
-        //存入reids
-        stringRedisTemplate.opsForValue().set(USER_CAPTCHA+":"+uuid,captcha);
-        stringRedisTemplate.expire(USER_CAPTCHA+":"+uuid,EXPECT_SECONDS, TimeUnit.SECONDS);
-        return Result.ok(captchaVO);
+            /*
+             * 返回验证码对象
+             */
+            //生成唯一标识
+            String uuid = IdUtil.fastSimpleUUID();
+            CaptchaVO captchaVO = new CaptchaVO();
+            captchaVO.setCaptchaUUId(uuid);
+            captchaVO.setContent(captcha);
+            captchaVO.setCaptchaBase64Image("data:image/png;base64," + jpg);
+            captchaVO.setExpireSeconds(EXPECT_SECONDS);
+            //存入redis
+            String redisKey = USER_CAPTCHA + ":" + uuid;
+            stringRedisTemplate.opsForValue().set(redisKey, captcha, EXPECT_SECONDS, TimeUnit.SECONDS);
+            return Result.ok(captchaVO);
+        } catch (Exception e) {
+            log.error("Redis 存储验证码失败", e);
+            return Result.fail("验证码存储失败");
+        }
     }
 
     @Override

@@ -1280,7 +1280,51 @@ public class UserBaseServiceImpl implements UserBaseService {
         pageLikeVO.setLastId(currentLastId.toString());
         return Result.ok(pageLikeVO);
     }
-
+    @Override
+    public Result getOtherUserInfo(Long userId) {
+        if(userId==null)
+        {
+            return Result.fail("用户id不能为空");
+        }
+        OtherUserVO otherUserVO = user2Mapper.otherUserInfo(userId);
+        if(otherUserVO==null)
+        {
+            return Result.fail("用户不存在");
+        }
+        Long currentUserId = SecurityUtil.getCurrentUserId();
+        //关注数
+        LambdaQueryWrapper<UserFollow> lambdaQueryWrapper=new LambdaQueryWrapper<>();
+        lambdaQueryWrapper.eq(UserFollow::getUserId,userId);
+        Long count = followMapper.selectCount(lambdaQueryWrapper);
+        otherUserVO.setFollowCount(count);
+        //设置粉丝数
+        LambdaQueryWrapper<UserFollow> lambdaQueryWrapper1=new LambdaQueryWrapper<>();
+        lambdaQueryWrapper1.eq(UserFollow::getFollowedUserId,userId);
+        Long followerCount = followMapper.selectCount(lambdaQueryWrapper1);
+        otherUserVO.setFollowerCount(followerCount);
+        //是否关注作者
+        lambdaQueryWrapper1.eq(UserFollow::getUserId,currentUserId)
+                .eq(UserFollow::getFollowedUserId,userId);
+        UserFollow userFollow = followMapper.selectOne(lambdaQueryWrapper1);
+        if(userFollow!=null)
+        {
+            otherUserVO.setIsFollow(true);
+        }else {
+            otherUserVO.setIsFollow(false);
+        }
+        //是否是vip
+        if(otherUserVO.getVipExpireTime()!=null) {
+            //判断是否是vip
+            if (LocalDateTime.now().isAfter(otherUserVO.getVipExpireTime())) {
+                otherUserVO.setIsVip(false);
+            }
+            otherUserVO.setIsVip(true);
+        }
+        else {
+            otherUserVO.setIsVip(false);
+        }
+        return Result.ok(otherUserVO);
+    }
 
 }
 

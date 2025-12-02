@@ -7,6 +7,7 @@ import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.validation.BindException;
 import org.springframework.validation.BindingResult;
 import org.springframework.validation.FieldError;
@@ -20,6 +21,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import static code.SystemErrorCode.SYSTEM_ERROR;
+import static code.UserErrorCode.LOGIN_FAIL_LOCK;
 import static code.UserErrorCode.PARAM_ERROR;
 
 @Slf4j
@@ -82,6 +84,14 @@ public class GlobalExceptionHandler {
         log.warn("业务异常: {}，扩展信息: {}", e.getMessage(), e.getExtra());
         return Result.fail(e.getCode(), e.getMessage());
     }
+    @ExceptionHandler(AccessDeniedException.class)
+    @ResponseStatus(HttpStatus.FORBIDDEN)
+    public Result<Void> handleAccessDeniedException(AccessDeniedException e) {
+        log.warn("权限不足: {}", e.getMessage());
+
+        // 使用你的自定义错误码和消息
+        return Result.fail( "您的权限不足");
+    }
     /**
      * 处理 JSON 解析异常（比如前端传了非法 JSON）
      */
@@ -131,6 +141,8 @@ public class GlobalExceptionHandler {
         log.warn("参数缺失: {}", message);
         return Result.fail(PARAM_ERROR.getCode(), message);
     }
+
+
     /**
      * 统一兜底：捕获所有其他未处理的异常，避免暴露敏感信息
      */

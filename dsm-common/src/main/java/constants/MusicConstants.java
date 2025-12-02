@@ -29,4 +29,8 @@ public class MusicConstants {
 
     //音乐统计时长
     public static final double MIN_PLAY_RATIO = 0.3;
+
+    // 缓存 Key 前缀 + 过期时间（1小时，可根据业务调整）
+    public static final String CACHE_KEY_MUSIC_DETAIL = "music:detail:";
+    public static final long CACHE_TTL_SECONDS = 3600;
 }

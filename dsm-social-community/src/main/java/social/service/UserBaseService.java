@@ -27,6 +27,6 @@ public interface UserBaseService {
     Result getFollowCount();
     Result getFollowListMusic(PageDTO pageDTO);
     Result getFollowListNormal(PageDTO pageDTO);
-
+    Result getOtherUserInfo(Long userId);
 
 }
