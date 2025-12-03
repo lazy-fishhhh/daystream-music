@@ -42,8 +42,7 @@ public class RefreshUtil {
         //生成新的token
         String newtoken = JwtUtil.createJWT(userId.toString());
         //存入reids
-        stringRedisTemplate.opsForValue().set(key,newtoken);
-        stringRedisTemplate.expire(key,CACHE_NORMAL_TTL, TimeUnit.SECONDS);
+        stringRedisTemplate.opsForValue().set(key,newtoken,CACHE_NORMAL_TTL, TimeUnit.SECONDS);
         return newtoken;
     }
 }

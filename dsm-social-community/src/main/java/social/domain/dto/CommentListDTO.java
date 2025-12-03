@@ -15,7 +15,7 @@ public class CommentListDTO {
     @NotBlank(message = "目标id不能为空")
     private String targetId;
     /**
-     * 目标类型 1-音乐 2-歌单 3-专辑
+     * 目标类型 1-音乐 2-歌单 3-专辑 4-动态
      */
     @NotNull(message = "目标类型不能为空")
     private Integer targetType;

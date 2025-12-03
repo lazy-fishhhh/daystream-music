@@ -71,7 +71,8 @@ public class UserMusicianServiceImpl implements UserMusicianService {
     public Result isMusician() {
         Long currentUserId = SecurityUtil.getCurrentUserId();
         LambdaQueryWrapper<UserRole> lambdaQueryWrapper=new LambdaQueryWrapper<>();
-        lambdaQueryWrapper.eq(UserRole::getUserId,currentUserId);
+        lambdaQueryWrapper.eq(UserRole::getUserId,currentUserId)
+                .eq(UserRole::getRoleId,RoleEnum.MUSICIAN.getValue());
         UserRole userRole = userRoleMapper.selectOne(lambdaQueryWrapper);
         if(userRole!=null)
         {

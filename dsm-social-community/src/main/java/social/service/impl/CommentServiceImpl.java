@@ -128,11 +128,32 @@ public class CommentServiceImpl implements CommentService {
             count++;
         }
         int insert = commentMapper.insert(comment);
-        CommentVO commentVO = new CommentVO();
         if (insert > 0) {
             CommentListVO commentListVO = commentMapper.commentListvo(comment.getId());
+            //是否点赞
+            LambdaQueryWrapper<LikeRecord> lambdaQueryWrapper = new LambdaQueryWrapper<>();
+            lambdaQueryWrapper.eq(LikeRecord::getTargetId, commentListVO.getId())
+                    .eq(LikeRecord::getTargetType,LikeEnum.COMMENT.getValue())
+                    .eq(LikeRecord::getUserId, currentUserId)
+                    .eq(LikeRecord::getIsCanceled, 0);
+            LikeRecord likeRecord = likeRecord1Mapper.selectOne(lambdaQueryWrapper);
+            if(likeRecord!=null)
+            {
+                commentListVO.setIsLike(true);
+            }else{
+                commentListVO.setIsLike(false);
+            }
+            //是否是本人发布的评论
+            if(commentListVO.getUserId().equals(currentUserId))
+            {
+                commentListVO.setIsSelf( true);
+            }else{
+                commentListVO.setIsSelf(false);
+            }
+            CommentVO commentVO = new CommentVO();
+            commentVO.setMsg("发布成功");
             commentVO.setTargetCommentCount(count);
-            commentVO.setMsg("评论成功");
+            commentVO.setDetailComment(commentListVO);
             return Result.ok(commentVO);
 
         }
@@ -197,12 +218,13 @@ public class CommentServiceImpl implements CommentService {
                 communityPostMapper.communityCommentCountup(parentTargetId);
                 targetCount++;
             }
-            CommentListVO commentListVO = commentMapper.commentListvo(comment.getId());
+            ReplyCommentListVO ReplyCommentListVO= commentMapper.ReplyCommentVO(replyComment.getId());
             //返回视图
             ReplyCommentVO replyCommentVO=new ReplyCommentVO();
             replyCommentVO.setTargetCommentCount(targetCount);
             replyCommentVO.setParentCommentReplyCount(count);
             replyCommentVO.setMsg("回复成功");
+            replyCommentVO.setDetailReply(ReplyCommentListVO);
             return Result.ok(replyCommentVO);
         }
         return Result.fail("回复失败");
@@ -260,7 +282,7 @@ public class CommentServiceImpl implements CommentService {
             }
             //查找lastId后面的评论
             List<CommentListVO> commentListVOS = commentMapper.commentList(targetId, lastId, pageSize);
-            if (commentListVOS == null) {
+            if (commentListVOS == null||commentListVOS.isEmpty()) {
                 return Result.ok("后面没有数据了");
             }
             //判断是否还有更多数据
