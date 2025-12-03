@@ -1,10 +1,17 @@
 package com.future.login.mapper;
 
 
+import cn.hutool.log.Log;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import entity.pojo.info.User;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Select;
+
+import java.util.List;
 
 @Mapper
 public interface UserMapper extends BaseMapper<User> {
+
+    @Select("select id from user")
+    List<Long> selectAllUserId();
 }

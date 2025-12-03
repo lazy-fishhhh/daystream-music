@@ -44,7 +44,7 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.disable())
                 .authorizeHttpRequests(auth -> auth
 
-                        .requestMatchers( "/ai/chat", "/resources/**").permitAll()
+                        .requestMatchers( "/ai/chat", "ai/music/create", "/resources/**").permitAll()
                         // 放行
                         .requestMatchers(
                                 "/login/getCaptcha",
