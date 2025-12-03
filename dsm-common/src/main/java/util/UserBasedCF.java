@@ -85,7 +85,10 @@ public class UserBasedCF {
             // 跳过目标用户自身（自身相似度无意义）
             if (!otherUser.equals(targetUser)) {
                 double similarity = calculateSimilarity(targetUser, otherUser);
-                // 即使相似度为0也加入列表（后续排序会自然排到末尾）
+                // 相似度为0,这属于无贡献数据,不要加入集合
+                if (similarity == 0.0) {
+                    continue;
+                }
                 similarities.add(new UserSimilarity(otherUser, similarity));
             }
         }

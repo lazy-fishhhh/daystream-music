@@ -69,9 +69,14 @@ public class PlaylistServiceImpl implements IPlaylistService {
         // 2. 查询歌单包含的歌曲ID列表（关联表查询）
         Page<Music> page = new Page<>(pageNum,pageSize);
         IPage<Music> musicPage = playlistMusicMapper.selectMusicsByPlaylistId(page, playlistId);
+        //  查询歌单创建者
+        String creator = playlistMapper.selectPlaylistCreator(playlistId);
+        String avatar = playlistMapper.selectPlaylistCreatorAvator(playlistId);
 
         // 3. 封装成VO（视图对象，用于返回给前端）
         PlaylistDetailVO detailVO = new PlaylistDetailVO();
+        detailVO.setAvatar(avatar);
+        detailVO.setCreator(creator);
         // 复制基本属性（使用BeanUtils简化代码）
         BeanUtils.copyProperties(playlist, detailVO);
 

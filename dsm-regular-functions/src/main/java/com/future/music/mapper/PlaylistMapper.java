@@ -48,5 +48,8 @@ public interface PlaylistMapper extends BaseMapper<Playlist> {
             @Param("ew") QueryWrapper<Playlist> queryWrapper
     );
 
+    String selectPlaylistCreator(@Param("playlistId") Long playlistId);
+
+    String selectPlaylistCreatorAvator(Long playlistId);
 }
 
