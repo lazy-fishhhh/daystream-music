@@ -22,6 +22,7 @@ import entity.pojo.util.Result;
 import jakarta.annotation.Resource;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.beans.BeanUtils;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -106,12 +107,12 @@ public class PlaylistServiceImpl implements IPlaylistService {
         }
 
         // 获取分页参数，设置默认值
-        int pageNum = filterDTO.getPageNum() != null ? filterDTO.getPageNum() : 1;
-        int pageSize = filterDTO.getPageSize() != null ? filterDTO.getPageSize() : 10;
+        Integer pageNum = filterDTO.getPageNum() != null ? filterDTO.getPageNum() : 1;
+        Integer pageSize = filterDTO.getPageSize() != null ? filterDTO.getPageSize() : 10;
         
         Page<Playlist> page = new Page<>(pageNum, pageSize);
-        IPage<Playlist> playlistPage = playlistMapper.selectPlaylistsByTagIds(page,
-                                                                           filterDTO.getTags(),
+        IPage<Playlist> playlistPage = playlistMapper.selectPlaylistsByTagIds(page, 
+                                                                           filterDTO.getTags(), 
                                                                            filterDTO.getTags().size(),
                                                                            filterDTO.getStartTime(), 
                                                                            filterDTO.getEndTime(), 
