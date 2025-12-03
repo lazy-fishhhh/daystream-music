@@ -24,6 +24,10 @@ public interface IUserService {
 
     Result<Integer> getContinuousSignInDays();
 
+    // 检查签到状态
+    Result<CheckInStatusVO> getCheckInStatus();
+
+
     // 获取热搜榜单
     Result<List<HotSearchVO>> getHotSearch();
 
@@ -32,5 +36,6 @@ public interface IUserService {
     Result<List<SearchHistoryVO>> getSearchHistory();
 
     Result<KeywordSuggestVO> getSuggestKeywords(String input);
+
 
 }
