@@ -218,7 +218,7 @@ public class CommentServiceImpl implements CommentService {
                 communityPostMapper.communityCommentCountup(parentTargetId);
                 targetCount++;
             }
-            ReplyCommentListVO ReplyCommentListVO= commentMapper.ReplyCommentVO(comment.getId());
+            ReplyCommentListVO ReplyCommentListVO= commentMapper.ReplyCommentVO(replyComment.getId());
             //返回视图
             ReplyCommentVO replyCommentVO=new ReplyCommentVO();
             replyCommentVO.setTargetCommentCount(targetCount);

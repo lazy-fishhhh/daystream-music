@@ -76,7 +76,7 @@
         comment c
         left join user u on c.user_id = u.id
         left join user ru on c.reply_to_user_id = ru.id
-        where c.parent_id = #{targetId}
+        where c.id = #{targetId}
         and c.status = 1
     </select>
     <update id="deleteComment">
