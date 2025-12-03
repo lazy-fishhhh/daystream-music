@@ -24,7 +24,8 @@ public class ChatController {
 
     @Resource
     private ConsultantService consultantService;
-    @Autowired
+
+    @Resource
     private MusicCreationService musicCreationService;
 
     @ApiOperation("与AI咨询")
