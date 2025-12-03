@@ -22,7 +22,11 @@ public class PostDetailVO {
     /**
      * 点赞数
      */
-    private Long likeCount;
+    private Long postlikeCount;
+    /**
+     * 作者的获赞数
+     */
+    private Long authorLikeCount;
     /**
      * 评论数
      */
@@ -39,6 +43,10 @@ public class PostDetailVO {
      * 动态作者头像
      */
     private String avatar;
+    /**
+     * 动态作者简介
+     */
+    private String introduction;
      /**
      * 动态发布时间
      */
@@ -63,6 +71,10 @@ public class PostDetailVO {
      * 是否是vip
      */
     private Boolean isVip;
+    /*
+    是否是我本人的动态
+     */
+    private Boolean isMine;
     @JsonIgnore
     private LocalDateTime vipExpireTime;
 

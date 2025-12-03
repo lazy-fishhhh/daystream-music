@@ -3,6 +3,8 @@ package social.domain.dto;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 
+import java.util.List;
+
 @Data
 public class CommunityDTO {
     /**
@@ -16,4 +18,8 @@ public class CommunityDTO {
      */
     @NotBlank(message = "内容不能为空")
     private String content;
+    /**
+     * 照片url
+     **/
+    private List<String> images;
 }

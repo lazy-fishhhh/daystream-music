@@ -14,6 +14,7 @@ import entity.pojo.music.Album;
 import entity.pojo.music.Music;
 import entity.pojo.social.*;
 import entity.pojo.util.Result;
+import io.lettuce.core.RedisClient;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.dao.DuplicateKeyException;
@@ -161,8 +162,8 @@ public class UserBaseServiceImpl implements UserBaseService {
                         //创建喜欢的音乐视图
                         LikeMusicVO likeMusicVO = music2Mapper.selectLikeMusicVO(targetId,currentUserId);
                         Long epochSecond=likeMusicVO.getUpdatedTime().atZone(ZoneId.systemDefault()).toInstant().getEpochSecond();
-                        stringRedisTemplate.opsForZSet().add(key,objectMapper.writeValueAsString(likeMusicVO),epochSecond);
-                        stringRedisTemplate.expire(key,7, TimeUnit.DAYS);
+                        stringRedisTemplate.expire(key, 7, TimeUnit.DAYS); // 先设过期
+                        Boolean addResult = stringRedisTemplate.opsForZSet().add(key, objectMapper.writeValueAsString(likeMusicVO), epochSecond);
                     }
                     return Result.ok(likevo);
                 }

@@ -50,8 +50,8 @@
         limit 1
     </select>
     <select id="selectDetail" resultType="social.domain.vo.PostDetailVO">
-        select p.id as postId, p.title, p.content, p.create_time, p.like_count, p.comment_count,p.user_id as authorId,
-        u.username as authorName, u.avatar,u.vip_expire_time
+        select p.id as postId, p.title, p.content, p.create_time, p.like_count as postlikeCount, p.comment_count,p.user_id as authorId,
+        u.username as authorName, u.avatar,u.vip_expire_time,u.introduction
         from
         community_post p
         left join user u on p.user_id=u.id
@@ -70,5 +70,11 @@
         from user_follow
         where user_id=#{userId}
         and followed_user_id= #{authorId}
+    </select>
+    <select id="selectAllLikeCount" resultType="Long">
+        select sum(like_count)
+        from community_post
+        where is_deleted=0
+        and user_id=#{userId}
     </select>
 </mapper>

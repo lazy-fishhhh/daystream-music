@@ -73,8 +73,7 @@ public class EmailServiceImpl implements EmailService {
             return Result.fail("收件人邮箱地址无效");
         }
         //把验证码存入riedis
-        stringRedisTemplate.opsForValue().set(key,captcha);
-        stringRedisTemplate.expire(key,TIME_EXCEPTION, TimeUnit.SECONDS);
+        stringRedisTemplate.opsForValue().set(key, captcha, TIME_EXCEPTION, TimeUnit.SECONDS);
         return Result.ok();
     }
     private String buildHtmlEmailContentWithLogo(String captcha) {
