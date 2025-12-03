@@ -33,10 +33,11 @@
             m.comment_count AS commentCount,
             m.duration AS duration,
             m.is_liked AS isLiked,
-            mu.album_name AS albumName,
-            mu.musician_name AS musicianName
+            al.album_name AS albumName,
+            mu.stage_name AS musicianName
         FROM music m
         LEFT JOIN musician mu ON m.musician_id = mu.id
+        LEFT JOIN album al ON m.album_id = al.id
         WHERE m.id = #{musicId}
     </select>
 
@@ -52,11 +53,11 @@
             m.like_count AS likeCount,
             m.comment_count AS commentCount,
             m.duration AS duration,
-            m.is_liked AS isLiked,
-            mu.album_name AS albumName,
-            mu.musician_name AS musicianName
+            al.album_name AS albumName,
+            mu.stage_name AS musicianName
         FROM music m
         LEFT JOIN musician mu ON m.musician_id = mu.id
+        LEFT JOIN album al ON m.album_id = al.id
         WHERE m.id IN
         <foreach collection="musicIds" item="musicId" open="(" separator="," close=")">
             #{musicId}

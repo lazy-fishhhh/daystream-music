@@ -1,6 +1,5 @@
 package com.future.music.service.impl;
 
-import cn.hutool.core.bean.BeanUtil;
 import com.future.login.mapper.UserMapper;
 import com.future.login.util.SecurityUtil;
 import com.future.music.domain.vo.MusicVO;
@@ -14,6 +13,7 @@ import org.springframework.data.redis.core.ZSetOperations;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
+import org.springframework.util.StringUtils;
 import social.mapper.LikeRecord1Mapper;
 import util.UserBasedCF;
 
@@ -22,7 +22,6 @@ import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
 
 import static com.future.music.constants.MusicVoConstants.*;
 
@@ -44,7 +43,7 @@ public class ScheduledTaskManager {
 
     // Redis Key 前缀
     private static final String REDIS_ZSET_PREFIX = "recommend:user:";   // ZSet：用户推荐列表（key=recommend:user:{userId}）
-    private static final String REDIS_HASH_PREFIX = "music:info:";      // Hash：歌曲详情（key=music:info:{songId}）
+    private static final String REDIS_HASH_PREFIX = "recommend:music:info:"; // Hash：歌曲详情（key=recommend:music:info:{songId}）
     private static final long REDIS_EXPIRE_DAYS = 7;                    // Redis缓存过期时间（7天）
 
 
@@ -61,9 +60,9 @@ public class ScheduledTaskManager {
     /**
      * 定时任务：每天凌晨2点刷新全量用户的推荐结果
      * cron表达式：0 0 2 * * ? → 每天凌晨2点执行
-     * 核心逻辑：
-     * 1. 加载全量用户行为数据
-     * 2. 为每个用户生成推荐结果
+     * 核心逻辑干了三个事：
+     * 1. loadAllUserBehavior加载全量用户行为数据
+     * 2. UCF类的recommend方法为每个用户生成推荐结果
      * 3. 写入Redis缓存（ZSet存歌曲ID+得分，Hash存歌曲详情）
      */
     @Scheduled(cron = "0 0 2 * * ?")
@@ -88,6 +87,7 @@ public class ScheduledTaskManager {
             List<Long> userIds = userMapper.selectAllUserId();
             for (Long userId : userIds) {
                 try {
+                    // 生成用户推荐结果
                     List<Recommendation> recommendList = generateUserRecommend(userBasedCF, userId);
                     if (!CollectionUtils.isEmpty(recommendList)) {
                         // 将推荐结果写入Redis（ZSet + Hash）
@@ -141,7 +141,11 @@ public class ScheduledTaskManager {
 
     /**
      * 加载全量用户行为数据（用户ID -> 喜欢的歌曲ID集合）
-     * 优化点：批量查询代替循环单查
+
+     * 干了两个事
+     * 1. 批量查询用户id
+     * 2. 批量查询用户点赞记录
+     * --> 由此得到userBehavior
      */
     private Map<Long, Set<Long>> loadAllUserBehavior() {
         Map<Long, Set<Long>> userBehavior = new HashMap<>();
@@ -157,9 +161,13 @@ public class ScheduledTaskManager {
             if (!CollectionUtils.isEmpty(likeRecordResults)) {
                 // 将查询结果转换为Map<Long, Set<Long>>格式并添加到userBehavior映射中
                 for (Map<String, Object> result : likeRecordResults) {
+                    // 数据库查询结果为map，键 as key 值 as value
+                    // 所以这里get("key") get("value")
                     Long userId = ((Number) result.get("key")).longValue();
                     String likeSongsStr = (String) result.get("value");
                     if (likeSongsStr != null) {
+                        // 从数据库中查询到的songIds 是用 ，分隔的字符串
+                        // 这里以逗号分割，收集成Set
                         Set<Long> likeSongs = Arrays.stream(likeSongsStr.split(","))
                                 .map(Long::parseLong)
                                 .collect(Collectors.toSet());
@@ -201,7 +209,9 @@ public class ScheduledTaskManager {
             MusicVO musicVO = musicVOMap.get(songId);
             if (musicVO != null) {
                 // 拷贝歌曲详情到推荐结果
-                BeanUtil.copyProperties(musicVO, recommendation);
+                recommendation.setSongName(musicVO.getMusicName());
+                recommendation.setSinger(musicVO.getMusicianName());
+                recommendation.setCoverUrl(musicVO.getCoverUrl());
             } else {
                 log.warn("【推荐生成】歌曲{}未查询到详情，用户{}", songId, userId);
             }
@@ -249,19 +259,25 @@ public class ScheduledTaskManager {
 
             // 2. 批量写入ZSet（key=用户ID，value=歌曲ID，score=推荐得分）
             for (Recommendation rec : recommendList) {
-                // ZSet添加：歌曲ID作为value，推荐得分作为score（降序排列）
-                zSetOps.add(zsetKey, rec.getItemId().toString(), rec.getScore());
+                    // ZSet添加：歌曲ID作为value，推荐得分作为score（降序排列）
+                    // 3. 写入ZSet（歌曲ID+得分）
+                    zSetOps.add(zsetKey, rec.getItemId().toString(), rec.getScore());
 
-                // 3. 写入Hash存储歌曲详情（按需初始化，避免重复写入）
-                String hashKey = REDIS_HASH_PREFIX + rec.getItemId();
-                if (!redisTemplate.hasKey(hashKey)) {
+                    // 4. 写入Hash（强制更新字段，无论Hash Key是否存在）
+                    String hashKey = REDIS_HASH_PREFIX + rec.getItemId();
+                    // 校验核心字段，为空则填充默认值（避免写入null）
+                    String songName = StringUtils.hasText(rec.getSongName()) ? rec.getSongName() : "未知歌曲";
+                    String singer = StringUtils.hasText(rec.getSinger()) ? rec.getSinger() : "未知歌手";
+                    String coverUrl = StringUtils.hasText(rec.getCoverUrl()) ? rec.getCoverUrl() : "默认封面URL";
+
+                    // 强制写入/更新字段（覆盖旧值）
                     hashOps.put(hashKey, MUSIC_ID, rec.getItemId().toString());
-                    hashOps.put(hashKey, SONG_NAME, rec.getSongName());
-                    hashOps.put(hashKey, SINGER, rec.getSinger());
-                    hashOps.put(hashKey, COVER_URL, rec.getCoverUrl());
+                    hashOps.put(hashKey, SONG_NAME, songName);
+                    hashOps.put(hashKey, SINGER, singer);
+                    hashOps.put(hashKey, COVER_URL, coverUrl);
                     // 设置Hash过期时间
                     redisTemplate.expire(hashKey, REDIS_EXPIRE_DAYS, TimeUnit.DAYS);
-                }
+
             }
 
             // 4. 设置ZSet过期时间（7天）
@@ -286,41 +302,103 @@ public class ScheduledTaskManager {
         try {
             // 1. 检查ZSet是否存在
             if (!redisTemplate.hasKey(zsetKey)) {
+                log.info("【Redis读取】用户{}的推荐ZSet缓存不存在，key:{}", userId, zsetKey);
                 return resultList;
             }
 
             // 2. 从ZSet获取Top-N推荐结果（按得分降序，带得分）
             Set<ZSetOperations.TypedTuple<Object>> typedTuples = zSetOps.reverseRangeWithScores(zsetKey, 0, N - 1);
             if (CollectionUtils.isEmpty(typedTuples)) {
+                log.info("【Redis读取】用户{}的推荐ZSet无数据，key:{}", userId, zsetKey);
                 return resultList;
             }
 
             // 3. 组装推荐结果（关联Hash中的歌曲详情）
             for (ZSetOperations.TypedTuple<Object> tuple : typedTuples) {
-                String songIdStr = tuple.getValue().toString();
-                Long songId = Long.valueOf(songIdStr);
-                Double score = tuple.getScore();
-
-                // 4. 从Hash读取歌曲详情
-                String hashKey = REDIS_HASH_PREFIX + songId;
-                if (!redisTemplate.hasKey(hashKey)) {
-                    log.warn("【Redis读取】歌曲{}详情不存在，用户{}", songId, userId);
+                // 防御：Tuple或Value为空时跳过
+                if (tuple == null || tuple.getValue() == null) {
+                    log.warn("【Redis读取】用户{}的推荐ZSet存在空值Tuple，跳过", userId);
                     continue;
                 }
 
-                // 5. 封装推荐结果
+                String songIdStr = tuple.getValue().toString();
+                Long songId;
+                // 防御：songId转换异常
+                try {
+                    songId = Long.valueOf(songIdStr);
+                } catch (NumberFormatException e) {
+                    log.warn("【Redis读取】用户{}的推荐歌曲ID格式错误，值：{}", userId, songIdStr, e);
+                    continue;
+                }
+
+                Double score = tuple.getScore();
+                // 防御：得分为空时默认0
+                if (score == null) {
+                    score = 0.0;
+                    log.warn("【Redis读取】用户{}的歌曲{}推荐得分为空，默认0", userId, songId);
+                }
+
+                // 4. 从Hash读取歌曲详情（先检查Hash Key是否存在）
+                String hashKey = REDIS_HASH_PREFIX + songId;
+                if (!redisTemplate.hasKey(hashKey)) {
+                    log.warn("【Redis读取】歌曲{}详情Hash不存在，key:{}，用户{}", songId, hashKey, userId);
+                    continue;
+                }
+
+                // 5. 读取Hash字段（封装通用方法，避免重复判空）
+                String songName = getHashValue(hashOps, hashKey, SONG_NAME, songId, userId);
+                String singer = getHashValue(hashOps, hashKey, SINGER, songId, userId);
+                String coverUrl = getHashValue(hashOps, hashKey, COVER_URL, songId, userId);
+
+                // 6. 核心：任一关键字段缺失则跳过该条推荐（避免返回不完整数据）
+                if (songName == null || singer == null || coverUrl == null) {
+                    log.warn("【Redis读取】歌曲{}的关键详情字段缺失，用户{}", songId, userId);
+                    continue;
+                }
+
+                // 7. 封装推荐结果
                 Recommendation rec = new Recommendation();
                 rec.setItemId(songId);
                 rec.setScore(score);
-                rec.setSongName(hashOps.get(hashKey, SONG_NAME).toString());
-                rec.setSinger(hashOps.get(hashKey, SINGER).toString());
-                rec.setCoverUrl(hashOps.get(hashKey, COVER_URL).toString());
+                rec.setSongName(songName);
+                rec.setSinger(singer);
+                rec.setCoverUrl(coverUrl);
                 resultList.add(rec);
             }
+
             log.info("【Redis读取】用户{}推荐结果读取成功，数量：{}", userId, resultList.size());
         } catch (Exception e) {
             log.error("【Redis读取】用户{}推荐结果读取失败", userId, e);
         }
         return resultList;
+    }
+
+    /**
+     * 通用方法：读取Hash字段值并做非空校验
+     * @param hashOps Hash操作对象
+     * @param hashKey Hash Key
+     * @param field 字段名
+     * @param songId 歌曲ID（日志用）
+     * @param userId 用户ID（日志用）
+     * @return 字段值（null表示缺失/异常）
+     */
+    private String getHashValue(HashOperations<String, String, Object> hashOps,
+                                String hashKey,
+                                String field,
+                                Long songId,
+                                Long userId) {
+        try {
+            Object value = hashOps.get(hashKey, field);
+            if (value == null) {
+                log.warn("【Redis读取】歌曲{}的Hash字段{}为空，hashKey:{}，用户{}",
+                        songId, field, hashKey, userId);
+                return null;
+            }
+            return value.toString();
+        } catch (Exception e) {
+            log.error("【Redis读取】歌曲{}的Hash字段{}读取异常，hashKey:{}，用户{}",
+                    songId, field, hashKey, userId, e);
+            return null;
+        }
     }
 }
