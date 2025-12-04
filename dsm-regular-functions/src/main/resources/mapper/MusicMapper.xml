@@ -63,5 +63,21 @@
             #{musicId}
         </foreach>
     </select>
+    <select id="selectAllMusicWithStat" resultType="entity.vo.MusicRecommendVO">
+        SELECT
+        id,
+        music_name,
+        cover_url,
+        play_count,
+        download_count,
+        like_count,
+        comment_count,
+        create_time,
+        musician_name
+        FROM music
+        WHERE play_count IS NOT NULL  <!-- 过滤播放量为空的数据 -->
+        ORDER BY play_count DESC      <!-- 按播放量降序 -->
+        LIMIT 200                    <!-- 只取TOP200，减少计算量 -->
+    </select>
 
 </mapper>
