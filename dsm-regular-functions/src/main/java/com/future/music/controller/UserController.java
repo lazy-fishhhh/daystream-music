@@ -55,6 +55,12 @@ public class UserController {
         return userService.getContinuousSignInDays();
     }
 
+    @ApiOperation(value = "获取明日签到可得音浪数")
+    @GetMapping("/checkIn/getTomorrowSignInReward")
+    public Result<String> getTomorrowSignInReward() {
+        return userService.getTomorrowSignInReward();
+    }
+
     @ApiOperation(value = "检查签到状态")
     @GetMapping("/checkIn/getCheckInStatus")
     public Result<CheckInStatusVO> getCheckInStatus() {

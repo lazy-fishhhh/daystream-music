@@ -38,4 +38,5 @@ public interface IUserService {
     Result<KeywordSuggestVO> getSuggestKeywords(String input);
 
 
+    Result<String> getTomorrowSignInReward();
 }

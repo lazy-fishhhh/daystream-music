@@ -268,17 +268,38 @@ public class UserServiceImpl  implements IUserService {
         // 3. 从今天开始往前检查，直到找到未签到的天为止
         int continuousDays = 0;
 
-        // 从今天（偏移量=天数-1）开始往前检查
-        for (int offset = dayOfMonth - 1; offset >= 0; offset--) {
-            Boolean isSigned = stringRedisTemplate.opsForValue().getBit(key, offset);
+        Boolean todaySigned = stringRedisTemplate.opsForValue().getBit(key, dayOfMonth - 1);
+        if (Boolean.TRUE.equals(todaySigned)) {
+            // 今天签到了，从今天开始检查
+            // 从今天（偏移量=天数-1）开始往前检查
+            for (int offset = dayOfMonth - 1; offset >= 0; offset--) {
+                Boolean isSigned = stringRedisTemplate.opsForValue().getBit(key, offset);
 
-            // 如果今天已签到，继续往前一天检查
-            if (Boolean.TRUE.equals(isSigned)) {
-                continuousDays++;
-            } else {
-                // 找到未签到的天，结束循环
-                break;
+                // 如果今天已签到，继续往前一天检查
+                if (Boolean.TRUE.equals(isSigned)) {
+                    continuousDays++;
+                } else {
+                    // 找到未签到的天，结束循环
+                    break;
+                }
             }
+
+
+        }else  {
+            //今天没签到从昨天开始检查
+            // 从今天（偏移量=天数-1）开始往前检查
+            for (int offset = dayOfMonth - 2; offset >= 0; offset--) {
+                Boolean isSigned = stringRedisTemplate.opsForValue().getBit(key, offset);
+
+                // 如果今天已签到，继续往前一天检查
+                if (Boolean.TRUE.equals(isSigned)) {
+                    continuousDays++;
+                } else {
+                    // 找到未签到的天，结束循环
+                    break;
+                }
+            }
+
         }
 
         return Result.ok(continuousDays);
@@ -302,15 +323,7 @@ public class UserServiceImpl  implements IUserService {
         boolean checkedIn = Boolean.TRUE.equals(todaySigned);
 
         // 4. 计算连续签到天数
-        int continuousDays = 0;
-        for (int offset = todayOffset; offset >= 0; offset--) {
-            Boolean isSigned = stringRedisTemplate.opsForValue().getBit(key, offset);
-            if (Boolean.TRUE.equals(isSigned)) {
-                continuousDays++;
-            } else {
-                break;
-            }
-        }
+        int continuousDays = getContinuousSignInDays().getData();
 
         // 5. 获取本月总签到天数（使用BITCOUNT命令）
         int monthCheckInDays = 0;
@@ -625,5 +638,23 @@ public class UserServiceImpl  implements IUserService {
             // 异常时返回空建议列表，不影响用户使用
             return Result.ok(new KeywordSuggestVO(List.of()));
         }
+    }
+
+    @Override
+    public Result<String> getTomorrowSignInReward() {
+        Long userId = SecurityUtil.getCurrentUserId();
+        Integer data = getContinuousSignInDays().getData();
+        int tomorrowSignInDays = data + 1;
+        int reward = 0;
+        if (tomorrowSignInDays >= 7) {
+            reward = 10;
+        }else if (tomorrowSignInDays >= 5) {
+            reward = 5;
+        } else if (tomorrowSignInDays >= 3) {
+            reward = 3;
+        } else if (tomorrowSignInDays >= 1){
+            reward = 1;
+        }
+        return Result.ok("当前连续签到天数：" + data + ",明日签到可得" + reward + "音浪");
     }
 }
