@@ -23,6 +23,7 @@ import constants.MusicConstants;
 import constants.RedisCacheConstants;
 import constants.SystemConstants;
 import entity.dto.MusicDTO;
+import entity.dto.MusicFilterDTO;
 import entity.dto.SearchDTO;
 import entity.pojo.music.*;
 import entity.pojo.social.Comment;
@@ -1122,15 +1123,15 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
     }
 
     @Override
-    public Result<PageResp<MusicVO>> filterMusicByTags(List<Long> tags, int pageNum, int pageSize){
+    public Result<PageResp<MusicVO>> filterMusicByTags(MusicFilterDTO musicFilterDTO){
         // 1. 参数校验
-        if (CollectionUtils.isEmpty(tags)) {
+        if (CollectionUtils.isEmpty(musicFilterDTO.getTagIds())) {
             return Result.fail("标签不能为空");
         }
 
         // 2. 分页查询
-        Page<Music> page = new Page<>(pageNum, pageSize);
-        IPage<Music> musicIPage = musicMapper.selectMusicsByTagIds(page, tags, tags.size());
+        Page<Music> page = new Page<>(musicFilterDTO.getPageNum(), musicFilterDTO.getPageSize());
+        IPage<Music> musicIPage = musicMapper.selectMusicsByTagIds(page, musicFilterDTO.getTagIds(), musicFilterDTO.getTagIds().size());
 
         // 3. 转换VO
         List<MusicVO> voList = new ArrayList<>();

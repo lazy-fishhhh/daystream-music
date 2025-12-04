@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.future.player.entity.vo.AlbumVO;
 import entity.pojo.music.Album;
+import entity.vo.MusicAlbumVO;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
@@ -34,6 +35,19 @@ public interface AlbumMapper extends BaseMapper<Album> {
             """)
     IPage<AlbumVO> selectAlbumByUserId(
             Page<AlbumVO> page,  // 分页参数（必须作为第一个参数）
+            @Param("userId") Long userId
+    );
+
+    @Select("""
+            SELECT a.id, a.album_name, m.stage_name as musician_name, a.cover_url, 
+                   a.release_date, a.introduction, a.status, 
+                   a.collect_count, a.comment_count
+            FROM album a
+            LEFT JOIN musician m ON a.musician_id = m.id
+            WHERE m.user_id = #{userId}
+            ORDER BY a.release_date DESC
+            """)
+    List<MusicAlbumVO> selectAllAlbumByUserId(
             @Param("userId") Long userId
     );
 
