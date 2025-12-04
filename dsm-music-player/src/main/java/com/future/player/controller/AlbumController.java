@@ -46,6 +46,13 @@ public class AlbumController {
         return albumService.queryMyAlbum(pageNum, pageSize);
     }
 
+    @ApiOperation(value = "分页查询公开专辑", notes = "先按点赞量降序，再按发布时间降序")
+    @GetMapping("/api/album/query-public-album")
+    public Result<PageResp<AlbumVO>> queryPublicAlbum(@RequestParam(defaultValue = "1") int pageNum,
+                                               @RequestParam(defaultValue = "10") int pageSize) {
+        return albumService.queryPublicAlbum(pageNum, pageSize);
+    }
+
 
     @ApiOperation(value = "分页查询指定音乐人的公开专辑")
     @GetMapping("/api/album/query-other-album")

@@ -72,4 +72,17 @@ public interface AlbumMapper extends BaseMapper<Album> {
             @Param("key") String key
     );
 
+    @Select("""
+            SELECT a.id, a.album_name, m.stage_name as musician_name, a.cover_url,\s
+                     a.release_date, a.introduction, a.status,\s
+                     a.collect_count, a.comment_count
+              FROM album a
+              INNER JOIN musician m ON a.musician_id = m.id
+              WHERE a.status = 1
+                AND a.musician_id IS NOT NULL
+              -- 兼容MySQL < 8.0：空值排最后 + 收藏数降序、发布时间降序
+              ORDER BY IF(a.collect_count IS NULL, 1, 0), a.collect_count DESC,
+                       IF(a.release_date IS NULL, 1, 0), a.release_date DESC  
+            """)
+    IPage<AlbumVO> selectAllPublicAlbum(Page<AlbumVO> page);
 }
