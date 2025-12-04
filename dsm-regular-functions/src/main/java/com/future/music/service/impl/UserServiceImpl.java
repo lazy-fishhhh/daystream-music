@@ -28,6 +28,7 @@ import entity.pojo.search.SearchHistory;
 import entity.pojo.util.PageReq;
 import entity.pojo.util.PageResp;
 import entity.pojo.util.Result;
+import io.swagger.models.auth.In;
 import jakarta.annotation.Resource;
 import lombok.RequiredArgsConstructor;
 import org.redisson.api.RLock;
@@ -262,25 +263,45 @@ public class UserServiceImpl  implements IUserService {
         int dayOfMonth = now.getDayOfMonth(); // 今天是本月的第几天
 
         // 2. 构造Redis键
-        String key = "user:checkIn:" + userId + ":" +
+        String key = CHECK_IN_KEY + userId + ":" +
                 now.format(DateTimeFormatter.ofPattern("yyyy:MM"));
 
         // 3. 从今天开始往前检查，直到找到未签到的天为止
         int continuousDays = 0;
 
-        // 从今天（偏移量=天数-1）开始往前检查
-        for (int offset = dayOfMonth - 1; offset >= 0; offset--) {
-            Boolean isSigned = stringRedisTemplate.opsForValue().getBit(key, offset);
+        Boolean todaySigned = stringRedisTemplate.opsForValue().getBit(key, dayOfMonth - 1);
+        if (Boolean.TRUE.equals(todaySigned)) {
+            // 今天签到了，从今天开始检查
+            // 从今天（偏移量=天数-1）开始往前检查
+            for (int offset = dayOfMonth - 1; offset >= 0; offset--) {
+                Boolean isSigned = stringRedisTemplate.opsForValue().getBit(key, offset);
 
-            // 如果今天已签到，继续往前一天检查
-            if (Boolean.TRUE.equals(isSigned)) {
-                continuousDays++;
-            } else {
-                // 找到未签到的天，结束循环
-                break;
+                // 如果今天已签到，继续往前一天检查
+                if (Boolean.TRUE.equals(isSigned)) {
+                    continuousDays++;
+                } else {
+                    // 找到未签到的天，结束循环
+                    break;
+                }
             }
-        }
 
+
+        }else  {
+            //今天没签到从昨天开始检查
+            // 从今天（偏移量=天数-1）开始往前检查
+            for (int offset = dayOfMonth - 2; offset >= 0; offset--) {
+                Boolean isSigned = stringRedisTemplate.opsForValue().getBit(key, offset);
+
+                // 如果今天已签到，继续往前一天检查
+                if (Boolean.TRUE.equals(isSigned)) {
+                    continuousDays++;
+                } else {
+                    // 找到未签到的天，结束循环
+                    break;
+                }
+            }
+
+        }
         return Result.ok(continuousDays);
     }
 
@@ -302,15 +323,7 @@ public class UserServiceImpl  implements IUserService {
         boolean checkedIn = Boolean.TRUE.equals(todaySigned);
 
         // 4. 计算连续签到天数
-        int continuousDays = 0;
-        for (int offset = todayOffset; offset >= 0; offset--) {
-            Boolean isSigned = stringRedisTemplate.opsForValue().getBit(key, offset);
-            if (Boolean.TRUE.equals(isSigned)) {
-                continuousDays++;
-            } else {
-                break;
-            }
-        }
+        int continuousDays = getContinuousSignInDays().getData();
 
         // 5. 获取本月总签到天数（使用BITCOUNT命令）
         int monthCheckInDays = 0;
@@ -334,11 +347,18 @@ public class UserServiceImpl  implements IUserService {
         //     (RedisCallback<Long>) conn -> conn.bitCount(key.getBytes())
         // ).intValue();
 
+        // 获取明日可得音浪数
+        int tomorrowSignInReward = getTomorrowSignInReward().getData();
+        // 获取当前用户音浪数
+        Integer currentWaves = userMapper.selectMyWaves(userId);
+
         // 6. 封装返回结果
         CheckInStatusVO result = new CheckInStatusVO();
         result.setCheckedIn(checkedIn);
         result.setContinuousDays(continuousDays);
         result.setMonthCheckInDays(monthCheckInDays);
+        result.setTomorrowSignInReward(tomorrowSignInReward);
+        result.setCurrentWaves(currentWaves);
 
         return Result.ok(result);
     }
@@ -625,5 +645,23 @@ public class UserServiceImpl  implements IUserService {
             // 异常时返回空建议列表，不影响用户使用
             return Result.ok(new KeywordSuggestVO(List.of()));
         }
+    }
+
+    @Override
+    public Result<Integer> getTomorrowSignInReward() {
+        Long userId = SecurityUtil.getCurrentUserId();
+        Integer data = getContinuousSignInDays().getData();
+        int tomorrowSignInDays = data + 1;
+        int reward = 0;
+        if (tomorrowSignInDays >= 7) {
+            reward = 10;
+        }else if (tomorrowSignInDays >= 5) {
+            reward = 5;
+        } else if (tomorrowSignInDays >= 3) {
+            reward = 3;
+        } else if (tomorrowSignInDays >= 1){
+            reward = 1;
+        }
+        return Result.ok(reward);
     }
 }

@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Data;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 public class PostDetailVO {
@@ -75,6 +76,10 @@ public class PostDetailVO {
     是否是我本人的动态
      */
     private Boolean isMine;
+    /**
+     * 动态照片
+     */
+    private List<String> photos;
     @JsonIgnore
     private LocalDateTime vipExpireTime;
 

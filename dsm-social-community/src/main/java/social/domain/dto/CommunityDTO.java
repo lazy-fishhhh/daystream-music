@@ -14,7 +14,7 @@ public class CommunityDTO {
     private String title;
 
     /**
-     * 内容(含照片)
+     * 内容
      */
     @NotBlank(message = "内容不能为空")
     private String content;

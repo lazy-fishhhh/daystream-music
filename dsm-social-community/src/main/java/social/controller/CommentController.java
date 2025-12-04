@@ -5,12 +5,10 @@ import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
+import jdk.jshell.EvalException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
-import social.domain.dto.CommentDTO;
-import social.domain.dto.CommentListDTO;
-import social.domain.dto.CommentReplyDTO;
-import social.domain.dto.ReplyDTO;
+import social.domain.dto.*;
 import social.service.CommentService;
 
 @RestController
@@ -46,5 +44,10 @@ public class CommentController {
     @DeleteMapping("/deleteComment")
     public Result deleteComment(@RequestParam @NotNull(message = "评论id不能为空") Long commentId) {
         return commentService.deleteComment(commentId);
+    }
+    @ApiOperation(value = "举报")
+    @PostMapping("/report")
+    public Result reportComment(@Valid @RequestBody ReportDTO reportDTO) {
+        return commentService.reportComment(reportDTO);
     }
 }

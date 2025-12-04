@@ -58,4 +58,6 @@ public interface IAlbumService {
      * @return 专辑详情
      */
     Result<AlbumVO> getAlbumDetail(Long albumId);
+
+    Result<PageResp<AlbumVO>> queryPublicAlbum(int pageNum, int pageSize);
 }

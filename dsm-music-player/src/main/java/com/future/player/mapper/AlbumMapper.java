@@ -37,16 +37,6 @@ public interface AlbumMapper extends BaseMapper<Album> {
             @Param("userId") Long userId
     );
 
-    /**
-     * 【兼容版】不分页查询用户所有专辑（保留原方法，避免影响其他调用）
-     * @param userId 音乐人关联的用户ID
-     * @return 专辑 VO 列表
-     */
-    default List<AlbumVO> selectAlbumByUserId(@Param("userId") Long userId) {
-        // 调用分页方法，分页参数设为：第1页 + 最大条数（实现不分页查询）
-        Page<AlbumVO> page = new Page<>(1, Integer.MAX_VALUE);
-        return selectAlbumByUserId(page, userId).getRecords();
-    }
 
     /**
      * 分页搜索专辑：关键词匹配专辑名 或 音乐人艺名
@@ -72,4 +62,16 @@ public interface AlbumMapper extends BaseMapper<Album> {
             @Param("key") String key
     );
 
+    @Select("""
+            SELECT a.id, a.album_name, m.stage_name as musician_name, a.cover_url,\s
+                     a.release_date, a.introduction, a.status,\s
+                     a.collect_count, a.comment_count
+              FROM album a
+              INNER JOIN musician m ON a.musician_id = m.id
+              WHERE a.status = 1
+                AND a.musician_id IS NOT NULL
+              ORDER BY IF(a.collect_count IS NULL, 1, 0), a.collect_count DESC,
+                       IF(a.release_date IS NULL, 1, 0), a.release_date DESC  
+            """)
+    IPage<AlbumVO> selectAllPublicAlbum(Page<AlbumVO> page);
 }

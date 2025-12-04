@@ -14,6 +14,7 @@ import entity.pojo.music.Musician;
 import entity.pojo.util.PageResp;
 import entity.pojo.util.Result;
 import jakarta.annotation.Resource;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 
@@ -22,6 +23,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 public class AlbumServiceImpl implements IAlbumService {
 
@@ -198,6 +200,24 @@ public class AlbumServiceImpl implements IAlbumService {
             return Result.ok(convertToAlbumVO(album));
         } catch (Exception e) {
             return Result.fail("获取专辑详情失败：" + e.getMessage());
+        }
+    }
+
+    @Override
+    public Result<PageResp<AlbumVO>> queryPublicAlbum(int pageNum, int pageSize) {
+        try {
+            // 参数校验
+            if (pageNum < 1) pageNum = 1;
+            if (pageSize < 1 || pageSize > 100) pageSize = 10;
+
+            Page<AlbumVO> page = new Page<>(pageNum, pageSize);
+            IPage<AlbumVO> albumVOIPage = albumMapper.selectAllPublicAlbum(page);
+            PageResp<AlbumVO> pageResp = convertIPageToPageResp(albumVOIPage);
+
+            return Result.ok(pageResp);
+        } catch (Exception e) {
+            log.error("查询公开专辑分页失败", e); // 打印异常日志
+            return Result.fail("查询专辑失败，请稍后重试"); // 友好提示
         }
     }
 
