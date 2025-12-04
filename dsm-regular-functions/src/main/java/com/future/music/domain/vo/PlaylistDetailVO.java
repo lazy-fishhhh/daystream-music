@@ -21,5 +21,5 @@ public class PlaylistDetailVO {
     private Long commentCount;          // 评论数
     private Long collectionCount;       // 收藏数
 
-    private PageResp<MusicDetailVO> musicDetailVOList;  // 音乐
+    private PageResp<MusicVO> musicDetailVOList;  // 音乐
 }
