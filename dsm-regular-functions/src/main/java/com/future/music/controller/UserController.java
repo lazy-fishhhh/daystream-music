@@ -57,7 +57,7 @@ public class UserController {
 
     @ApiOperation(value = "获取明日签到可得音浪数")
     @GetMapping("/checkIn/getTomorrowSignInReward")
-    public Result<String> getTomorrowSignInReward() {
+    public Result<Integer> getTomorrowSignInReward() {
         return userService.getTomorrowSignInReward();
     }
 

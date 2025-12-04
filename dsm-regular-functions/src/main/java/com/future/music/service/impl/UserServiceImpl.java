@@ -28,6 +28,7 @@ import entity.pojo.search.SearchHistory;
 import entity.pojo.util.PageReq;
 import entity.pojo.util.PageResp;
 import entity.pojo.util.Result;
+import io.swagger.models.auth.In;
 import jakarta.annotation.Resource;
 import lombok.RequiredArgsConstructor;
 import org.redisson.api.RLock;
@@ -641,7 +642,7 @@ public class UserServiceImpl  implements IUserService {
     }
 
     @Override
-    public Result<String> getTomorrowSignInReward() {
+    public Result<Integer> getTomorrowSignInReward() {
         Long userId = SecurityUtil.getCurrentUserId();
         Integer data = getContinuousSignInDays().getData();
         int tomorrowSignInDays = data + 1;
@@ -655,6 +656,6 @@ public class UserServiceImpl  implements IUserService {
         } else if (tomorrowSignInDays >= 1){
             reward = 1;
         }
-        return Result.ok("当前连续签到天数：" + data + ",明日签到可得" + reward + "音浪");
+        return Result.ok(reward);
     }
 }
