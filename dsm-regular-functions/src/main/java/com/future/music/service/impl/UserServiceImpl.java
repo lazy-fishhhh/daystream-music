@@ -348,11 +348,16 @@ public class UserServiceImpl  implements IUserService {
         //     (RedisCallback<Long>) conn -> conn.bitCount(key.getBytes())
         // ).intValue();
 
+        // 获取明日可得音浪数
+        int tomorrowSignInReward = getTomorrowSignInReward().getData();
+
+
         // 6. 封装返回结果
         CheckInStatusVO result = new CheckInStatusVO();
         result.setCheckedIn(checkedIn);
         result.setContinuousDays(continuousDays);
         result.setMonthCheckInDays(monthCheckInDays);
+        result.setTomorrowSignInReward(tomorrowSignInReward);
 
         return Result.ok(result);
     }
