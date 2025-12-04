@@ -1,5 +1,7 @@
 package social.controller;
 
+import entity.pojo.social.CommunityPost;
+import entity.pojo.util.PageResp;
 import entity.pojo.util.Result;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
@@ -10,6 +12,8 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import social.domain.dto.CommunityDTO;
 import social.domain.dto.CommunityVOListDTO;
+import social.domain.dto.MyPostDTO;
+import social.domain.dto.UpdatePostDTO;
 import social.service.CommunityPostService;
 import social.service.Minio2Service;
 
@@ -54,5 +58,14 @@ public class CommunityPostController {
     public Result getDetailPost(@NotBlank(message = "动态id不能为空") @RequestParam String postId) {
         return communityPostService.getDetail(postId);
     }
-
+    @PostMapping("/updatePost")
+    @ApiOperation(value = "更新动态")
+    public Result updatePost(@Valid @RequestBody UpdatePostDTO updatePostDTO) {
+        return communityPostService.updatePost(updatePostDTO);
+    }
+    @PostMapping("/selectMypost")
+    @ApiOperation(value = "查询我的动态")
+    public Result<PageResp<CommunityPost>>  selectMypost(@Valid @RequestBody MyPostDTO myPostDTO) {
+        return communityPostService.selectMypost(myPostDTO);
+    }
 }

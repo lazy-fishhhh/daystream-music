@@ -1,6 +1,8 @@
 package social.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import entity.pojo.social.CommunityPost;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
@@ -46,4 +48,13 @@ public interface CommunityPostMapper extends BaseMapper<CommunityPost> {
                      @Param("authorId")Long authorId);
 
     Long selectAllLikeCount(Long authorId);
+
+    void updateTitleandContent(@Param("postId") Long postId,
+                               @Param("title") String title,
+                               @Param("content") String content);
+
+    IPage<CommunityPost> selectMypost(@Param("userId")Long userId,
+                                 @Param("page") Page<CommunityPost> page,
+                                 @Param("status")Integer status,
+                                 @Param("key")String key);
 }

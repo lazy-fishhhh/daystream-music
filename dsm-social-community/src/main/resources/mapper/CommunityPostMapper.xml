@@ -77,4 +77,29 @@
         where is_deleted=0
         and user_id=#{userId}
     </select>
+    <update id="updateTitleandContent">
+            update community_post
+            <if test="title!=null and title!=''">
+                 set title=#{title}
+            </if>
+            <if test="content!=null and content!=''">
+                 set content= #{content}
+            </if>
+            where id=#{postId}
+    </update>
+    <select id="selectMypost" resultType="entity.pojo.social.CommunityPost">
+        select * from community_post
+        where user_id=#{userId}
+        <if test="status!=null">
+            and is_deleted=#{status}
+        </if>
+        <if test="key!=null and key!=''">
+            <bind name="postkey" value="'%' + key + '%'"/>
+            AND (
+            title LIKE #{postkey}
+            OR content LIKE  #{postkey}
+            )
+        </if>
+        order by create_time desc
+    </select>
 </mapper>

@@ -2,10 +2,7 @@ package social.service;
 
 import entity.pojo.util.Result;
 import org.springframework.stereotype.Service;
-import social.domain.dto.CommentDTO;
-import social.domain.dto.CommentListDTO;
-import social.domain.dto.CommentReplyDTO;
-import social.domain.dto.ReplyDTO;
+import social.domain.dto.*;
 
 @Service
 public interface CommentService {
@@ -16,4 +13,6 @@ public interface CommentService {
     Result getReplyCommentList(ReplyDTO replyDTO);
 
     Result deleteComment(Long commentId);
+
+    Result reportComment(ReportDTO reportDTO);
 }

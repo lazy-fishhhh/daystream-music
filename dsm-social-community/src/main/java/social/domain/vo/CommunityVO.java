@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Data;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 public class CommunityVO {
@@ -64,4 +65,12 @@ public class CommunityVO {
      * 是否是vip
      */
     private Boolean isVip;
+    /**
+     * 是否是我本人的动态
+     */
+    private Boolean isMine;
+    /**
+     * 动态图片
+     */
+    private List<String> photos;
 }
