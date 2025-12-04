@@ -12,7 +12,8 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class Recommendation {
     private Long itemId;       // 歌曲ID
-    public Double score;      // 推荐得分
+    public Double score;      // 兴趣相似度得分（协同过滤专用，热门歌曲置null）
+    public Double hotScore;     // 热门得分（热门歌曲专用，协同过滤置null）
     private String songName;   // 歌曲名
     private String singer;     // 歌手
     private String coverUrl;   // 封面

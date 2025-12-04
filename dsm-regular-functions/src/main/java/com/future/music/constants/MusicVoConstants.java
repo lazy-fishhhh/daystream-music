@@ -5,4 +5,11 @@ public class MusicVoConstants {
     public static final String SONG_NAME = "songName";
     public static final String SINGER = "singer";
     public static final String COVER_URL = "coverUrl";
+
+    public static final String REDIS_ZSET_HOT_MUSIC = "recommend:hot:music"; // 热门歌曲ZSet（score=热门得分）
+    public static final long HOT_MUSIC_REFRESH_HOURS = 1;                    // 热门歌曲每1小时刷新一次
+    // 用户行为数据缓存Key
+    public static final String REDIS_KEY_USER_BEHAVIOR = "recommend:user:behavior";
+    // 缓存过期时间：12小时
+    public static final long REDIS_USER_BEHAVIOR_EXPIRE_HOURS = 12;
 }

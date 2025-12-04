@@ -28,6 +28,7 @@ import entity.pojo.search.SearchHistory;
 import entity.pojo.util.PageReq;
 import entity.pojo.util.PageResp;
 import entity.pojo.util.Result;
+import io.swagger.models.auth.In;
 import jakarta.annotation.Resource;
 import lombok.RequiredArgsConstructor;
 import org.redisson.api.RLock;
@@ -57,6 +58,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import static com.future.music.code.PlaylistErrorCode.PLAYLIST_NAME_EXIST;
+import static com.future.music.constants.SignConstants.*;
+import static com.future.music.constants.SignConstants.TOMORROW_SIGN_IN_DAYS_5_REWORD;
 import static com.future.music.util.constants.CHECK_IN_KEY;
 
 
@@ -236,7 +239,7 @@ public class UserServiceImpl  implements IUserService {
         // 4. 检查是否已签到
         Boolean isCheckedIn = stringRedisTemplate.opsForValue().getBit(key, offset);
         if (Boolean.TRUE.equals(isCheckedIn)) {
-            return Result.fail(400, "今日您已签到过了,明日再来吧~");
+            return Result.ok("今日您已签到过了,明日再来吧~");
         }
 
         // 5. 执行签到
@@ -262,25 +265,45 @@ public class UserServiceImpl  implements IUserService {
         int dayOfMonth = now.getDayOfMonth(); // 今天是本月的第几天
 
         // 2. 构造Redis键
-        String key = "user:checkIn:" + userId + ":" +
+        String key = CHECK_IN_KEY + userId + ":" +
                 now.format(DateTimeFormatter.ofPattern("yyyy:MM"));
 
         // 3. 从今天开始往前检查，直到找到未签到的天为止
         int continuousDays = 0;
 
-        // 从今天（偏移量=天数-1）开始往前检查
-        for (int offset = dayOfMonth - 1; offset >= 0; offset--) {
-            Boolean isSigned = stringRedisTemplate.opsForValue().getBit(key, offset);
+        Boolean todaySigned = stringRedisTemplate.opsForValue().getBit(key, dayOfMonth - 1);
+        if (Boolean.TRUE.equals(todaySigned)) {
+            // 今天签到了，从今天开始检查
+            // 从今天（偏移量=天数-1）开始往前检查
+            for (int offset = dayOfMonth - 1; offset >= 0; offset--) {
+                Boolean isSigned = stringRedisTemplate.opsForValue().getBit(key, offset);
 
-            // 如果今天已签到，继续往前一天检查
-            if (Boolean.TRUE.equals(isSigned)) {
-                continuousDays++;
-            } else {
-                // 找到未签到的天，结束循环
-                break;
+                // 如果该天已签到，继续往前一天检查
+                if (Boolean.TRUE.equals(isSigned)) {
+                    continuousDays++;
+                } else {
+                    // 找到未签到的天，结束循环
+                    break;
+                }
             }
-        }
 
+
+        }else  {
+            //今天没签到从昨天开始检查
+            // 从今天（偏移量=天数-1）开始往前检查
+            for (int offset = dayOfMonth - 2; offset >= 0; offset--) {
+                Boolean isSigned = stringRedisTemplate.opsForValue().getBit(key, offset);
+
+                // 如果今天已签到，继续往前一天检查
+                if (Boolean.TRUE.equals(isSigned)) {
+                    continuousDays++;
+                } else {
+                    // 找到未签到的天，结束循环
+                    break;
+                }
+            }
+
+        }
         return Result.ok(continuousDays);
     }
 
@@ -290,7 +313,7 @@ public class UserServiceImpl  implements IUserService {
         LocalDateTime now = LocalDateTime.now();
 
         // 1. 构造Redis键
-        String key = "user:checkIn:" + userId + ":" +
+        String key = CHECK_IN_KEY + userId + ":" +
                 now.format(DateTimeFormatter.ofPattern("yyyy:MM"));
 
         // 2. 获取今天是本月的第几天
@@ -302,15 +325,7 @@ public class UserServiceImpl  implements IUserService {
         boolean checkedIn = Boolean.TRUE.equals(todaySigned);
 
         // 4. 计算连续签到天数
-        int continuousDays = 0;
-        for (int offset = todayOffset; offset >= 0; offset--) {
-            Boolean isSigned = stringRedisTemplate.opsForValue().getBit(key, offset);
-            if (Boolean.TRUE.equals(isSigned)) {
-                continuousDays++;
-            } else {
-                break;
-            }
-        }
+        int continuousDays = getContinuousSignInDays().getData();
 
         // 5. 获取本月总签到天数（使用BITCOUNT命令）
         int monthCheckInDays = 0;
@@ -334,11 +349,18 @@ public class UserServiceImpl  implements IUserService {
         //     (RedisCallback<Long>) conn -> conn.bitCount(key.getBytes())
         // ).intValue();
 
+        // 获取明日可得音浪数
+        int tomorrowSignInReward = getTomorrowSignInReward().getData();
+        // 获取当前用户音浪数
+        Integer currentWaves = userMapper.selectMyWaves(userId);
+
         // 6. 封装返回结果
         CheckInStatusVO result = new CheckInStatusVO();
         result.setCheckedIn(checkedIn);
         result.setContinuousDays(continuousDays);
         result.setMonthCheckInDays(monthCheckInDays);
+        result.setTomorrowSignInReward(tomorrowSignInReward);
+        result.setCurrentWaves(currentWaves);
 
         return Result.ok(result);
     }
@@ -385,7 +407,7 @@ public class UserServiceImpl  implements IUserService {
 
                 List<HotSearch> hotSearchList = hotSearchMapper.selectList(queryWrapper);
 
-                // 5. 转换为 VO（原逻辑不变）
+                // 5. 转换为 VO
                 List<HotSearchVO> hotSearchVOList = new ArrayList<>();
                 for (HotSearch hotSearch : hotSearchList) {
                     HotSearchVO hotSearchVO = new HotSearchVO();
@@ -625,5 +647,23 @@ public class UserServiceImpl  implements IUserService {
             // 异常时返回空建议列表，不影响用户使用
             return Result.ok(new KeywordSuggestVO(List.of()));
         }
+    }
+
+    @Override
+    public Result<Integer> getTomorrowSignInReward() {
+        Long userId = SecurityUtil.getCurrentUserId();
+        Integer data = getContinuousSignInDays().getData();
+        int tomorrowSignInDays = data + 1;
+        int reward = 0;
+        if (tomorrowSignInDays >= TOMORROW_SIGN_IN_DAYS_7) {
+            reward = TOMORROW_SIGN_IN_DAYS_7_REWORD;
+        }else if (tomorrowSignInDays >= TOMORROW_SIGN_IN_DAYS_5 ) {
+            reward = TOMORROW_SIGN_IN_DAYS_5_REWORD;
+        } else if (tomorrowSignInDays >= TOMORROW_SIGN_IN_DAYS_3 ) {
+            reward = TOMORROW_SIGN_IN_DAYS_3_REWORD;
+        } else if (tomorrowSignInDays >= TOMORROW_SIGN_IN_DAYS_1 ){
+            reward = TOMORROW_SIGN_IN_DAYS_1_REWORD;
+        }
+        return Result.ok(reward);
     }
 }

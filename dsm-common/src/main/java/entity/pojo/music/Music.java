@@ -7,6 +7,7 @@ import lombok.NoArgsConstructor;
 
 import java.beans.Transient;
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Data
@@ -28,4 +29,5 @@ public class Music {
     private Integer status;          // 状态（0-待审核，1-上架，2-下架）
     private Long likeCount;          //点赞量
     private Long commentCount;       //评论量
+    private LocalDateTime createTime;
 }

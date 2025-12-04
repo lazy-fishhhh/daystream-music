@@ -36,7 +36,7 @@ public class UserController {
     private final IUserService userService;
     private final ScheduledTaskManager scheduledTaskManager;
 
-    @ApiOperation("每日推荐（个性化推荐）")
+    @ApiOperation(value = "每日推荐（个性化推荐）", notes = "根据用户相似度推荐20首歌曲，如果不足20首，则用热门歌曲补足")
     @GetMapping("/recommend")
     public Result<List<Recommendation>> recommend() {
         List<Recommendation> recommend = scheduledTaskManager.getRecommend();
@@ -53,6 +53,12 @@ public class UserController {
     @GetMapping("/checkIn/getContinuousSignInDays")
     public Result<Integer> getContinuousSignInDays() {
         return userService.getContinuousSignInDays();
+    }
+
+    @ApiOperation(value = "获取明日签到可得音浪数")
+    @GetMapping("/checkIn/getTomorrowSignInReward")
+    public Result<Integer> getTomorrowSignInReward() {
+        return userService.getTomorrowSignInReward();
     }
 
     @ApiOperation(value = "检查签到状态")

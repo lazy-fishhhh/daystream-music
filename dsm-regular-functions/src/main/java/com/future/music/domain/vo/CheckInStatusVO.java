@@ -17,4 +17,8 @@ public class CheckInStatusVO {
     private int continuousDays;
     // 本月签到天数
     private int monthCheckInDays;
+    // 明日签到可得音浪数
+    private int tomorrowSignInReward;
+    // 当前音浪数
+    private int currentWaves;
 }

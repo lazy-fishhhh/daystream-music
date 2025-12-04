@@ -23,6 +23,7 @@ import constants.MusicConstants;
 import constants.RedisCacheConstants;
 import constants.SystemConstants;
 import entity.dto.MusicDTO;
+import entity.dto.MusicFilterDTO;
 import entity.dto.SearchDTO;
 import entity.pojo.music.*;
 import entity.pojo.social.Comment;
@@ -47,6 +48,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Pattern;
 
 /**
  * 音乐服务实现类
@@ -307,10 +309,20 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
     // 辅助方法2：清理歌词内容（可选，解决编码/特殊字符问题）
     private String cleanLyricContent(String content) {
         if (content == null) return "";
-        // 替换全角空格、换行符统一、移除不可见字符
-        return content.replaceAll("\\s+", " ")
-                .replaceAll("\r\n", "\n")
-                .replaceAll("[\\x00-\\x1F\\x7F]", "");
+
+        // 步骤1：统一换行符（Windows \r\n → Unix \n）
+        String cleaned = MusicConstants.CRLF_PATTERN.matcher(content).replaceAll("\n");
+        // 步骤2：删除不可见控制字符（保留\n和\r，避免换行丢失）
+        cleaned = MusicConstants.CONTROL_CHAR_PATTERN.matcher(cleaned).replaceAll("");
+        // 步骤3：清理行首/行尾的多余空白（比如换行前的空格、行首制表符）
+        cleaned = MusicConstants.LINE_EDGE_SPACE_PATTERN.matcher(cleaned).replaceAll("");
+        // 步骤4：合并行内的连续空白（空格、全角空格、制表符等 → 单个半角空格）
+        cleaned = MusicConstants.LINE_BLANK_PATTERN.matcher(cleaned).replaceAll(" ");
+        // 步骤5：清理连续空行（可选，避免多行空白）
+        cleaned = cleaned.replaceAll("\\n{3,}", "\n\n"); // 3个及以上换行 → 2个换行（保留空行但不冗余）
+
+        // 最终去除首尾整体空白（可选，避免歌词开头/结尾有多余换行/空格）
+        return cleaned.trim();
     }
 
     /**
@@ -996,7 +1008,7 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
             // 组装返回VO
             MusicPlayVO playVO = new MusicPlayVO();
             MusicVO vo = getMusicVO(musicId);
-            BeanUtils.copyProperties(playVO, vo);
+            BeanUtils.copyProperties(vo, playVO);
             playVO.setAudioUrl(playUrl);
 
             return Result.ok(playVO);
@@ -1111,15 +1123,15 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
     }
 
     @Override
-    public Result<PageResp<MusicVO>> filterMusicByTags(List<Long> tags, int pageNum, int pageSize){
+    public Result<PageResp<MusicVO>> filterMusicByTags(MusicFilterDTO musicFilterDTO){
         // 1. 参数校验
-        if (CollectionUtils.isEmpty(tags)) {
+        if (CollectionUtils.isEmpty(musicFilterDTO.getTagIds())) {
             return Result.fail("标签不能为空");
         }
 
         // 2. 分页查询
-        Page<Music> page = new Page<>(pageNum, pageSize);
-        IPage<Music> musicIPage = musicMapper.selectMusicsByTagIds(page, tags, tags.size());
+        Page<Music> page = new Page<>(musicFilterDTO.getPageNum(), musicFilterDTO.getPageSize());
+        IPage<Music> musicIPage = musicMapper.selectMusicsByTagIds(page, musicFilterDTO.getTagIds(), musicFilterDTO.getTagIds().size());
 
         // 3. 转换VO
         List<MusicVO> voList = new ArrayList<>();

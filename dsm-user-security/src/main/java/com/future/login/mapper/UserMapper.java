@@ -5,6 +5,7 @@ import cn.hutool.log.Log;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import entity.pojo.info.User;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 
 import java.util.List;
@@ -14,4 +15,6 @@ public interface UserMapper extends BaseMapper<User> {
 
     @Select("select id from user")
     List<Long> selectAllUserId();
+    @Select("select wallet_balance from user where id = #{userId}")
+    Integer selectMyWaves(@Param("userId")Long userId);
 }

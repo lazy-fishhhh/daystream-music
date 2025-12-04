@@ -1,20 +1,24 @@
 package com.future.music.service.impl;
 
+import com.alibaba.fastjson2.JSON;
 import com.future.login.mapper.UserMapper;
 import com.future.login.util.SecurityUtil;
 import com.future.music.domain.vo.MusicVO;
 import com.future.music.mapper.MusicMapper;
 import entity.pojo.util.Recommendation;
+import entity.vo.MusicRecommendVO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.HashOperations;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.data.redis.core.ZSetOperations;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 import social.mapper.LikeRecord1Mapper;
+import util.MusicHotScoreCalculator;
 import util.UserBasedCF;
 
 import java.time.LocalDateTime;
@@ -81,7 +85,6 @@ public class ScheduledTaskManager {
 
             // 2. 初始化推荐算法
             UserBasedCF userBasedCF = new UserBasedCF(userBehavior);
-
             // 3. 为每个用户生成推荐结果并写入Redis
             int successCount = 0;
             List<Long> userIds = userMapper.selectAllUserId();
@@ -119,6 +122,8 @@ public class ScheduledTaskManager {
         // 1. 优先从Redis获取推荐结果
         List<Recommendation> cacheResult = readRecommendFromRedis(targetUser);
         if (!CollectionUtils.isEmpty(cacheResult)) {
+            // 缓存结果可能不足20首，补足
+            cacheResult = supplementRecommendToN(targetUser, cacheResult);
             log.info("【推荐接口】用户{}从Redis缓存获取推荐结果，数量：{}", targetUser, cacheResult.size());
             return cacheResult;
         }
@@ -127,7 +132,9 @@ public class ScheduledTaskManager {
         log.warn("【推荐接口】用户{}Redis缓存未命中，触发实时计算", targetUser);
         Map<Long, Set<Long>> userBehavior = loadAllUserBehavior();
         if (CollectionUtils.isEmpty(userBehavior)) {
-            return Collections.emptyList();
+            // 无用户行为数据，直接返回热门歌曲
+            log.info("【推荐接口】用户{}无行为数据，返回热门歌曲", targetUser);
+            return supplementRecommendToN(targetUser, Collections.emptyList());
         }
         UserBasedCF userBasedCF = new UserBasedCF(userBehavior);
         List<Recommendation> recommendList = generateUserRecommend(userBasedCF, targetUser);
@@ -139,6 +146,134 @@ public class ScheduledTaskManager {
         return recommendList;
     }
 
+
+    /**
+     * 定时任务：每12小时刷新热门歌曲列表
+     */
+    @Scheduled(cron = "0 0 */12 * * ?")
+    public void refreshHotMusicList() {
+        String taskName = "热门歌曲列表刷新任务";
+        log.info("【定时任务开始】{}，执行时间：{}", taskName, DATE_TIME_FORMATTER.format(LocalDateTime.now()));
+        long startTime = System.currentTimeMillis();
+
+        try {
+            // 1. 查询全量歌曲（按播放量预过滤，只查TOP200减少计算量）
+            List<MusicRecommendVO> allMusic = musicMapper.selectAllMusicWithStat();
+            if (CollectionUtils.isEmpty(allMusic)) {
+                log.warn("【定时任务警告】{}，无歌曲数据，跳过热门计算", taskName);
+                return;
+            }
+
+            // 2. 计算每首歌曲的热门得分
+            ZSetOperations<String, Object> zSetOps = redisTemplate.opsForZSet();
+            redisTemplate.delete(REDIS_ZSET_HOT_MUSIC); // 先删除旧数据
+
+            for (MusicRecommendVO music : allMusic) {
+                double hotScore = MusicHotScoreCalculator.calculateHotScore(music);
+                if (hotScore > 0) { // 得分>0才加入
+                    zSetOps.add(REDIS_ZSET_HOT_MUSIC, music.getId().toString(), hotScore);
+                    // 同步更新歌曲详情Hash
+                    String hashKey = REDIS_HASH_PREFIX + music.getId();
+                    HashOperations<String, String, Object> hashOps = redisTemplate.opsForHash();
+                    hashOps.put(hashKey, MUSIC_ID, music.getId().toString());
+                    hashOps.put(hashKey, SONG_NAME, StringUtils.hasText(music.getMusicName()) ? music.getMusicName() : "未知歌曲");
+                    hashOps.put(hashKey, SINGER, StringUtils.hasText(music.getMusicianName()) ? music.getMusicianName() : "未知歌手");
+                    hashOps.put(hashKey, COVER_URL, StringUtils.hasText(music.getCoverUrl()) ? music.getCoverUrl() : "默认封面URL");
+                    redisTemplate.expire(hashKey, REDIS_EXPIRE_DAYS, TimeUnit.DAYS);
+                }
+            }
+
+            // 3. 设置热门歌曲ZSet过期时间（7天）
+            redisTemplate.expire(REDIS_ZSET_HOT_MUSIC, REDIS_EXPIRE_DAYS, TimeUnit.DAYS);
+
+            long costTime = System.currentTimeMillis() - startTime;
+            log.info("【定时任务成功】{}，耗时{}ms，共计算{}首歌曲的热门得分", taskName, costTime, allMusic.size());
+        } catch (Exception e) {
+            log.error("【定时任务失败】{}，执行异常！", taskName, e);
+        }
+    }
+
+    /**
+     * 冷启动：补足推荐结果到N首（协同过滤结果 + 热门歌曲）
+     * @param userId 目标用户ID
+     * @param recommendList 协同过滤推荐结果
+     * @return 补足后的推荐列表（总数=N）
+     */
+    private List<Recommendation> supplementRecommendToN(Long userId, List<Recommendation> recommendList) {
+        if (CollectionUtils.isEmpty(recommendList)) {
+            recommendList = new ArrayList<>();
+        }
+        int needSupplement = N - recommendList.size();
+        if (needSupplement <= 0) {
+            return recommendList.subList(0, N); // 超过N首则截断
+        }
+
+        // 1. 从Redis获取热门歌曲（按得分降序）
+        ZSetOperations<String, Object> zSetOps = redisTemplate.opsForZSet();
+        Set<ZSetOperations.TypedTuple<Object>> hotMusicTuples = zSetOps.reverseRangeWithScores(REDIS_ZSET_HOT_MUSIC, 0, needSupplement - 1);
+        if (CollectionUtils.isEmpty(hotMusicTuples)) {
+            log.warn("【推荐补足】用户{}无足够热门歌曲补足，当前推荐数：{}", userId, recommendList.size());
+            return recommendList;
+        }
+
+        // 2. 这里不过滤掉热门歌曲中用户已喜欢的歌曲，因为QQ音乐偶尔也会推荐喜欢过的歌曲
+        //  如果想要过滤也很简单
+        //  Set<Long> likeRecordSongs =  userBehavior.get(userId)
+        //  if (likeRecordSongs.contains(redis中取出的热门歌曲id)) {
+        //         continue;
+        //      }
+        Set<Long> existingRecommendSongIds = recommendList.stream()
+                .map(Recommendation::getItemId)
+                .collect(Collectors.toSet());
+
+        // 3. 组装热门歌曲推荐结果
+        List<Recommendation> supplementList = new ArrayList<>();
+        for (ZSetOperations.TypedTuple<Object> tuple : hotMusicTuples) {
+            if (supplementList.size() >= needSupplement) {
+                break;
+            }
+            String songIdStr = tuple.getValue().toString();
+            Long songId;
+            try {
+                songId = Long.valueOf(songIdStr);
+            } catch (NumberFormatException e) {
+                log.warn("【推荐补足】歌曲ID格式错误：{}", songIdStr, e);
+                continue;
+            }
+            // 已在推荐列表中
+            if (existingRecommendSongIds.contains(songId)) {
+                continue;
+            }
+            // 从Hash获取歌曲详情
+            String hashKey = REDIS_HASH_PREFIX + songId;
+            HashOperations<String, String, Object> hashOps = redisTemplate.opsForHash();
+            String songName = getHashValue(hashOps, hashKey, SONG_NAME, songId, userId);
+            String singer = getHashValue(hashOps, hashKey, SINGER, songId, userId);
+            String coverUrl = getHashValue(hashOps, hashKey, COVER_URL, songId, userId);
+            if (songName == null || singer == null || coverUrl == null) {
+                continue;
+            }
+            // 封装热门歌曲推荐结果（得分=热门得分，标记为热门推荐）
+            Recommendation rec = new Recommendation();
+            rec.setItemId(songId);
+            // 非协同过滤推荐得分，置为null
+            rec.setScore(null);
+            // 热门得分 = Redis ZSet中的score值
+            rec.setHotScore(Optional.ofNullable(tuple.getScore()).orElse(0.0));
+            rec.setSongName(songName);
+            rec.setSinger(singer);
+            rec.setCoverUrl(coverUrl);
+            supplementList.add(rec);
+        }
+
+        // 4. 合并推荐结果（个性化在前，热门在后）
+        recommendList.addAll(supplementList);
+        log.info("【推荐补足】用户{}推荐结果补足完成，原数量：{}，补足后：{}", userId, recommendList.size() - supplementList.size(), recommendList.size());
+        return recommendList;
+    }
+
+
+
     /**
      * 加载全量用户行为数据（用户ID -> 喜欢的歌曲ID集合）
 
@@ -148,26 +283,35 @@ public class ScheduledTaskManager {
      * --> 由此得到userBehavior
      */
     private Map<Long, Set<Long>> loadAllUserBehavior() {
+        ValueOperations<String, Object> valueOps = redisTemplate.opsForValue();
+
+        // 1. 先从Redis缓存获取
+        String cacheJson = (String) valueOps.get(REDIS_KEY_USER_BEHAVIOR);
+        if (cacheJson != null && !cacheJson.isEmpty()) {
+            try {
+                // 反序列化JSON为Map<Long, Set<Long>>
+                return JSON.parseObject(cacheJson, new com.alibaba.fastjson2.TypeReference<Map<Long, Set<Long>>>() {});
+            } catch (Exception e) {
+                log.error("【用户行为缓存】反序列化失败，缓存JSON：{}", cacheJson, e);
+                // 反序列化失败，删除脏缓存
+                redisTemplate.delete(REDIS_KEY_USER_BEHAVIOR);
+            }
+        }
+
+        // 2. 缓存未命中/失效，查询DB
         Map<Long, Set<Long>> userBehavior = new HashMap<>();
         try {
-            // 1. 批量获取全量用户ID
             List<Long> userIds = userMapper.selectAllUserId();
             if (CollectionUtils.isEmpty(userIds)) {
                 return userBehavior;
             }
 
-            // 2. 批量查询用户点赞记录
             List<Map<String, Object>> likeRecordResults = likeRecord1Mapper.selectLikeSongsByUserIds(userIds);
             if (!CollectionUtils.isEmpty(likeRecordResults)) {
-                // 将查询结果转换为Map<Long, Set<Long>>格式并添加到userBehavior映射中
                 for (Map<String, Object> result : likeRecordResults) {
-                    // 数据库查询结果为map，键 as key 值 as value
-                    // 所以这里get("key") get("value")
                     Long userId = ((Number) result.get("key")).longValue();
                     String likeSongsStr = (String) result.get("value");
                     if (likeSongsStr != null) {
-                        // 从数据库中查询到的songIds 是用 ，分隔的字符串
-                        // 这里以逗号分割，收集成Set
                         Set<Long> likeSongs = Arrays.stream(likeSongsStr.split(","))
                                 .map(Long::parseLong)
                                 .collect(Collectors.toSet());
@@ -175,8 +319,13 @@ public class ScheduledTaskManager {
                     }
                 }
             }
-            
-            log.info("【数据加载】成功加载{}个用户的行为数据", userBehavior.size());
+            log.info("【数据加载】从DB加载{}个用户的行为数据", userBehavior.size());
+
+            // 3. 回写Redis缓存（设置过期时间）
+            String jsonStr = JSON.toJSONString(userBehavior);
+            valueOps.set(REDIS_KEY_USER_BEHAVIOR, jsonStr, REDIS_USER_BEHAVIOR_EXPIRE_HOURS, TimeUnit.HOURS);
+            log.info("【用户行为缓存】已写入Redis，过期时间{}小时", REDIS_USER_BEHAVIOR_EXPIRE_HOURS);
+
         } catch (Exception e) {
             log.error("【数据加载】加载用户行为数据失败", e);
         }
@@ -190,35 +339,27 @@ public class ScheduledTaskManager {
      * @return 含歌曲详情的推荐结果
      */
     private List<Recommendation> generateUserRecommend(UserBasedCF userBasedCF, Long userId) {
-        // 1. 调用算法生成推荐结果（仅含歌曲ID和得分）
+        // 1. 生成纯兴趣相似推荐结果（无热门歌曲）
         List<Recommendation> recommendList = userBasedCF.recommend(userId, K, N);
         if (CollectionUtils.isEmpty(recommendList)) {
-            log.info("【推荐生成】用户{}无推荐结果", userId);
-            return Collections.emptyList();
-        }
-
-        // 2. 组装歌曲详情 (这里数据库是批量查询，优化性能)
-        List<Long> songIds = recommendList.stream()
-                .map(Recommendation::getItemId)
-                .collect(Collectors.toList());
-        Map<Long, MusicVO> musicVOMap = batchQueryMusicDetail(songIds);
-
-        // 3. 填充歌曲详情到推荐结果
-        for (Recommendation recommendation : recommendList) {
-            Long songId = recommendation.getItemId();
-            MusicVO musicVO = musicVOMap.get(songId);
-            if (musicVO != null) {
-                // 拷贝歌曲详情到推荐结果
-                recommendation.setSongName(musicVO.getMusicName());
-                recommendation.setSinger(musicVO.getMusicianName());
-                recommendation.setCoverUrl(musicVO.getCoverUrl());
-            } else {
-                log.warn("【推荐生成】歌曲{}未查询到详情，用户{}", songId, userId);
+            log.info("【推荐生成】用户{}无协同过滤推荐结果，使用热门歌曲补足", userId);
+        } else {
+            // 组装歌曲详情 + 严格赋值：score=相似度，hotScore=null
+            List<Long> songIds = recommendList.stream().map(Recommendation::getItemId).collect(Collectors.toList());
+            Map<Long, MusicVO> musicVOMap = batchQueryMusicDetail(songIds);
+            for (Recommendation recommendation : recommendList) {
+                Long songId = recommendation.getItemId();
+                MusicVO musicVO = musicVOMap.get(songId);
+                if (musicVO != null) {
+                    recommendation.setSongName(musicVO.getMusicName());
+                    recommendation.setSinger(musicVO.getMusicianName());
+                    recommendation.setCoverUrl(musicVO.getCoverUrl());
+                }
+                recommendation.setHotScore(null); // 兴趣相似歌曲hotScore置空
             }
         }
-
-        log.info("【推荐生成】用户{}生成{}条推荐结果", userId, recommendList.size());
-        return recommendList;
+        // 2. 补足热门歌曲（此时recommendList是纯兴趣相似，补足后热门排在后面）
+        return supplementRecommendToN(userId, recommendList);
     }
 
     /**
@@ -260,6 +401,7 @@ public class ScheduledTaskManager {
             // 2. 批量写入ZSet（key=用户ID，value=歌曲ID，score=推荐得分）
             for (Recommendation rec : recommendList) {
                     // ZSet添加：歌曲ID作为value，推荐得分作为score（降序排列）
+
                     // 3. 写入ZSet（歌曲ID+得分）
                     zSetOps.add(zsetKey, rec.getItemId().toString(), rec.getScore());
 
@@ -268,7 +410,7 @@ public class ScheduledTaskManager {
                     // 校验核心字段，为空则填充默认值（避免写入null）
                     String songName = StringUtils.hasText(rec.getSongName()) ? rec.getSongName() : "未知歌曲";
                     String singer = StringUtils.hasText(rec.getSinger()) ? rec.getSinger() : "未知歌手";
-                    String coverUrl = StringUtils.hasText(rec.getCoverUrl()) ? rec.getCoverUrl() : "默认封面URL";
+                    String coverUrl = StringUtils.hasText(rec.getCoverUrl()) ? rec.getCoverUrl() : "未知url";
 
                     // 强制写入/更新字段（覆盖旧值）
                     hashOps.put(hashKey, MUSIC_ID, rec.getItemId().toString());
@@ -360,6 +502,8 @@ public class ScheduledTaskManager {
                 Recommendation rec = new Recommendation();
                 rec.setItemId(songId);
                 rec.setScore(score);
+                //协同过滤结果 → score保留，hotScore置空
+                rec.setHotScore(null);
                 rec.setSongName(songName);
                 rec.setSinger(singer);
                 rec.setCoverUrl(coverUrl);
