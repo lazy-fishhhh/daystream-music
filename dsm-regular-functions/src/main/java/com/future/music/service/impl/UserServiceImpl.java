@@ -263,7 +263,7 @@ public class UserServiceImpl  implements IUserService {
         int dayOfMonth = now.getDayOfMonth(); // 今天是本月的第几天
 
         // 2. 构造Redis键
-        String key = "user:checkIn:" + userId + ":" +
+        String key = CHECK_IN_KEY + userId + ":" +
                 now.format(DateTimeFormatter.ofPattern("yyyy:MM"));
 
         // 3. 从今天开始往前检查，直到找到未签到的天为止
@@ -302,7 +302,6 @@ public class UserServiceImpl  implements IUserService {
             }
 
         }
-
         return Result.ok(continuousDays);
     }
 
@@ -350,7 +349,8 @@ public class UserServiceImpl  implements IUserService {
 
         // 获取明日可得音浪数
         int tomorrowSignInReward = getTomorrowSignInReward().getData();
-
+        // 获取当前用户音浪数
+        Integer currentWaves = userMapper.selectMyWaves(userId);
 
         // 6. 封装返回结果
         CheckInStatusVO result = new CheckInStatusVO();
@@ -358,6 +358,7 @@ public class UserServiceImpl  implements IUserService {
         result.setContinuousDays(continuousDays);
         result.setMonthCheckInDays(monthCheckInDays);
         result.setTomorrowSignInReward(tomorrowSignInReward);
+        result.setCurrentWaves(currentWaves);
 
         return Result.ok(result);
     }
