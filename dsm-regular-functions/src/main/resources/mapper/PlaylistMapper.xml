@@ -46,6 +46,18 @@
         GROUP BY p.id
         ORDER BY p.play_count DESC
     </select>
+    <select id="selectPlaylistCreator" resultType="java.lang.String">
+        SELECT u.username
+        FROM playlist p
+        LEFT JOIN user u ON p.user_id = u.id
+        WHERE p.id = #{playlistId}
+    </select>
+    <select id="selectPlaylistCreatorAvator" resultType="java.lang.String">
+        SELECT u.avatar
+        FROM playlist p
+        LEFT JOIN user u ON p.user_id = u.id
+        WHERE p.id = #{playlistId}
+    </select>
 
 
 </mapper>

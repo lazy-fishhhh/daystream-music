@@ -16,4 +16,8 @@ public class ReplyCommentVO {
      * 父评论回复数
      */
     private Long parentCommentReplyCount;
+    /**
+     * 评论的详细信息
+     */
+    private ReplyCommentListVO detailReply;
 }

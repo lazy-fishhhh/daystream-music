@@ -27,7 +27,7 @@ public interface CommentMapper extends BaseMapper<Comment> {
     Long hasmore(@Param("targetId")Long targetId, @Param("lastId")Long lastId);
     Long hasmoreparent(@Param("targetId")Long targetId, @Param("lastId")Long lastId);
     CommentListVO commentListvo(@Param("targetId")Long targetId);
-
+    ReplyCommentListVO ReplyCommentVO(@Param("targetId")Long targetId);
     //更新回复数
     @Update("update comment set reply_count=reply_count+1 where id=#{targetId}")
     void updateReplyCountup(Long targetId);
@@ -55,17 +55,4 @@ public interface CommentMapper extends BaseMapper<Comment> {
     Long selectTargetId(@Param("targetId")Long targetId,
                         @Param("type")Integer type,
                         @Param("userId")Long userId);
-    @Select("""
-    WITH RECURSIVE comment_tree AS (
-        -- 初始：直接子评论
-        SELECT id FROM comment WHERE parent_id = #{parentId} AND status = 1
-        UNION ALL
-        -- 递归：子评论的子评论
-        SELECT c.id FROM comment c
-        INNER JOIN comment_tree ct ON c.parent_id = ct.id
-        WHERE c.status = 1
-    )
-    SELECT id FROM comment_tree;
-""")
-    List<Long> selectAllDescendantIds(@Param("parentId") Long parentId);
 }

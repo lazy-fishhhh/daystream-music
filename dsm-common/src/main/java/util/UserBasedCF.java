@@ -1,7 +1,6 @@
 package util;
 
 import entity.pojo.util.Recommendation;
-import org.springframework.stereotype.Component;
 
 import java.util.*;
 
@@ -86,7 +85,10 @@ public class UserBasedCF {
             // 跳过目标用户自身（自身相似度无意义）
             if (!otherUser.equals(targetUser)) {
                 double similarity = calculateSimilarity(targetUser, otherUser);
-                // 即使相似度为0也加入列表（后续排序会自然排到末尾）
+                // 相似度为0,这属于无贡献数据,不要加入集合
+                if (similarity == 0.0) {
+                    continue;
+                }
                 similarities.add(new UserSimilarity(otherUser, similarity));
             }
         }
@@ -202,44 +204,44 @@ public class UserBasedCF {
 
 
 
-    /**
-     * 测试主方法：验证算法核心逻辑
-     * 测试数据说明：
-     * - 用户映射：A=1, B=2, C=3, D=4
-     * - 物品映射：a=101, b=102, c=103, d=104, e=105
-     * 预期结果：
-     * - A(1)和D(4)的相似度：1/√(3×3)=1/3≈0.333
-     * - 给A(1)的推荐：e(105)、d(104)（仅这两个物品符合条件）
-     */
-    public static void main(String[] args) {
-        // 1. 构建测试用的用户行为数据
-        Map<Long, Set<Long>> userBehavior = new HashMap<>();
-
-        // 用户1（原A）：听过歌曲101(a)、102(b)、103(c)
-        userBehavior.put(1L, new HashSet<>(Arrays.asList(101L, 102L, 103L)));
-        // 用户2（原B）：听过歌曲101(a)、104(d)
-        userBehavior.put(2L, new HashSet<>(Arrays.asList(101L, 104L)));
-        // 用户3（原C）：听过歌曲101(a)、102(b)、105(e)
-        userBehavior.put(3L, new HashSet<>(Arrays.asList(101L, 102L, 105L)));
-        // 用户4（原D）：听过歌曲103(c)、104(d)、105(e)
-        userBehavior.put(4L, new HashSet<>(Arrays.asList(103L, 104L, 105L)));
-
-        // 2. 初始化推荐器
-        UserBasedCF recommender = new UserBasedCF(userBehavior);
-
-        // 3. 测试相似度计算：验证A(1)和D(4)的相似度
-        double similarityAD = recommender.calculateSimilarity(1L, 4L);
-        System.out.println("用户1(原A)和用户4(原D)的相似度: " + String.format("%.3f", similarityAD));
-        // 预期输出：0.333
-
-        // 4. 测试推荐逻辑：为用户1(原A)推荐Top3物品（实际仅2个符合条件）
-        List<Recommendation> recommendations = recommender.recommend(1L, 3, 3);
-        System.out.println("给用户1(原A)的推荐: " + recommendations);
-        // 预期输出：[(物品ID: 105, 推荐得分: 0.667), (物品ID: 104, 推荐得分: 0.577)]
-        // 得分计算说明：
-        // - 105(e)：用户3(相似度≈0.816) + 用户4(相似度≈0.333) → 0.816+0.333≈1.149？实际需重新计算：
-        //   修正：用户1与用户2相似度=1/√(3×2)=√6/6≈0.408；用户1与用户3相似度=2/√(3×3)=2/3≈0.667；用户1与用户4相似度=1/3≈0.333
-        //   105(e)：用户3的相似度0.667 → 得分0.667
-        //   104(d)：用户2(0.408) + 用户4(0.333) → 0.741（因浮点数精度，实际输出≈0.741）
-    }
+//    /**
+//     * 测试主方法：验证算法核心逻辑
+//     * 测试数据说明：
+//     * - 用户映射：A=1, B=2, C=3, D=4
+//     * - 物品映射：a=101, b=102, c=103, d=104, e=105
+//     * 预期结果：
+//     * - A(1)和D(4)的相似度：1/√(3×3)=1/3≈0.333
+//     * - 给A(1)的推荐：e(105)、d(104)（仅这两个物品符合条件）
+//     */
+//    public static void main(String[] args) {
+//        // 1. 构建测试用的用户行为数据
+//        Map<Long, Set<Long>> userBehavior = new HashMap<>();
+//
+//        // 用户1（原A）：听过歌曲101(a)、102(b)、103(c)
+//        userBehavior.put(1L, new HashSet<>(Arrays.asList(101L, 102L, 103L)));
+//        // 用户2（原B）：听过歌曲101(a)、104(d)
+//        userBehavior.put(2L, new HashSet<>(Arrays.asList(101L, 104L)));
+//        // 用户3（原C）：听过歌曲101(a)、102(b)、105(e)
+//        userBehavior.put(3L, new HashSet<>(Arrays.asList(101L, 102L, 105L)));
+//        // 用户4（原D）：听过歌曲103(c)、104(d)、105(e)
+//        userBehavior.put(4L, new HashSet<>(Arrays.asList(103L, 104L, 105L)));
+//
+//        // 2. 初始化推荐器
+//        UserBasedCF recommender = new UserBasedCF(userBehavior);
+//
+//        // 3. 测试相似度计算：验证A(1)和D(4)的相似度
+//        double similarityAD = recommender.calculateSimilarity(1L, 4L);
+//        System.out.println("用户1(原A)和用户4(原D)的相似度: " + String.format("%.3f", similarityAD));
+//        // 预期输出：0.333
+//
+//        // 4. 测试推荐逻辑：为用户1(原A)推荐Top3物品（实际仅2个符合条件）
+//        List<Recommendation> recommendations = recommender.recommend(1L, 3, 3);
+//        System.out.println("给用户1(原A)的推荐: " + recommendations);
+//        // 预期输出：[(物品ID: 105, 推荐得分: 0.667), (物品ID: 104, 推荐得分: 0.577)]
+//        // 得分计算说明：
+//        // - 105(e)：用户3(相似度≈0.816) + 用户4(相似度≈0.333) → 0.816+0.333≈1.149？实际需重新计算：
+//        //   修正：用户1与用户2相似度=1/√(3×2)=√6/6≈0.408；用户1与用户3相似度=2/√(3×3)=2/3≈0.667；用户1与用户4相似度=1/3≈0.333
+//        //   105(e)：用户3的相似度0.667 → 得分0.667
+//        //   104(d)：用户2(0.408) + 用户4(0.333) → 0.741（因浮点数精度，实际输出≈0.741）
+//    }
 }

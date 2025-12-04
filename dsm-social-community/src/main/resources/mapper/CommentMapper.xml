@@ -68,6 +68,17 @@
         where parent_id = #{targetId}
         and status = 1
     </select>
+    <select id="ReplyCommentVO" resultType="social.domain.vo.ReplyCommentListVO">
+        select c.id,c.content,c.user_id,c.created_time,c.parent_id,c.like_count,
+        u.username,u.avatar,c.reply_to_user_id as replyUserId,
+        ru.username as replyUsername
+        from
+        comment c
+        left join user u on c.user_id = u.id
+        left join user ru on c.reply_to_user_id = ru.id
+        where c.id = #{targetId}
+        and c.status = 1
+    </select>
     <update id="deleteComment">
         update comment
         set status = 0

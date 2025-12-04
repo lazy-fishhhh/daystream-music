@@ -160,6 +160,7 @@ public class CommunityPostServiceImpl implements CommunityPostService {
         }else {
             detailVO.setIsFollow(false);
         }
+
         //是否点赞
         LambdaQueryWrapper<LikeRecord> lambdaQueryWrapper2=new LambdaQueryWrapper<>();
         lambdaQueryWrapper2.eq(LikeRecord::getUserId,currentUserId)
@@ -186,6 +187,16 @@ public class CommunityPostServiceImpl implements CommunityPostService {
         else{
             detailVO.setIsVip(false);
         }
+        //是否是我本人的动态
+        if(currentUserId.equals(detailVO.getAuthorId()))
+        {
+            detailVO.setIsMine(true);
+        }else {
+            detailVO.setIsMine(false);
+        }
+        //查询作者的获赞数
+        Long authorLikeCount= communityPostMapper.selectAllLikeCount(detailVO.getAuthorId());
+        detailVO.setAuthorLikeCount(authorLikeCount);
         return Result.ok(detailVO);
         }
     }
