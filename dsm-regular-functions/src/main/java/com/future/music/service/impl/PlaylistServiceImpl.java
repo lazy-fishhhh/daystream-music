@@ -1,5 +1,6 @@
 package com.future.music.service.impl;
 
+import com.alibaba.fastjson2.JSON;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
@@ -13,6 +14,7 @@ import com.future.music.mapper.PlaylistMusicMapper;
 import com.future.music.service.IMusicService;
 import com.future.music.service.IPlaylistService;
 import constants.MusicTagTypeConstants;
+import constants.RedisCacheConstants;
 import entity.dto.PlaylistFilterDTO;
 import entity.dto.SearchDTO;
 import entity.pojo.info.User;
@@ -21,12 +23,16 @@ import entity.pojo.util.PageResp;
 import entity.pojo.util.Result;
 import jakarta.annotation.Resource;
 import org.jetbrains.annotations.NotNull;
+import org.redisson.api.RLock;
+import org.redisson.api.RedissonClient;
 import org.springframework.beans.BeanUtils;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 @Service
@@ -47,7 +53,11 @@ public class PlaylistServiceImpl implements IPlaylistService {
     @Resource
     private UserMapper userMapper;
 
+    @Resource
+    private StringRedisTemplate stringRedisTemplate;
 
+    @Resource
+    private RedissonClient redissonClient;
 
     /**
      * 根据歌单ID查询歌单详情（包含基本信息和关联歌曲ID）
@@ -56,43 +66,106 @@ public class PlaylistServiceImpl implements IPlaylistService {
      */
     @Override
     public Result<PlaylistDetailVO> getPlaylistDetail(Long playlistId, int pageNum, int pageSize) {
-        if (playlistId == null || playlistId <= 0) {
-            return Result.fail("歌单ID出错");
-        }
+        try {
+            // 1. 校验参数有效性
+            if (playlistId == null || playlistId <= 0) {
+                return Result.fail("歌单ID出错");
+            }
+            if (pageNum <= 0) pageNum = 1;
+            if (pageSize <= 0 || pageSize > 50) pageSize = 20; // 限制每页最大条数，避免缓存过大
 
-        // 1. 查询歌单基本信息
-        Playlist playlist = playlistMapper.selectById(playlistId);
-        if (playlist == null) {
-            return Result.fail("歌单不存在");
-        }
+            // 2. 构建缓存 Key（包含歌单ID + 分页参数，确保唯一）
+            String cacheKey = RedisCacheConstants.CACHE_KEY_PLAYLIST_DETAIL + playlistId + ":" + pageNum + ":" + pageSize;
+
+            // 3. 先查 Redis 缓存（手动序列化/反序列化）
+            String cacheJson = stringRedisTemplate.opsForValue().get(cacheKey);
+            if (cacheJson != null) {
+                // 缓存命中，直接反序列化返回
+                if (cacheJson.isEmpty()) { // 空值缓存（防止缓存穿透）
+                    return Result.fail("歌单不存在");
+                }
+                // 缓存命中：刷新过期时间（续命）
+                stringRedisTemplate.expire(cacheKey, RedisCacheConstants.CACHE_SHORT_TTL, TimeUnit.SECONDS);
+                PlaylistDetailVO cacheVO = JSON.parseObject(cacheJson, PlaylistDetailVO.class);
+                return Result.ok(cacheVO);
+            }
+
+            // 4. 高并发场景：加分布式锁（可选，防止缓存击穿）
+            boolean isLockAcquired = false;
+            RLock lock = redissonClient.getLock(RedisCacheConstants.LOCK_KEY_PLAYLIST_DETAIL + playlistId + ":" + pageNum + ":" + pageSize);
+            try {
+                // 尝试获取锁（3秒等待，30秒自动释放）
+                 isLockAcquired = lock.tryLock(3, 30, TimeUnit.SECONDS);
+                 if (!isLockAcquired) {
+                     return Result.fail("当前查询人数较多，请稍后重试");
+                 }
+
+                // 双重检查缓存（防止其他线程已重建缓存）
+                cacheJson = stringRedisTemplate.opsForValue().get(cacheKey);
+                if (cacheJson != null) {
+                    if (cacheJson.isEmpty()) {
+                        return Result.fail("歌单不存在");
+                    }
+                    PlaylistDetailVO cacheVO = JSON.parseObject(cacheJson, PlaylistDetailVO.class);
+                    return Result.ok(cacheVO);
+                }
+
+                // 5. 缓存未命中，查 DB 聚合数据
+                // 5.1 查询歌单基本信息
+                Playlist playlist = playlistMapper.selectById(playlistId);
+                if (playlist == null) {
+                    // 缓存空值（5分钟过期，防止穿透）
+                    stringRedisTemplate.opsForValue().set(cacheKey, "", 300, TimeUnit.SECONDS);
+                    return Result.fail("歌单不存在");
+                }
 
         // 2. 查询歌单包含的歌曲ID列表（关联表查询）
         Page<Music> page = new Page<>(pageNum,pageSize);
         IPage<Music> musicPage = playlistMusicMapper.selectMusicsByPlaylistId(page, playlistId);
+        //  查询歌单创建者
+        String creator = playlistMapper.selectPlaylistCreator(playlistId);
+        String avatar = playlistMapper.selectPlaylistCreatorAvator(playlistId);
 
         // 3. 封装成VO（视图对象，用于返回给前端）
         PlaylistDetailVO detailVO = new PlaylistDetailVO();
+        detailVO.setAvatar(avatar);
+        detailVO.setCreator(creator);
         // 复制基本属性（使用BeanUtils简化代码）
         BeanUtils.copyProperties(playlist, detailVO);
 
-        List<MusicDetailVO> voList = new ArrayList<>();
-        for (Music music : musicPage.getRecords()) {
-            Result<MusicDetailVO> result = musicService.getOneMusic(music.getId());
-            if (result.getErrorMsg() != null) {
-                return Result.fail(result.getErrorMsg());
+                // 5.4 批量获取音乐详情（依赖 musicService.getOneMusic 的缓存，性能最优）
+                List<MusicVO> voList = new ArrayList<>();
+                for (Music music : musicPage.getRecords()) {
+                    MusicVO musicVO = musicService.getMusicVO(music.getId());
+                    if (musicVO == null) {
+                        // 若单首音乐查询失败，可跳过或返回失败（根据业务选择）
+                        // 方案2：返回失败（严格保证数据完整性）
+                        return Result.fail("音乐ID " + music.getId() + " 不存在");
+                    }
+                    voList.add(musicVO);
+                }
+
+                // 5.5 封装分页结果
+                PageResp<MusicVO> pageResult = new PageResp<>();
+                pageResult.setRecords(voList);
+                pageResult.setTotal(musicPage.getTotal());
+                pageResult.setPages(musicPage.getPages());
+                detailVO.setMusicDetailVOList(pageResult);
+
+                // 6. 写入 Redis 缓存（手动序列化）
+                String jsonStr = JSON.toJSONString(detailVO);
+                stringRedisTemplate.opsForValue().set(cacheKey, jsonStr, RedisCacheConstants.CACHE_SHORT_TTL, TimeUnit.SECONDS);
+
+                return Result.ok(detailVO);
+            } finally {
+                // 释放分布式锁（若使用）
+                 if (isLockAcquired && lock.isHeldByCurrentThread()) {
+                     lock.unlock();
+                 }
             }
-            MusicDetailVO vo = result.getData();
-            voList.add(vo);
+        } catch (Exception e) {
+            return Result.fail("查询歌单详情失败：" + e.getMessage());
         }
-
-        PageResp<MusicDetailVO> pageResult = new PageResp<>();
-        pageResult.setRecords(voList);
-        pageResult.setTotal(musicPage.getTotal());
-        pageResult.setPages(musicPage.getPages());
-
-        detailVO.setMusicDetailVOList(pageResult);
-
-        return Result.ok(detailVO);
     }
 
     /**
@@ -142,21 +215,63 @@ public class PlaylistServiceImpl implements IPlaylistService {
      */
     @Override
     public Result<MusicFilterTagVO> getAllFilterTags() {
-        MusicFilterTagVO result = new MusicFilterTagVO();
+        try {
+            // 1. 先查 Redis 缓存（手动反序列化）
+            String cacheJson = stringRedisTemplate.opsForValue().get(RedisCacheConstants.CACHE_KEY_ALL_FILTER_TAGS);
+            if (cacheJson != null && !cacheJson.isEmpty()) {
+                // 缓存命中：刷新过期时间（续命）
+                stringRedisTemplate.expire(RedisCacheConstants.CACHE_KEY_ALL_FILTER_TAGS, RedisCacheConstants.CACHE_QUESTIONNAIRE_TTL, TimeUnit.SECONDS);
+                // 缓存命中，直接反序列化返回（无需空值判断，因标签一定存在）
+                MusicFilterTagVO cacheVO = JSON.parseObject(cacheJson, MusicFilterTagVO.class);
+                return Result.ok(cacheVO);
+            }
 
-        // 1. 按新标签类型查询（1=流派、2=心情、3=场景、4=乐器）
-        List<MusicTag> genreTags = musicTagMapper.selectTagsByType(MusicTagTypeConstants.GENRE);
-        List<MusicTag> moodTags = musicTagMapper.selectTagsByType(MusicTagTypeConstants.MOOD);
-        List<MusicTag> sceneTags = musicTagMapper.selectTagsByType(MusicTagTypeConstants.SCENE);
-        List<MusicTag> instrumentTags = musicTagMapper.selectTagsByType(MusicTagTypeConstants.INSTRUMENT);
+            // 2. 高并发场景：加分布式锁（可选，防止缓存过期瞬间少量并发查库）
+            boolean isLockAcquired = false;
+            RLock lock = redissonClient.getLock(RedisCacheConstants.LOCK_KEY_FILTER_TAGS);
+            try {
+                // 尝试获取锁（3秒等待，30秒自动释放）
+                 isLockAcquired = lock.tryLock(3, 30, TimeUnit.SECONDS);
+                 if (!isLockAcquired) {
+                     return Result.fail("当前查询人数较多，请稍后重试");
+                 }
 
-        // 2. 转换为VO
-        result.setGenreTags(convertToVO(genreTags));
-        result.setMoodTags(convertToVO(moodTags));
-        result.setSceneTags(convertToVO(sceneTags));
-        result.setInstrumentTags(convertToVO(instrumentTags));
+                // 双重检查缓存（防止其他线程已重建缓存）
+                cacheJson = stringRedisTemplate.opsForValue().get(RedisCacheConstants.CACHE_KEY_ALL_FILTER_TAGS);
+                if (cacheJson != null && !cacheJson.isEmpty()) {
+                    MusicFilterTagVO cacheVO = JSON.parseObject(cacheJson, MusicFilterTagVO.class);
+                    return Result.ok(cacheVO);
+                }
 
-        return Result.ok(result);
+                // 3. 缓存未命中，查 DB 聚合数据（原逻辑不变）
+                MusicFilterTagVO result = new MusicFilterTagVO();
+
+                // 按标签类型查询
+                List<MusicTag> genreTags = musicTagMapper.selectTagsByType(MusicTagTypeConstants.GENRE);
+                List<MusicTag> moodTags = musicTagMapper.selectTagsByType(MusicTagTypeConstants.MOOD);
+                List<MusicTag> sceneTags = musicTagMapper.selectTagsByType(MusicTagTypeConstants.SCENE);
+                List<MusicTag> instrumentTags = musicTagMapper.selectTagsByType(MusicTagTypeConstants.INSTRUMENT);
+
+                // 转换为 VO
+                result.setGenreTags(convertToVO(genreTags));
+                result.setMoodTags(convertToVO(moodTags));
+                result.setSceneTags(convertToVO(sceneTags));
+                result.setInstrumentTags(convertToVO(instrumentTags));
+
+                // 4. 手动序列化并写入 Redis（设置 7 天过期）
+                String jsonStr = JSON.toJSONString(result);
+                stringRedisTemplate.opsForValue().set(RedisCacheConstants.CACHE_KEY_ALL_FILTER_TAGS, jsonStr, RedisCacheConstants.CACHE_QUESTIONNAIRE_TTL, TimeUnit.SECONDS);
+
+                return Result.ok(result);
+            } finally {
+                // 释放分布式锁（若使用）
+                 if (isLockAcquired && lock.isHeldByCurrentThread()) {
+                     lock.unlock();
+                 }
+            }
+        } catch (Exception e) {
+            return Result.fail("获取筛选标签失败：" + e.getMessage());
+        }
     }
     /**
      * MusicTag 转 MusicTagVO

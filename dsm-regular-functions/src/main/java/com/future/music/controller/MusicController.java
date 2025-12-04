@@ -5,14 +5,18 @@ import com.future.login.util.SecurityUtil;
 import com.future.music.domain.dto.MusicPlayReportDTO;
 import com.future.music.domain.vo.EchoMusicVO;
 import com.future.music.domain.vo.MusicDetailVO;
+import com.future.music.domain.vo.MusicFilterTagVO;
 import com.future.music.domain.vo.MusicPlayVO;
+import com.future.music.mapper.PlaylistMapper;
 import com.future.music.service.IMusicService;
+import com.future.music.service.IPlaylistService;
 import com.future.player.entity.vo.AlbumVO;
 import com.future.player.mapper.AlbumMapper;
 import entity.dto.MusicDTO;
 import entity.pojo.util.Result;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
+import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
@@ -31,6 +35,15 @@ public class MusicController {
 
     @Autowired
     private AlbumMapper albumMapper;
+
+    @Resource
+    private IPlaylistService playlistService;
+
+    @ApiOperation(value = "获取所有可选筛选标签")
+    @GetMapping("/all-tags")
+    public Result<MusicFilterTagVO> getAllFilterTags() {
+        return playlistService.getAllFilterTags();
+    }
 
     @ApiOperation(value = "上传音乐")
     @PostMapping

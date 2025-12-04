@@ -55,6 +55,14 @@ public class UserController {
         return userService.getContinuousSignInDays();
     }
 
+    @ApiOperation(value = "检查签到状态")
+    @GetMapping("/checkIn/getCheckInStatus")
+    public Result<CheckInStatusVO> getCheckInStatus() {
+        return userService.getCheckInStatus();
+    }
+
+
+
     @ApiOperation(value = "搜索")
     @PostMapping("/search")
     public Result<PageResp<?>> search(@Validated @RequestBody SearchDTO searchDTO) {

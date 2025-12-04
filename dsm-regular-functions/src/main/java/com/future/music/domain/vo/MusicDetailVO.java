@@ -15,7 +15,8 @@ import java.util.List;
 @NoArgsConstructor
 public class MusicDetailVO extends MusicVO {
     private List<String> tags;          // 歌曲标签（需关联标签表）
-    private List<LyricLineDTO> syncLyric;// 结构化同步歌词（毫秒级时间戳）
     private String lyricType;           // 歌词文件类型
     private String lyricUrl;            // 歌词文件地址
+    private List<LyricLineDTO> syncLyric; // LRC/KRC同步歌词（带时间戳）
+    private String rawLyricText; // TXT纯文本歌词（无时间戳，保留换行）
 }

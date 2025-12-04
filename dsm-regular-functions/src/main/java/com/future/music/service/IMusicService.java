@@ -27,6 +27,8 @@ public interface IMusicService extends IService<Music> {
     Result<Void> updateMusic(Long musicId, MusicDTO musicDTO,
                        MultipartFile lyric, MultipartFile cover, Map<Integer, MultipartFile> audioMap);
 
+    MusicVO getMusicVO(Long musicId);
+
     Result<MusicDetailVO> getOneMusic(Long musicId);
 
     PageResp<MusicVO> searchMusic(SearchDTO dto);
