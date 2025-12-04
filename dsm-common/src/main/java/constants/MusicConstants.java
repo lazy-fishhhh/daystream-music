@@ -1,5 +1,7 @@
 package constants;
 
+import java.util.regex.Pattern;
+
 /**
  * 音乐、音质、格式相关常量
  */
@@ -33,4 +35,12 @@ public class MusicConstants {
     // 缓存 Key 前缀 + 过期时间（1小时，可根据业务调整）
     public static final String CACHE_KEY_MUSIC_DETAIL = "music:detail:";
     public static final long CACHE_TTL_SECONDS = 3600;
+
+    /**
+     * 匹配连续的空白字符（包括空格、制表符、换页符等）
+     */
+    public static final Pattern LINE_BLANK_PATTERN = Pattern.compile("[ \\t\\f\\u00A0]+");
+    public static final Pattern CRLF_PATTERN = Pattern.compile("\\r\\n");
+    public static final Pattern CONTROL_CHAR_PATTERN = Pattern.compile("[\\x00-\\x08\\x0B\\x0C\\x0E-\\x1F\\x7F]");
+    public static final Pattern LINE_EDGE_SPACE_PATTERN = Pattern.compile("(?m)^\\s+|\\s+$");
 }

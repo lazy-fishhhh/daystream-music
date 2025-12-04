@@ -29,7 +29,7 @@ public interface AlbumMapper extends BaseMapper<Album> {
                    a.collect_count, a.comment_count
             FROM album a
             LEFT JOIN musician m ON a.musician_id = m.id
-            WHERE a.musician_id = #{userId}
+            WHERE m.user_id = #{userId}
             ORDER BY a.release_date DESC
             """)
     IPage<AlbumVO> selectAlbumByUserId(

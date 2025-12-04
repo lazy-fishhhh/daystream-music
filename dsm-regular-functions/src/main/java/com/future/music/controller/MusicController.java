@@ -46,8 +46,8 @@ public class MusicController {
     }
 
     @ApiOperation(value = "上传音乐")
-    @PostMapping
-    public Result<Void> saveMusic(@RequestPart("musicDTO") MusicDTO musicDTO,
+    @PostMapping("/upload")
+    public Result<Void> saveMusic(@RequestPart() MusicDTO musicDTO,
                             @RequestPart("lyric") MultipartFile lyric,
                             @RequestPart("cover") MultipartFile cover,
                             @RequestPart(value = "audio_1", required = false) MultipartFile audio1,  // 音质1：标准
