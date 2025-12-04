@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.extension.service.IService;
 import com.future.music.domain.dto.MusicPlayReportDTO;
 import com.future.music.domain.vo.*;
 import entity.dto.MusicDTO;
+import entity.dto.MusicFilterDTO;
 import entity.dto.SearchDTO;
 import entity.pojo.music.Music;
 import entity.pojo.util.PageResp;
@@ -38,6 +39,6 @@ public interface IMusicService extends IService<Music> {
 
     Result<Void> reportPlayStatus(MusicPlayReportDTO dto);
 
-    Result<PageResp<MusicVO>> filterMusicByTags(List<Long> tags, int pageNum, int pageSize);
+    Result<PageResp<MusicVO>> filterMusicByTags(MusicFilterDTO musicFilterDTO);
 
 }

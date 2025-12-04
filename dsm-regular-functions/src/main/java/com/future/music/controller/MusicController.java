@@ -3,22 +3,21 @@ package com.future.music.controller;
 
 import com.future.login.util.SecurityUtil;
 import com.future.music.domain.dto.MusicPlayReportDTO;
-import com.future.music.domain.vo.EchoMusicVO;
-import com.future.music.domain.vo.MusicDetailVO;
-import com.future.music.domain.vo.MusicFilterTagVO;
-import com.future.music.domain.vo.MusicPlayVO;
-import com.future.music.mapper.PlaylistMapper;
+import com.future.music.domain.vo.*;
 import com.future.music.service.IMusicService;
 import com.future.music.service.IPlaylistService;
-import com.future.player.entity.vo.AlbumVO;
 import com.future.player.mapper.AlbumMapper;
 import entity.dto.MusicDTO;
+import entity.dto.MusicFilterDTO;
+import entity.pojo.util.PageResp;
 import entity.pojo.util.Result;
+import entity.vo.MusicAlbumVO;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -112,6 +111,27 @@ public class MusicController {
     @PostMapping("/play/report")
     public Result<Void> reportPlayStatus(@RequestBody MusicPlayReportDTO dto) {
         return iMusicService.reportPlayStatus(dto);
+    }
+
+    /**
+     * 根据标签筛选音乐
+     * @param filterDTO 音乐筛选请求参数（从请求体获取）
+     * @return 统一返回格式（成功/失败 + 数据）
+     */
+    @ApiOperation(value = "根据标签筛选音乐")
+    @PostMapping("/by-tags")
+    public Result<PageResp<MusicVO>> filterMusicByTagIds(
+            @Validated @RequestBody MusicFilterDTO filterDTO){
+        return iMusicService.filterMusicByTags(filterDTO);
+    }
+
+    @ApiOperation(value = "上传音乐时查询自己所有专辑")
+    @GetMapping("/albums")
+    public Result<List<MusicAlbumVO>> getAllAlbums() {
+        if (SecurityUtil.getCurrentUser() == null) {
+            return Result.fail("用户未登录");
+        }
+        return Result.ok(albumMapper.selectAllAlbumByUserId(SecurityUtil.getCurrentUser().getId()));
     }
 
 }

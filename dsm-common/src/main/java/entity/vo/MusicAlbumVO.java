@@ -1,0 +1,13 @@
+package entity.vo;
+
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Data
+@AllArgsConstructor
+@NoArgsConstructor
+public class MusicAlbumVO {
+    private Long id;
+    private String albumName;
+}
