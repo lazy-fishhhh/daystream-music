@@ -58,6 +58,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import static com.future.music.code.PlaylistErrorCode.PLAYLIST_NAME_EXIST;
+import static com.future.music.constants.SignConstants.*;
+import static com.future.music.constants.SignConstants.TOMORROW_SIGN_IN_DAYS_5_REWORD;
 import static com.future.music.util.constants.CHECK_IN_KEY;
 
 
@@ -237,7 +239,7 @@ public class UserServiceImpl  implements IUserService {
         // 4. 检查是否已签到
         Boolean isCheckedIn = stringRedisTemplate.opsForValue().getBit(key, offset);
         if (Boolean.TRUE.equals(isCheckedIn)) {
-            return Result.fail(400, "今日您已签到过了,明日再来吧~");
+            return Result.ok("今日您已签到过了,明日再来吧~");
         }
 
         // 5. 执行签到
@@ -405,7 +407,7 @@ public class UserServiceImpl  implements IUserService {
 
                 List<HotSearch> hotSearchList = hotSearchMapper.selectList(queryWrapper);
 
-                // 5. 转换为 VO（原逻辑不变）
+                // 5. 转换为 VO
                 List<HotSearchVO> hotSearchVOList = new ArrayList<>();
                 for (HotSearch hotSearch : hotSearchList) {
                     HotSearchVO hotSearchVO = new HotSearchVO();
@@ -653,14 +655,14 @@ public class UserServiceImpl  implements IUserService {
         Integer data = getContinuousSignInDays().getData();
         int tomorrowSignInDays = data + 1;
         int reward = 0;
-        if (tomorrowSignInDays >= 7) {
-            reward = 10;
-        }else if (tomorrowSignInDays >= 5) {
-            reward = 5;
-        } else if (tomorrowSignInDays >= 3) {
-            reward = 3;
-        } else if (tomorrowSignInDays >= 1){
-            reward = 1;
+        if (tomorrowSignInDays >= TOMORROW_SIGN_IN_DAYS_7) {
+            reward = TOMORROW_SIGN_IN_DAYS_7_REWORD;
+        }else if (tomorrowSignInDays >= TOMORROW_SIGN_IN_DAYS_5 ) {
+            reward = TOMORROW_SIGN_IN_DAYS_5_REWORD;
+        } else if (tomorrowSignInDays >= TOMORROW_SIGN_IN_DAYS_3 ) {
+            reward = TOMORROW_SIGN_IN_DAYS_3_REWORD;
+        } else if (tomorrowSignInDays >= TOMORROW_SIGN_IN_DAYS_1 ){
+            reward = TOMORROW_SIGN_IN_DAYS_1_REWORD;
         }
         return Result.ok(reward);
     }

@@ -1,7 +1,7 @@
 package util;
 
 
-import entity.vo.MusicVO;
+import entity.vo.MusicRecommendVO;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -29,7 +29,7 @@ public class MusicHotScoreCalculator {
      * @return 归一化后的热门得分（0~100）
      */
 
-    public static double calculateHotScore(MusicVO musicVO) {
+    public static double calculateHotScore(MusicRecommendVO musicVO) {
         if (musicVO == null) {
             return 0.0;
         }
@@ -39,7 +39,7 @@ public class MusicHotScoreCalculator {
         long likeCount = Optional.ofNullable(musicVO.getLikeCount()).orElse(0L);
         long commentCount = Optional.ofNullable(musicVO.getCommentCount()).orElse(0L);
         long downloadCount = Optional.ofNullable(musicVO.getDownloadCount()).orElse(0L);
-        LocalDateTime createTime = LocalDateTime.parse(musicVO.getCreateTime());
+        LocalDateTime createTime = Optional.ofNullable(musicVO.getCreateTime()).orElse(LocalDateTime.now());
 
         // 2. 指标归一化（避免数值过大导致得分失衡，按平台最大值归一）
         double normPlay = normalize(playCount, 100000000L);       // 播放量最大值按1亿归一
