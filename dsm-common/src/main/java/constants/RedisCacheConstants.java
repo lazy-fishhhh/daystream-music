@@ -24,6 +24,14 @@ public class RedisCacheConstants {
     public static final Long ONE_MINUTE_TTL = 60L;
 
     /**
+     * 热搜榜单缓存过期时间（3分钟）
+     */
+    public static final long CACHE_TTL_SECONDS = 180;
+
+    // 默认缓存过期时间（5分钟）
+    public static final long CACHE_EXPIRE_SECONDS = 300L;
+
+    /**
      * 短期缓存过期时间（适用于高频变动数据）
      */
     public static final Long CACHE_SHORT_TTL =30 * 60L; // 30分钟
@@ -133,5 +141,31 @@ public class RedisCacheConstants {
         return TOKEN_BLACKLIST_PREFIX + REDIS_SEPARATOR + token;
     }
 
+    // ==================== 分布式锁 ====================
+    /** 音乐详情查询分布式锁前缀（音乐ID） */
     public static final String LOCK_KEY_MUSIC_DETAIL = "lock:music:detail:";
+
+    /** 歌单详情查询分布式锁前缀（歌单ID） */
+    public static final String LOCK_KEY_PLAYLIST_DETAIL = "lock:playlist:detail:";
+
+    /** 筛选标签查询分布式锁前缀 */
+    public static final String LOCK_KEY_FILTER_TAGS = "lock:music:filter:tags";
+
+    /** 搜索建议关键词联想分布式锁前缀（用户输入） */
+    public static final String LOCK_KEY_PREFIX = "lock:search:suggest:";
+
+    /** 热搜榜单分布式锁 Key */
+    public static final String LOCK_KEY_HOT_SEARCH = "lock:search:hot:list";
+
+    /** 歌单详情缓存 Key 前缀（歌单ID + 分页参数） */
+    public static final String CACHE_KEY_PLAYLIST_DETAIL = "playlist:detail:";
+
+    /** 所有筛选标签缓存 Key */
+    public static final String CACHE_KEY_ALL_FILTER_TAGS = "music:filter:tags:all";
+
+    /** 关键词联想缓存 Key 前缀（用户输入） */
+    public static final String CACHE_KEY_PREFIX = "suggest:keyword:";
+
+    /** 热搜榜单缓存 Key */
+    public static final String CACHE_KEY_HOT_SEARCH = "search:hot:list";
 }

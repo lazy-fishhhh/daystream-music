@@ -199,7 +199,7 @@ class MinIoServiceImpl implements IMinIoService {
         }else if (type.equals("picture")) {
             allowedExtensions = Arrays.asList("jpg", "jpeg", "png", "gif");
         }else if (type.equals("lyric")) {
-            allowedExtensions = Arrays.asList("lrc","txt","krc");
+            allowedExtensions = Arrays.asList("lrc","txt");
         }
 
         if (file.isEmpty()) {

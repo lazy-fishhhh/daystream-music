@@ -4,6 +4,8 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.future.login.util.SecurityUtil;
+import entity.pojo.info.User;
+import entity.pojo.info.UserReport;
 import entity.pojo.music.Album;
 import entity.pojo.music.Music;
 import entity.pojo.social.Comment;
@@ -19,10 +21,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import social.domain.CommentEnum;
 import social.domain.LikeEnum;
-import social.domain.dto.CommentDTO;
-import social.domain.dto.CommentListDTO;
-import social.domain.dto.CommentReplyDTO;
-import social.domain.dto.ReplyDTO;
+import social.domain.ReportEnum;
+import social.domain.dto.*;
 import social.domain.vo.*;
 import social.mapper.*;
 import social.service.CommentService;
@@ -51,6 +51,10 @@ public class CommentServiceImpl implements CommentService {
     private StringRedisTemplate stringRedisTemplate;
     @Autowired
     private ObjectMapper objectMapper;
+    @Autowired
+    private User2Mapper user2Mapper;
+    @Autowired
+    private ReportMapper userReportMapper;
     /**
      * 发布评论
      *
@@ -455,6 +459,68 @@ public class CommentServiceImpl implements CommentService {
         return Result.fail("没有权限删除此评论");
 
     }
+
+    @Override
+    public Result<String> reportComment(ReportDTO reportDTO) {
+        Long targetId=Long.parseLong(reportDTO.getTargetId());
+        Integer targetType=reportDTO.getTargetType();
+        //判断是否存在
+        if(targetType==ReportEnum.COMMENT.getValue()) {
+            LambdaQueryWrapper<Comment> lambdaQueryWrapper = new LambdaQueryWrapper<>();
+            lambdaQueryWrapper.eq(Comment::getId,targetId)
+                    .eq(Comment::getStatus, 1);
+            Comment comment = commentMapper.selectOne(lambdaQueryWrapper);
+            if (comment == null) {
+                return Result.fail("评论不存在");
+            }
+        }else if (targetType==ReportEnum.MUSIC.getValue())
+        {
+            LambdaQueryWrapper<Music> musicWrapper = new LambdaQueryWrapper();
+            musicWrapper.eq(Music::getId,targetId)
+                    .eq(Music::getStatus, 1);
+            Music music = music2Mapper.selectOne(musicWrapper);
+            if(music==null)
+            {
+                return Result.fail("音乐不存在");
+            }
+        }else if(targetType==ReportEnum.USER.getValue())
+        {
+            LambdaQueryWrapper<User> userBaseWrapper = new LambdaQueryWrapper();
+            userBaseWrapper.eq(User::getId,targetId)
+                    .eq(User::getUserStatus, 1);
+            User user = user2Mapper.selectOne(userBaseWrapper);
+            if(user==null)
+            {
+                return Result.fail("用户不存在");
+            }
+        }
+        Long currentUserId = SecurityUtil.getCurrentUser().getId();
+        //判断是否已经举报
+        LambdaQueryWrapper<UserReport> reportWrapper = new LambdaQueryWrapper<>();
+        reportWrapper.eq(UserReport::getReporterId,currentUserId)
+                .eq(UserReport::getTargetId,targetId)
+                .eq(UserReport::getTargetType,targetType);
+        UserReport userReport = userReportMapper.selectOne(reportWrapper);
+        if(userReport!=null)
+        {
+            return Result.ok("您已经举报过了，请耐心等待处理");
+        }
+        //举报
+        UserReport userReport1 = new UserReport();
+        userReport1.setReporterId(currentUserId);
+        userReport1.setTargetType(targetType);
+        userReport1.setTargetId(targetId);
+        userReport1.setReportReason(reportDTO.getReason());
+        userReport1.setReportContent(reportDTO.getReportContent());
+        //插入举报记录
+        int insert = userReportMapper.insert(userReport1);
+        if(insert>0)
+        {
+            return Result.ok("举报成功");
+        }
+        return Result.fail("举报失败");
+    }
+
     private DeleteCommentVO updateCommentCount(Comment comment) {
         Long replyCount = 0L;
         Long targetCount = 0L;

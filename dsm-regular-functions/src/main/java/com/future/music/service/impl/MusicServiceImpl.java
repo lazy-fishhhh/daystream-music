@@ -750,6 +750,8 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
                 if (cacheJson.isEmpty()) { // 空值缓存（防止穿透）
                     return Result.fail("音乐不存在");
                 }
+                // 缓存命中：刷新过期时间（续命）
+                stringRedisTemplate.expire(cacheKey, MusicConstants.CACHE_TTL_SECONDS, TimeUnit.SECONDS);
                 // 手动将 JSON 字符串解析为 MusicDetailVO（FastJSON2 实现）
                 MusicDetailVO cacheVO = JSON.parseObject(cacheJson, MusicDetailVO.class);
                 return Result.ok(cacheVO);
@@ -796,17 +798,29 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
                 musicLyricWrapper.eq("music_id", musicId);
                 MusicLyric musicLyric = musicLyricMapper.selectOne(musicLyricWrapper);
                 if (musicLyric == null) {
-                    return Result.fail("未查询到该音乐的歌词信息");
-                }
+                    musicDetailVO.setRawLyricText("");
+                    musicDetailVO.setSyncLyric(new ArrayList<>());
+                } else {
+                    musicDetailVO.setLyricUrl(musicLyric.getLyricUrl());
+                    musicDetailVO.setLyricType(musicLyric.getLyricType());
 
-                // 解析结构化歌词
-                List<LyricLineDTO> syncLyric = LyricParseUtil.parse(
-                        musicLyric.getLyricContent(),
-                        musicLyric.getLyricType()
-                );
-                musicDetailVO.setLyricUrl(musicLyric.getLyricUrl());
-                musicDetailVO.setLyricType(musicLyric.getLyricType());
-                musicDetailVO.setSyncLyric(syncLyric);
+                    // 区分歌词类型处理
+                    String lyricType = musicLyric.getLyricType().toLowerCase();
+                    if ("txt".equals(lyricType)) {
+                        // TXT类型：赋值纯文本，同步歌词置空
+                        String rawTxt = LyricParseUtil.parseTxtToRawText(musicLyric.getLyricContent());
+                        musicDetailVO.setRawLyricText(rawTxt);
+                        musicDetailVO.setSyncLyric(new ArrayList<>());
+                    } else {
+                        // LRC/KRC类型：解析同步歌词，纯文本置空
+                        List<LyricLineDTO> syncLyric = LyricParseUtil.parse(
+                                musicLyric.getLyricContent(),
+                                musicLyric.getLyricType()
+                        );
+                        musicDetailVO.setSyncLyric(syncLyric);
+                        musicDetailVO.setRawLyricText("");
+                    }
+                }
 
                 // 7. 写入缓存（设置 1 小时过期）
                 String jsonStr = JSON.toJSONString(musicDetailVO);
@@ -991,7 +1005,8 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
         }
     }
 
-    private MusicVO getMusicVO(Long musicId) {
+    @Override
+    public MusicVO getMusicVO(Long musicId) {
         MusicVO musicVO = new MusicVO();
         Music music = musicMapper.selectById(musicId);
         if (music == null){
