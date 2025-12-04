@@ -278,7 +278,7 @@ public class UserServiceImpl  implements IUserService {
             for (int offset = dayOfMonth - 1; offset >= 0; offset--) {
                 Boolean isSigned = stringRedisTemplate.opsForValue().getBit(key, offset);
 
-                // 如果今天已签到，继续往前一天检查
+                // 如果该天已签到，继续往前一天检查
                 if (Boolean.TRUE.equals(isSigned)) {
                     continuousDays++;
                 } else {
@@ -313,7 +313,7 @@ public class UserServiceImpl  implements IUserService {
         LocalDateTime now = LocalDateTime.now();
 
         // 1. 构造Redis键
-        String key = "user:checkIn:" + userId + ":" +
+        String key = CHECK_IN_KEY + userId + ":" +
                 now.format(DateTimeFormatter.ofPattern("yyyy:MM"));
 
         // 2. 获取今天是本月的第几天

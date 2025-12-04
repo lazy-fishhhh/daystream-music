@@ -65,19 +65,20 @@
     </select>
     <select id="selectAllMusicWithStat" resultType="entity.vo.MusicRecommendVO">
         SELECT
-        id,
-        music_name,
-        cover_url,
-        play_count,
-        download_count,
-        like_count,
-        comment_count,
-        create_time,
-        musician_name
-        FROM music
-        WHERE play_count IS NOT NULL  <!-- 过滤播放量为空的数据 -->
-        ORDER BY play_count DESC      <!-- 按播放量降序 -->
-        LIMIT 200                    <!-- 只取TOP200，减少计算量 -->
+        m.id,
+        m.music_name,
+        m.cover_url,
+        m.play_count,
+        m.download_count,
+        m.like_count,
+        m.comment_count,
+        m.create_time,
+        mu.stage_name as musicianName
+        FROM music m
+        LEFT JOIN musician mu ON m.musician_id = mu.id
+        WHERE m.play_count IS NOT NULL
+        ORDER BY m.play_count DESC
+        LIMIT 200           <!-- 只要top200,减小开销 -->
     </select>
 
 </mapper>
