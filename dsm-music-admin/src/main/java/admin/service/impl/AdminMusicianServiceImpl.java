@@ -7,6 +7,7 @@ import admin.domain.vo.MusicianVO;
 import admin.mapper.AdminMusicianMapper;
 import admin.mapper.UserRole3Mapper;
 import admin.service.AdminMusicianService;
+import admin.service.UpdateUserInfoService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
@@ -22,12 +23,6 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
-import java.util.stream.Collectors;
-
-import static constants.RedisCacheConstants.USER_INFO_PREFIX;
 
 @Service
 @Slf4j
@@ -39,6 +34,8 @@ public class AdminMusicianServiceImpl implements AdminMusicianService {
     private UserRole3Mapper userRole3Mapper;
     @Autowired
     private StringRedisTemplate stringRedisTemplate;
+    @Autowired
+    private UpdateUserInfoService updateUserInfoService;
     @Override
     public Result<PageResp<MusicianVO>> getMusicianList(MusiciansDTO musicianDTO) {
         //构建mybatis分页参数
@@ -80,6 +77,8 @@ public class AdminMusicianServiceImpl implements AdminMusicianService {
                 queryWrapper.eq("user_id", musician.getUserId())
                         .set("role_id", 3);
                 userRole3Mapper.update(queryWrapper);
+                //变更redis中的权限
+                updateUserInfoService.updateUserInfo(musician.getUserId());
             }
             return Result.ok("审批成功");
         }catch (Exception e)

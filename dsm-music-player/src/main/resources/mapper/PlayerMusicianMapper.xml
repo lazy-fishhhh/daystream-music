@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.future.player.mapper.PlayerMusicianMapper">
+    <!-- 查询单个音乐人信息 -->
+    <select id="selectMusicianInfo" resultType="com.future.player.entity.vo.MusicianInfoVO">
+        SELECT
+            m.stage_name,
+            m.avatar,
+            m.introduction,
+            m.id,
+            m.total_fans AS fansCount,
+            m.total_income AS totalIncome,
+            DATE_FORMAT(m.created_time, '%Y-%m-%d %H:%i:%s') AS createdTime,
+            u.id AS userId,
+            u.email
+        FROM musician m
+                 INNER JOIN user u ON m.user_id = u.id
+        WHERE u.id = #{userId}
+          AND u.user_status = 1
+          AND m.status = 1
+    </select>
+
+    <!-- 查询音乐人标签 -->
+    <select id="selectMusicianTag" resultType="java.lang.Long">
+        SELECT tag_id
+        FROM singer_tag_relation
+        WHERE musician_id = #{musicianId}
+    </select>
+
+    <!-- 搜索音乐人列表（支持按名称和标签搜索） -->
+    <select id="searchMusicians" resultType="com.future.player.entity.vo.MusicianInfoVO">
+        SELECT DISTINCT
+        m.stage_name,
+        m.avatar,
+        m.introduction,
+        m.id,
+        m.total_fans AS fansCount,
+        m.total_income AS totalIncome,
+        DATE_FORMAT(m.created_time, '%Y-%m-%d %H:%i:%s') AS createdTime,
+        u.id AS userId,
+        u.email
+        FROM musician m
+        INNER JOIN user u ON m.user_id = u.id
+        <if test="tagIds != null and tagIds.size() > 0">
+            INNER JOIN singer_tag_relation str ON m.id = str.musician_id
+        </if>
+        WHERE u.user_status = 1
+        AND m.status = 1
+        <if test="name != null and name != ''">
+            AND m.stage_name LIKE CONCAT('%', #{name}, '%')
+        </if>
+        <if test="tagIds != null and tagIds.size() > 0">
+            AND str.tag_id IN
+            <foreach collection="tagIds" item="tagId" open="(" separator="," close=")">
+                #{tagId}
+            </foreach>
+        </if>
+        ORDER BY m.created_time DESC
+    </select>
+    <update id="updateMusicianInfo">
+        UPDATE musician
+        <set>
+            <if test="name != null and name != ''">
+                stage_name = #{name},
+            </if>
+            <if test="avatar != null and avatar != ''">
+                avatar = #{avatar},
+            </if>
+            <if test="introduction != null and introduction != ''">
+                introduction = #{introduction}
+            </if>
+        </set>
+        WHERE id = #{id}
+        AND status = 1
+    </update>
+    <insert id="insertTag">
+        insert into
+        singer_tag_relation(musician_id,tag_id)
+        values(#{musicianId},#{tagId})
+    </insert>
+
+
+</mapper>

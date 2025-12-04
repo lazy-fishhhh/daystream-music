@@ -12,7 +12,6 @@ import io.swagger.annotations.ApiOperation;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
-import social.service.UserMusicianService;
 
 
 @RestController
@@ -21,8 +20,6 @@ import social.service.UserMusicianService;
 public class UserBaseController {
     @Autowired
     private UserBaseService userBaseService;
-    @Autowired
-    private UserMusicianService userMusicianService;
     @ApiOperation(value = "点赞/取消点赞")
     @PostMapping("/likerecord")
     public Result<LikeVO> likerecord(@Valid @RequestBody LikeDTO likeDTO)
@@ -101,5 +98,11 @@ public class UserBaseController {
     public Result getOtherUserInfo( @RequestParam(value = "userId",required = true) Long userId)
     {
         return userBaseService.getOtherUserInfo(userId);
+    }
+    @ApiOperation(value="首页用户信息展示")
+    @GetMapping("/getUserInfo")
+    public Result getUserInfo()
+    {
+        return userBaseService.getUserInfo();
     }
 }

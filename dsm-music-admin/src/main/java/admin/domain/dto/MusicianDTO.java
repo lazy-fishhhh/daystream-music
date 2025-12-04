@@ -12,7 +12,7 @@ public class MusicianDTO {
     @NotNull(message = "音乐人id不能为空")
      private String id;
      /**
-     *审批状态 0:待审核 1:通过 2:拒绝
+     *审批状态 0:待审核 1:通过 2:驳回
      */
      @NotNull(message = "审批状态不能为空")
     private Integer status;

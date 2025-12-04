@@ -13,6 +13,7 @@ import java.util.List;
 
 @Service
 public interface UserBaseService {
+    Result getUserInfo();
     Result<LikeVO> likeandUnlike(LikeDTO likeDTO);
     Result<CollectionVO> collectUnCollect(CollectionDTO collectionDTO);
     Result getLikeMusic(PageDTO pageDTO);
