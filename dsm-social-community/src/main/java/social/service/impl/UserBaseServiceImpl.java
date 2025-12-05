@@ -1326,6 +1326,31 @@ public class UserBaseServiceImpl implements UserBaseService {
         }
         return Result.ok(otherUserVO);
     }
+    @Override
+    public Result getUserInfo() {
+        Long currentUserId = SecurityUtil.getCurrentUserId();
+        UserInfoVO  userInfoVO=user2Mapper.userInfo(currentUserId);
+        if(userInfoVO==null)
+        {
+            return Result.fail("用户不存在");
+        }
+        //判断是否是vip
+        if(userInfoVO.getVipExpireTime()!=null) {
+            //判断是否是vip
+            if (LocalDateTime.now().isAfter(userInfoVO.getVipExpireTime())) {
+                userInfoVO.setIsVip(false);
+            }
+            userInfoVO.setIsVip(true);
+        }
+        else {
+            userInfoVO.setIsVip(false);
+        }
+        //判断用户身份
+        List<Integer> roleIds = user2Mapper.roleIds(currentUserId);
+        List<String> docs = RoleEnum.docs(roleIds);
+        userInfoVO.setUserRole(docs);
+        return Result.ok(userInfoVO);
+    }
 
 }
 

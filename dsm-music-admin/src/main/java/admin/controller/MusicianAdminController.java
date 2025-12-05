@@ -22,7 +22,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class MusicianAdminController {
     @Autowired
     private AdminMusicianService adminMusicianService;
-    @PreAuthorize("hasRole('管理员')")
+    //@PreAuthorize("hasRole('管理员')")
     @ApiOperation(value = "获取音乐人审核列表")
     @PostMapping("/getMusicianList")
     public Result<PageResp<MusicianVO>> getMusicianList(@Valid @RequestBody MusiciansDTO musicianDTO) {

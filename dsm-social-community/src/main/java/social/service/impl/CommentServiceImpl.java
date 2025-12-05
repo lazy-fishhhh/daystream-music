@@ -289,11 +289,11 @@ public class CommentServiceImpl implements CommentService {
             if (commentListVOS == null||commentListVOS.isEmpty()) {
                 return Result.ok("后面没有数据了");
             }
+          //记录下一页的lastId
+           curentLastId = commentListVOS.get(commentListVOS.size() - 1).getId();
             //判断是否还有更多数据
-            Long has =commentMapper.hasmoreparent(targetId, lastId);
+            Long has =commentMapper.hasmoreparent(targetId, curentLastId);
             hasmore=has>0;
-            //记录下一页的lastId
-            curentLastId = commentListVOS.get(commentListVOS.size() - 1).getId();
             for (CommentListVO commentListVO : commentListVOS) {
                 if (commentListVO.getUserId() == currentUserId) {
                     commentListVO.setIsSelf(true);

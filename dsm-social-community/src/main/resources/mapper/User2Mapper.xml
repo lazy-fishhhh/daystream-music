@@ -24,4 +24,19 @@
         user
         where id=#{userId}
     </select>
+    <select id="selectPassword" resultType="String">
+        select password
+        from
+        user
+        where
+        id=#{userId}
+        and email=#{email}
+    </select>
+    <select id="selectEmail" resultType="String">
+        select email
+        from
+        user
+        where
+        id= #{userId}
+    </select>
 </mapper>
