@@ -15,7 +15,7 @@ import com.future.music.service.IMusicService;
 import com.future.music.service.IPlaylistService;
 import constants.MusicTagTypeConstants;
 import constants.RedisCacheConstants;
-import entity.dto.PlaylistFilterDTO;
+import com.future.music.entity.dto.PlaylistFilterDTO;
 import entity.dto.SearchDTO;
 import entity.pojo.info.User;
 import entity.pojo.music.*;
@@ -27,7 +27,6 @@ import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
 import org.springframework.beans.BeanUtils;
 import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
