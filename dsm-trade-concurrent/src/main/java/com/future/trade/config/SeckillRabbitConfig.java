@@ -6,8 +6,8 @@ import org.springframework.amqp.rabbit.connection.ConnectionFactory;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-import static com.future.trade.constants.RabbitConstants.*;
-import static com.future.trade.constants.RabbitConstants.ROUTING_KEY_SECKILL_ORDER;
+import static constants.RabbitConstants.*;
+
 
 /**
  * 秒杀模块专属MQ配置（手动确认）
