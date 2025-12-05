@@ -1,30 +1,45 @@
 package com.future.player.service.impl;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.future.login.exception.BusinessException;
 import com.future.login.util.SecurityUtil;
 
 import com.future.player.entity.dto.AlbumDTO;
 import com.future.player.entity.vo.AlbumVO;
 import com.future.player.mapper.AlbumMapper;
+import com.future.player.mapper.MPlayerMapper;
+
 import com.future.player.mapper.PlayerMusicianMapper;
 import com.future.player.service.IAlbumService;
 import entity.pojo.music.Album;
+import entity.pojo.music.Music;
 import entity.pojo.music.Musician;
 import entity.pojo.util.PageResp;
 import entity.pojo.util.Result;
 import jakarta.annotation.Resource;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
+import static code.BusinessErrorCode.MUSIC_NOT_EXIST;
+import static code.BusinessErrorCode.PERSISTENCE_DENY;
+
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class AlbumServiceImpl implements IAlbumService {
 
     @Resource
@@ -32,6 +47,12 @@ public class AlbumServiceImpl implements IAlbumService {
 
     @Resource
     private PlayerMusicianMapper playerMusicianMapper;
+
+
+    private final MPlayerMapper mPlayerMapper;
+
+    @Autowired
+    private BaseMapper<Musician> musicianMapper;
 
     @Override
     public Result<Void> createAlbum(AlbumDTO albumDTO) {
@@ -269,6 +290,61 @@ public class AlbumServiceImpl implements IAlbumService {
             return SecurityUtil.getCurrentUserId();
         } catch (Exception e) {
             return null;
+        }
+    }
+
+    /**
+     * 关联歌曲到专辑
+     * @param albumId 专辑ID
+     * @param songIds 歌曲ID列表
+     * @return 操作结果
+     */
+    @Transactional
+    @Override
+    public Result<String> bindSongsToAlbum(Long albumId, List<Long> songIds) {
+        try {
+            // 1. 验证专辑是否存在
+            Album album = albumMapper.selectById(albumId);
+            if (album == null) {
+                return Result.fail("专辑不存在");
+            }
+
+            // 2. 验证当前用户是否是专辑的创建者
+            Long currentUserId = getCurrentUserId();
+            if (currentUserId == null) {
+                return Result.fail("用户未登录");
+            }
+
+            // 3. 验证当前用户是否是该专辑的音乐人
+            Musician musician = musicianMapper.selectOne(new LambdaQueryWrapper<Musician>()
+                    .eq(Musician::getUserId, currentUserId)
+                    .eq(Musician::getStatus, 1));
+            if (musician == null || !musician.getId().equals(album.getMusicianId())) {
+                return Result.fail("您没有权限将歌曲关联到该专辑");
+            }
+
+            int count = 0;
+            // 4. 更新歌曲的albumId字段
+            for (Long songId : songIds) {
+                // 验证歌曲是否存在且属于当前用户
+                Music music = mPlayerMapper.selectById(songId);
+                if (music == null) {
+                    throw new BusinessException(MUSIC_NOT_EXIST.getCode(),"歌曲不存在，id:" + songId);
+                }
+                if (!music.getMusicianId().equals(musician.getId())) {
+                    throw new BusinessException(PERSISTENCE_DENY.getCode(),"您没有权限将歌曲关联到该专辑:" + music.getMusicName());
+                }
+                // 更新歌曲的专辑ID
+                music.setAlbumId(albumId);
+                mPlayerMapper.updateById(music);
+                count++;
+            }
+            LambdaUpdateWrapper<Album> updateWrapper = new LambdaUpdateWrapper<>();
+            updateWrapper.set(Album::getMusicCount, album.getMusicCount() + count);
+            return Result.ok("歌曲关联到专辑成功");
+        } catch (Exception e) {
+            log.error("关联歌曲到专辑失败: {}", e.getMessage(), e);
+            return Result.fail("关联歌曲到专辑失败: " + e.getMessage());
         }
     }
 }

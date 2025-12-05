@@ -48,7 +48,7 @@ public class ScheduledTaskManager {
     // Redis Key 前缀
     private static final String REDIS_ZSET_PREFIX = "recommend:user:";   // ZSet：用户推荐列表（key=recommend:user:{userId}）
     private static final String REDIS_HASH_PREFIX = "recommend:music:info:"; // Hash：歌曲详情（key=recommend:music:info:{songId}）
-    private static final long REDIS_EXPIRE_DAYS = 7;                    // Redis缓存过期时间（7天）
+    private static final long REDIS_EXPIRE_DAYS = 2;                    // Redis缓存过期时间（7天）
 
 
     // 依赖注入

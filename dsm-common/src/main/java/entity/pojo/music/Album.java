@@ -25,4 +25,7 @@ public class Album {
     private Long collectCount;          //收藏量
     @ApiModelProperty("评论量")
     private Long commentCount;          //评论量
+
+    @ApiModelProperty("歌曲总数")
+    private Long musicCount;
 }
