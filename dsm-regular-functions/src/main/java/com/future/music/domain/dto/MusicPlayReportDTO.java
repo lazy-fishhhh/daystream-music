@@ -9,5 +9,4 @@ public class MusicPlayReportDTO {
     private Long musicId;         // 歌曲ID（必填）
     private Integer playedDuration;  // 本次上报的有效播放时长（秒，必填）
     private Integer totalDuration;   // 歌曲总时长（秒，必填）
-    private Integer playStatus;   // 播放状态（1-播放中，2-暂停，3-结束，必填）
 }

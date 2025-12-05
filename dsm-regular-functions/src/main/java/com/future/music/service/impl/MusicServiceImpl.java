@@ -1061,14 +1061,12 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
         try {
             // 1. 参数校验
             if (dto.getUserId() == null || dto.getMusicId() == null
-                    || dto.getPlayedDuration() == null
-                    || dto.getPlayStatus() == null) {
+                    || dto.getPlayedDuration() == null) {
                 return Result.fail("上报参数不完整");
             }
             Long userId = dto.getUserId();
             Long musicId = dto.getMusicId();
             int playedSeconds = dto.getPlayedDuration();
-            int playStatus = dto.getPlayStatus();
 
             // 2. 校验歌曲存在
             if (musicMapper.selectById(musicId) == null) {
@@ -1076,7 +1074,7 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
             }
 
             // 3. 过滤无效上报（时长过短/进度异常）
-            if (playedSeconds < 1) {
+            if (playedSeconds < MusicConstants.MIN_PLAY_SECONDS) {
                 return Result.fail("无效上报，不统计时长");
             }
 
@@ -1094,21 +1092,18 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
                 // 已存在记录：更新累计时长+最后更新时间
                 existRecord.setTotalListenSeconds(existRecord.getTotalListenSeconds() + playedSeconds);
                 // 若播放状态达标（同之前播放量统计条件），更新播放次数（避免重复）
-                if (playStatus == 3 && threshold <= playedSeconds) {
+                if (threshold <= playedSeconds) {
                     existRecord.setListenCount(existRecord.getListenCount() + 1);
                 }
                 userListenHistoryMapper.updateById(existRecord);
             } else {
-                if (playStatus == 3 && threshold > playedSeconds) {
-                    return Result.fail("播放状态达标，不统计时长");
-                }
                 // 新增记录
                 UserListenHistory newRecord = new UserListenHistory();
                 newRecord.setUserId(userId);
                 newRecord.setMusicId(musicId);
                 newRecord.setTotalListenSeconds(playedSeconds);
                 // 初始播放次数（达标则为1，否则为0）
-                newRecord.setListenCount(playStatus == 3 && threshold <= playedSeconds ? 1 : 0);
+                newRecord.setListenCount(threshold <= playedSeconds ? 1 : 0);
                 newRecord.setListenTime(today);
                 userListenHistoryMapper.insert(newRecord);
             }
