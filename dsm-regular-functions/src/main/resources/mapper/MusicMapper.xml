@@ -116,6 +116,7 @@
             m.status AS status,
             al.album_name AS albumName,
             mu.stage_name AS musicianName,
+            m.create_time AS createTime,
             GROUP_CONCAT(DISTINCT mt.tag_name) AS tagName
         FROM music m
         LEFT JOIN musician mu ON m.musician_id = mu.id
