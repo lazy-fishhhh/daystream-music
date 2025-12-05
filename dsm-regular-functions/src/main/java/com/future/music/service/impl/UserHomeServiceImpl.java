@@ -143,6 +143,9 @@ public class UserHomeServiceImpl implements IUserHomeService {
             userInfoVO.setTotalPoint(currentUser.getTotalPoint());
             userInfoVO.setWalletBalance(currentUser.getWalletBalance());
             userInfoVO.setCreatedTime(String.valueOf(currentUser.getCreatedTime()));
+            userInfoVO.setLastCheckinTime(currentUser.getLastCheckinTime());
+            userInfoVO.setLastLoginTime(currentUser.getLastLoginTime());
+            userInfoVO.setUpdatedTime(currentUser.getUpdatedTime());
             return Result.ok(userInfoVO);
         } catch (BusinessException e) {
             throw new BusinessException(e.getCode(), e.getMessage());

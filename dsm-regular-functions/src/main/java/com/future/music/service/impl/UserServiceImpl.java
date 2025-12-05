@@ -253,6 +253,8 @@ public class UserServiceImpl  implements IUserService {
             stringRedisTemplate.expire(key, expireSeconds, TimeUnit.SECONDS);
         }
 
+        // TODO 消息队列   1.更新用户签到时间  2.发放签到奖励
+
         return Result.ok("签到成功");
     }
 

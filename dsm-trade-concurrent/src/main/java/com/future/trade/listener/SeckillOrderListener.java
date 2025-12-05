@@ -1,6 +1,5 @@
 package com.future.trade.listener;
 
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.future.login.exception.BusinessException;
 import com.future.login.mapper.UserMapper;
@@ -11,7 +10,6 @@ import com.future.trade.entity.message.SeckillOrderMsg;
 import com.future.trade.mapper.SeckillActivityMapper;
 import com.future.trade.mapper.SeckillOrderMapper;
 import entity.pojo.info.User;
-import kotlin.jvm.internal.Lambda;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.core.ExchangeTypes;
@@ -22,10 +20,6 @@ import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import javax.naming.Binding;
-
-import java.time.LocalDateTime;
 
 import static code.BusinessErrorCode.BALANCE_NOT_ENOUGH;
 import static com.future.trade.constants.SeckillConstants.SECKILL_ORDER_EXIST;
