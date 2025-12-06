@@ -781,7 +781,7 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
             RLock lock = redissonClient.getLock(lockKey);
             boolean isLockAcquired = false;
             try {
-                // 尝试获取锁：最多等待 3 秒，获取成功后 30 秒自动释放
+                // 尝试获取锁：最多等待 3 秒，获取成功后 10 秒自动释放
                 isLockAcquired = lock.tryLock(RedisCacheConstants.LOCK_WAIT_TIME, RedisCacheConstants.LOCK_EXPIRE_TTL, TimeUnit.SECONDS);
                 if (!isLockAcquired) {
                     // 未获取到锁（其他线程正在重建缓存），返回友好提示或过期缓存
@@ -1068,8 +1068,9 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
     public Result<Void> reportPlayStatus(MusicPlayReportDTO dto) {
         try {
             // 1. 参数校验
-            if (dto.getUserId() == null || dto.getMusicId() == null || dto.getPlayedDuration() == null) {
-                return Result.fail("上报参数不完整");
+            // 兜底校验（防止未通过注解校验的情况）
+            if (dto.getPlayedDuration() > dto.getTotalDuration()) {
+                return Result.fail("有效播放时长不能超过歌曲总时长");
             }
 
             // 2. 校验歌曲存在
@@ -1090,7 +1091,7 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
             RLock lock = redissonClient.getLock("listen_history:" + dto.getUserId() + ":" + dto.getMusicId());
             try {
                 // 加锁（3秒超时，避免死锁）
-                boolean locked = lock.tryLock(RedisCacheConstants.LOCK_WAIT_TIME, TimeUnit.SECONDS);
+                boolean locked = lock.tryLock(RedisCacheConstants.LOCK_WAIT_TIME, RedisCacheConstants.LOCK_EXPIRE_TTL, TimeUnit.SECONDS);
                 if (!locked) {
                     return Result.fail("系统繁忙，请稍后重试");
                 }
@@ -1101,7 +1102,7 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
                 );
             } finally {
                 // 释放锁
-                if (lock.isHeldByCurrentThread()) {
+                if (lock != null && lock.isHeldByCurrentThread()) {
                     lock.unlock();
                 }
             }
@@ -1134,19 +1135,47 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
             return false;
         }
 
-        // 2. 缓存未命中，查数据库
-        boolean isExist = musicMapper.selectById(musicId) != null;
+        // 2. 缓存未命中，加分布式锁防击穿（同一歌曲只查一次库）
+        String lockKey = "music_exist_lock:" + musicId;
+        RLock lock = redissonClient.getLock(lockKey);
+        try {
+            boolean locked = lock.tryLock(RedisCacheConstants.LOCK_WAIT_TIME, RedisCacheConstants.LOCK_EXPIRE_TTL, TimeUnit.SECONDS);
+            if (!locked) {
+                // 加锁失败，重试查缓存（可能其他线程已写入）
+                cacheValue = stringRedisTemplate.opsForValue().get(cacheKey);
+                return "1".equals(cacheValue);
+            }
 
-        // 3. 写入缓存（区分存在/不存在）
-        if (isExist) {
-            // 歌曲存在：永久缓存（设置1天兜底，删除时主动清理）
-            stringRedisTemplate.opsForValue().set(cacheKey, "1", RedisCacheConstants.CACHE_LONG_TTL, TimeUnit.SECONDS);
-        } else {
-            // 歌曲不存在：空值缓存（短过期，防穿透）
-            stringRedisTemplate.opsForValue().set(cacheKey, "0", RedisCacheConstants.ONE_MINUTE_TTL, TimeUnit.SECONDS);
+            // 3. 锁内再次查缓存（双重检查）
+            cacheValue = stringRedisTemplate.opsForValue().get(cacheKey);
+            if ("1".equals(cacheValue)) {
+                return true;
+            }
+            if ("0".equals(cacheValue)) {
+                return false;
+            }
+
+            // 4. 查数据库
+            boolean isExist = musicMapper.selectById(musicId) != null;
+
+            // 5. 写入缓存
+            if (isExist) {
+                // 优化：歌曲存在的缓存设置可配置，且预留主动失效接口
+                stringRedisTemplate.opsForValue().set(cacheKey, "1", RedisCacheConstants.CACHE_LONG_TTL, TimeUnit.SECONDS);
+            } else {
+                // 空值缓存时间缩短，比如30秒
+                stringRedisTemplate.opsForValue().set(cacheKey, "0", RedisCacheConstants.LOCK_TTL, TimeUnit.SECONDS);
+            }
+            return isExist;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            // 降级：直接查库（避免缓存击穿导致服务不可用）
+            return musicMapper.selectById(musicId) != null;
+        } finally {
+            if (lock.isHeldByCurrentThread()) {
+                lock.unlock();
+            }
         }
-
-        return isExist;
     }
 
     @Override

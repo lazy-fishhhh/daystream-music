@@ -11,8 +11,7 @@
     VALUES (#{userId}, #{musicId}, #{playedSeconds}, #{listenCount}, #{listenTime})
     ON DUPLICATE KEY UPDATE
     total_listen_seconds = total_listen_seconds + #{playedSeconds},
-    listen_count = listen_count + #{listenCount},
-    update_time = NOW()
+    listen_count = listen_count + #{listenCount}
     </insert>
 
 </mapper>
