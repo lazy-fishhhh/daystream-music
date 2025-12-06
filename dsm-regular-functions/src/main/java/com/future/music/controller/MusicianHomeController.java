@@ -1,6 +1,7 @@
 package com.future.music.controller;
 
 
+import com.future.music.domain.vo.AlbumVO;
 import com.future.music.entity.vo.MusicDetailVO;
 import com.future.music.service.IMusicianHomeService;
 import entity.pojo.util.PageReq;
@@ -9,10 +10,7 @@ import entity.pojo.util.Result;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
@@ -29,5 +27,10 @@ public class MusicianHomeController {
         return musicianHomeService.getMyMusic(pageReq);
     }
 
+    @ApiOperation("获取专辑详细信息")
+    @GetMapping("/getAlbumDetail")
+    public Result<AlbumVO> getAlbumDetail(@RequestParam Long albumId) {
+        return musicianHomeService.getAlbumDetail(albumId);
+    }
 
 }

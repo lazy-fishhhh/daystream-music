@@ -1,20 +1,16 @@
 package com.future.music.controller;
 
 
-import cn.hutool.db.Page;
 import com.future.music.domain.dto.UserDetailDTO;
 import com.future.music.domain.vo.MusicVO;
 import com.future.music.domain.vo.PlaylistVO;
 import com.future.music.service.IUserHomeService;
-import entity.dto.MusicDTO;
 import entity.pojo.music.Album;
-import entity.pojo.music.Playlist;
 import entity.pojo.util.PageReq;
 import entity.pojo.util.PageResp;
 import entity.pojo.util.Result;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
-import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 import social.domain.vo.UserInfoVO;
@@ -58,5 +54,6 @@ public class UserHomeController {
     public Result<PageResp<List<Album>>> getMyCollectAlbums(@RequestBody PageReq pageReq) {
         return userHomeService.getMyCollectAlbums(pageReq);
     }
+
 
 }

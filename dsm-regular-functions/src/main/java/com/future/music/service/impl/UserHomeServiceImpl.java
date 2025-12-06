@@ -146,6 +146,10 @@ public class UserHomeServiceImpl implements IUserHomeService {
             userInfoVO.setLastCheckinTime(currentUser.getLastCheckinTime());
             userInfoVO.setLastLoginTime(currentUser.getLastLoginTime());
             userInfoVO.setUpdatedTime(currentUser.getUpdatedTime());
+            userInfoVO.setBackgroundImage(currentUser.getBackgroundImage());
+            userInfoVO.setFollowCount(currentUser.getFollowCount());
+            userInfoVO.setFansCount(currentUser.getFansCount());
+            userInfoVO.setOnlineStatus(0)   ;
             return Result.ok(userInfoVO);
         } catch (BusinessException e) {
             throw new BusinessException(e.getCode(), e.getMessage());

@@ -73,4 +73,24 @@ public class UserInfoVO {
      * 信息更新时间
      */
     private LocalDateTime updatedTime;
+
+
+    /**
+     * 背景图片
+     */
+    private String backgroundImage;
+
+    /**
+     * 关注数量
+     */
+    private Integer followCount;
+    /**
+     * 粉丝数量
+     */
+    private Integer fansCount;
+
+    /**
+     * 在线状态
+     */
+    private Integer onlineStatus;
 }

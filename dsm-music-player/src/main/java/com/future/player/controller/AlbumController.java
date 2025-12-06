@@ -1,6 +1,7 @@
 package com.future.player.controller;
 
 import com.future.player.entity.dto.AlbumDTO;
+
 import com.future.player.entity.vo.AlbumVO;
 import com.future.player.service.IAlbumService;
 import entity.pojo.util.PageResp;
@@ -51,7 +52,7 @@ public class AlbumController {
     @ApiOperation(value = "分页查询公开专辑", notes = "先按点赞量降序，再按发布时间降序")
     @GetMapping("/api/album/query-public-album")
     public Result<PageResp<AlbumVO>> queryPublicAlbum(@RequestParam(defaultValue = "1") int pageNum,
-                                               @RequestParam(defaultValue = "10") int pageSize) {
+                                                      @RequestParam(defaultValue = "10") int pageSize) {
         return albumService.queryPublicAlbum(pageNum, pageSize);
     }
 
@@ -84,5 +85,6 @@ public class AlbumController {
     public Result<String> bindSongs(@PathVariable Long albumId, @RequestBody List<Long> songIds) {
         return albumService.bindSongsToAlbum(albumId, songIds);
     }
+
 
 }
