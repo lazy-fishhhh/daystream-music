@@ -114,23 +114,23 @@ public class PlaylistServiceImpl implements IPlaylistService {
                 Playlist playlist = playlistMapper.selectById(playlistId);
                 if (playlist == null) {
                     // 缓存空值（5分钟过期，防止穿透）
-                    stringRedisTemplate.opsForValue().set(cacheKey, "", 300, TimeUnit.SECONDS);
+                    stringRedisTemplate.opsForValue().set(cacheKey, "", RedisCacheConstants.CACHE_EXPIRE_SECONDS, TimeUnit.SECONDS);
                     return Result.fail("歌单不存在");
                 }
 
-        // 2. 查询歌单包含的歌曲ID列表（关联表查询）
-        Page<Music> page = new Page<>(pageNum,pageSize);
-        IPage<Music> musicPage = playlistMusicMapper.selectMusicsByPlaylistId(page, playlistId);
-        //  查询歌单创建者
-        String creator = playlistMapper.selectPlaylistCreator(playlistId);
-        String avatar = playlistMapper.selectPlaylistCreatorAvator(playlistId);
+                // 2. 查询歌单包含的歌曲ID列表（关联表查询）
+                Page<Music> page = new Page<>(pageNum,pageSize);
+                IPage<Music> musicPage = playlistMusicMapper.selectMusicsByPlaylistId(page, playlistId);
+                //  查询歌单创建者
+                String creator = playlistMapper.selectPlaylistCreator(playlistId);
+                String avatar = playlistMapper.selectPlaylistCreatorAvator(playlistId);
 
-        // 3. 封装成VO（视图对象，用于返回给前端）
-        PlaylistDetailVO detailVO = new PlaylistDetailVO();
-        detailVO.setAvatar(avatar);
-        detailVO.setCreator(creator);
-        // 复制基本属性（使用BeanUtils简化代码）
-        BeanUtils.copyProperties(playlist, detailVO);
+                // 3. 封装成VO（视图对象，用于返回给前端）
+                PlaylistDetailVO detailVO = new PlaylistDetailVO();
+                detailVO.setAvatar(avatar);
+                detailVO.setCreator(creator);
+                // 复制基本属性（使用BeanUtils简化代码）
+                BeanUtils.copyProperties(playlist, detailVO);
 
                 // 5.4 批量获取音乐详情（依赖 musicService.getOneMusic 的缓存，性能最优）
                 List<MusicVO> voList = new ArrayList<>();

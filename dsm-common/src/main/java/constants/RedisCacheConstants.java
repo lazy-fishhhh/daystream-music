@@ -16,10 +16,14 @@ public class RedisCacheConstants {
     /**
      * 分布式锁过期时间（防止死锁，需大于业务执行时间）
      */
-    public static final Long LOCK_EXPIRE_TTL = 30L; // 30秒
+    public static final Long LOCK_EXPIRE_TTL = 10L; // 10秒
+    /**
+     * 分布式锁过期时间（防止死锁，需大于业务执行时间）
+     */
+    public static final Long LOCK_TTL = 30L; // 30秒
 
     /**
-     *
+     * 1分钟缓存过期时间（适用于高频变动数据）
      */
     public static final Long ONE_MINUTE_TTL = 60L;
 
@@ -168,4 +172,7 @@ public class RedisCacheConstants {
 
     /** 热搜榜单缓存 Key */
     public static final String CACHE_KEY_HOT_SEARCH = "search:hot:list";
+
+    /** 音乐存在性缓存 Key 前缀（音乐ID） */
+    public static final String MUSIC_EXIST_KEY_PREFIX = "music:exist:";
 }

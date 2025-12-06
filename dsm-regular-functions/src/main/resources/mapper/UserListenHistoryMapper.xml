@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+
+<!-- 确保 namespace 和 Mapper 接口全类名一致 -->
+<mapper namespace="com.future.music.mapper.UserListenHistoryMapper">
+
+    <insert id="insertOrUpdateListenHistory">
+    INSERT INTO user_listen_history (user_id, music_id, total_listen_seconds, listen_count, listen_time)
+    VALUES (#{userId}, #{musicId}, #{playedSeconds}, #{listenCount}, #{listenTime})
+    ON DUPLICATE KEY UPDATE
+    total_listen_seconds = total_listen_seconds + #{playedSeconds},
+    listen_count = listen_count + #{listenCount}
+    </insert>
+
+</mapper>
