@@ -12,6 +12,7 @@ import entity.pojo.util.Result;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 import social.domain.vo.UserInfoVO;
 
@@ -30,12 +31,12 @@ public class UserHomeController {
         return userHomeService.getUserInfo();
     }
 
-    @ApiOperation("修改个人信息")
-    @PostMapping("/updateUserInfo")
-    public Result<String> updateUserInfo(@RequestBody UserDetailDTO dto) {
+
+    @ApiOperation("更新用户信息")
+    @PostMapping(value = "/updateUserInfo", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public Result<String> updateUserInfo(UserDetailDTO dto) {
         return userHomeService.updateUserInfo(dto);
     }
-
 
     @ApiOperation("查询我喜欢的歌曲")
     @GetMapping("/getMyLikeSongs")
