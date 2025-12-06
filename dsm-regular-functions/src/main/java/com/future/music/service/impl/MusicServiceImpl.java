@@ -389,8 +389,12 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
                 throw new RuntimeException("音乐删除失败");
             }
             // 删除缓存
+            // 音乐详情缓存
             String cacheKey = MusicConstants.CACHE_KEY_MUSIC_DETAIL + musicId;
             stringRedisTemplate.delete(cacheKey);
+            // 音乐存在缓存
+            String cacheKey2 = RedisCacheConstants.MUSIC_EXIST_KEY_PREFIX + musicId;
+            stringRedisTemplate.delete(cacheKey2);
         } catch (Exception e) {
             // 发生异常时手动回滚事务
             TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
@@ -718,8 +722,12 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
             }
 
             // 删除缓存
+            // 音乐详情缓存
             String cacheKey = MusicConstants.CACHE_KEY_MUSIC_DETAIL + musicId;
             stringRedisTemplate.delete(cacheKey);
+            // 音乐存在缓存
+            String cacheKey2 = RedisCacheConstants.MUSIC_EXIST_KEY_PREFIX + musicId;
+            stringRedisTemplate.delete(cacheKey2);
 
             // 6. 事务成功后，删除所有旧文件（歌词、封面、旧音频）
             if (!oldFilesToDelete.isEmpty()) {
@@ -794,7 +802,7 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
                 MusicVO musicVO = getMusicVO(musicId);
                 if (musicVO == null) {
                     // 缓存空值（5分钟过期，防止穿透）
-                    stringRedisTemplate.opsForValue().set(cacheKey, "", 300, TimeUnit.SECONDS);
+                    stringRedisTemplate.opsForValue().set(cacheKey, "", RedisCacheConstants.CACHE_EXPIRE_SECONDS, TimeUnit.SECONDS);
                     return Result.fail("音乐不存在");
                 }
 
@@ -1060,52 +1068,42 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
     public Result<Void> reportPlayStatus(MusicPlayReportDTO dto) {
         try {
             // 1. 参数校验
-            if (dto.getUserId() == null || dto.getMusicId() == null
-                    || dto.getPlayedDuration() == null) {
+            if (dto.getUserId() == null || dto.getMusicId() == null || dto.getPlayedDuration() == null) {
                 return Result.fail("上报参数不完整");
             }
-            Long userId = dto.getUserId();
-            Long musicId = dto.getMusicId();
-            int playedSeconds = dto.getPlayedDuration();
 
             // 2. 校验歌曲存在
-            if (musicMapper.selectById(musicId) == null) {
+            if (!exists(dto.getMusicId())) { // 改用缓存，避免查库
                 return Result.fail("歌曲不存在");
             }
 
-            // 3. 过滤无效上报（时长过短/进度异常）
-            if (playedSeconds < MusicConstants.MIN_PLAY_SECONDS) {
-                return Result.fail("无效上报，不统计时长");
+            // 3. 过滤无效上报
+            if (dto.getPlayedDuration() < MusicConstants.MIN_PLAY_SECONDS) {
+                return Result.ok(); // 过滤无效上报，不统计播放量
             }
 
-            // 4. 查询用户-歌曲今日已统计记录（按日期分组，避免跨天重复）
-            LocalDate today = LocalDate.now();
-            QueryWrapper<UserListenHistory> recordWrapper = new QueryWrapper<>();
-            recordWrapper.eq("user_id", userId)
-                    .eq("music_id", musicId)
-                    .eq("listen_time", today);
-            UserListenHistory existRecord = userListenHistoryMapper.selectOne(recordWrapper);
-
+            // 4. 核心写入
             int threshold = (int) (dto.getTotalDuration() * MusicConstants.MIN_PLAY_RATIO);
-            // 6. 更新用户-歌曲听歌记录
-            if (existRecord != null) {
-                // 已存在记录：更新累计时长+最后更新时间
-                existRecord.setTotalListenSeconds(existRecord.getTotalListenSeconds() + playedSeconds);
-                // 若播放状态达标（同之前播放量统计条件），更新播放次数（避免重复）
-                if (threshold <= playedSeconds) {
-                    existRecord.setListenCount(existRecord.getListenCount() + 1);
+            int listenCount = threshold <= dto.getPlayedDuration() ? 1 : 0;
+
+            // 使用Redisson分布式锁
+            RLock lock = redissonClient.getLock("listen_history:" + dto.getUserId() + ":" + dto.getMusicId());
+            try {
+                // 加锁（3秒超时，避免死锁）
+                boolean locked = lock.tryLock(RedisCacheConstants.LOCK_WAIT_TIME, TimeUnit.SECONDS);
+                if (!locked) {
+                    return Result.fail("系统繁忙，请稍后重试");
                 }
-                userListenHistoryMapper.updateById(existRecord);
-            } else {
-                // 新增记录
-                UserListenHistory newRecord = new UserListenHistory();
-                newRecord.setUserId(userId);
-                newRecord.setMusicId(musicId);
-                newRecord.setTotalListenSeconds(playedSeconds);
-                // 初始播放次数（达标则为1，否则为0）
-                newRecord.setListenCount(threshold <= playedSeconds ? 1 : 0);
-                newRecord.setListenTime(today);
-                userListenHistoryMapper.insert(newRecord);
+                // 执行insertOrUpdate
+                userListenHistoryMapper.insertOrUpdateListenHistory(
+                        dto.getUserId(), dto.getMusicId(), dto.getPlayedDuration(),
+                        listenCount, LocalDate.now()
+                );
+            } finally {
+                // 释放锁
+                if (lock.isHeldByCurrentThread()) {
+                    lock.unlock();
+                }
             }
 
             return Result.ok();
@@ -1115,6 +1113,40 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
             // 统一返回失败结果
             return Result.fail("播放状态上报失败，请稍后重试：" + e.getMessage());
         }
+    }
+    /**
+     * 校验歌曲是否存在（优先查缓存）
+     * @param musicId 歌曲ID
+     * @return true=存在，false=不存在
+     */
+    public boolean exists(Long musicId) {
+        if (musicId == null) {
+            return false;
+        }
+        String cacheKey = RedisCacheConstants.MUSIC_EXIST_KEY_PREFIX + musicId;
+
+        // 1. 查缓存
+        String cacheValue = stringRedisTemplate.opsForValue().get(cacheKey);
+        if ("1".equals(cacheValue)) { // 缓存命中：存在
+            return true;
+        }
+        if ("0".equals(cacheValue)) { // 缓存命中：不存在（空值缓存）
+            return false;
+        }
+
+        // 2. 缓存未命中，查数据库
+        boolean isExist = musicMapper.selectById(musicId) != null;
+
+        // 3. 写入缓存（区分存在/不存在）
+        if (isExist) {
+            // 歌曲存在：永久缓存（设置1天兜底，删除时主动清理）
+            stringRedisTemplate.opsForValue().set(cacheKey, "1", RedisCacheConstants.CACHE_LONG_TTL, TimeUnit.SECONDS);
+        } else {
+            // 歌曲不存在：空值缓存（短过期，防穿透）
+            stringRedisTemplate.opsForValue().set(cacheKey, "0", RedisCacheConstants.ONE_MINUTE_TTL, TimeUnit.SECONDS);
+        }
+
+        return isExist;
     }
 
     @Override
