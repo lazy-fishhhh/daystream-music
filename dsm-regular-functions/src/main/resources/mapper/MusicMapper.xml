@@ -81,4 +81,50 @@
         LIMIT 200           <!-- 只要top200,减小开销 -->
     </select>
 
+    <select id="selectMusicVOsByMusicianId" resultType="com.future.music.domain.vo.MusicVO">
+        SELECT
+            m.id AS id,
+            m.music_name AS musicName,
+            m.album_id AS albumId,
+            m.musician_id AS musicianId,
+            m.cover_url AS coverUrl,
+            m.bpm AS bpm,
+            m.is_vip AS isVip,
+            m.like_count AS likeCount,
+            m.comment_count AS commentCount,
+            m.duration AS duration,
+            al.album_name AS albumName,
+            mu.stage_name AS musicianName
+        FROM music m
+        LEFT JOIN musician mu ON m.musician_id = mu.id
+        LEFT JOIN album al ON m.album_id = al.id
+        WHERE m.musician_id = #{musicianId}
+    </select>
+
+    <select id="selectMusicVOsByMusicianIdPage" resultType="com.future.music.entity.vo.MusicDetailVO">
+        SELECT
+            m.id AS id,
+            m.music_name AS musicName,
+            m.album_id AS albumId,
+            m.musician_id AS musicianId,
+            m.cover_url AS coverUrl,
+            m.bpm AS bpm,
+            m.is_vip AS isVip,
+            m.like_count AS likeCount,
+            m.comment_count AS commentCount,
+            m.duration AS duration,
+            m.status AS status,
+            al.album_name AS albumName,
+            mu.stage_name AS musicianName,
+            m.create_time AS createTime,
+            GROUP_CONCAT(DISTINCT mt.tag_name) AS tagName
+        FROM music m
+        LEFT JOIN musician mu ON m.musician_id = mu.id
+        LEFT JOIN album al ON m.album_id = al.id
+        LEFT JOIN music_tag_relation mtr ON m.id = mtr.music_id
+        LEFT JOIN music_tag mt ON mtr.tag_id = mt.id
+        WHERE mu.user_id = #{musicianId}
+        GROUP BY m.id
+    </select>
+
 </mapper>

@@ -7,12 +7,12 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.future.music.domain.vo.MusicVO;
 import entity.pojo.music.Music;
+import com.future.music.entity.vo.MusicDetailVO;
 import entity.vo.MusicRecommendVO;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 import org.mapstruct.Mapper;
 
-import java.math.BigDecimal;
 import java.util.List;
 
 
@@ -73,4 +73,19 @@ public interface MusicMapper extends BaseMapper<Music> {
     List<MusicVO> selectMusicDetailByIds(@Param("musicIds") List<Long> musicIds);
 
     List<MusicRecommendVO> selectAllMusicWithStat();
+
+    /**
+     * 根据音乐人ID查询其所有音乐作品(连表查询)
+     * @param musicianId 音乐人ID
+     * @return 音乐作品列表
+     */
+    List<MusicVO> selectMusicVOsByMusicianId(@Param("musicianId") Long musicianId);
+
+    /**
+     * 根据音乐人ID分页查询其所有音乐作品(连表查询)
+     * @param page 分页参数
+     * @param musicianId 音乐人ID
+     * @return 分页的音乐作品列表
+     */
+    IPage<MusicDetailVO> selectMusicVOsByMusicianIdPage(IPage<MusicDetailVO> page, @Param("musicianId") Long musicianId);
 }

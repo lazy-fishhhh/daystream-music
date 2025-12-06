@@ -1,9 +1,8 @@
 package com.future.music.service;
 
 import com.future.music.domain.vo.*;
-import entity.dto.PlaylistFilterDTO;
+import com.future.music.entity.dto.PlaylistFilterDTO;
 import entity.dto.SearchDTO;
-import entity.pojo.music.MusicTag;
 import entity.pojo.util.PageResp;
 import entity.pojo.util.Result;
 

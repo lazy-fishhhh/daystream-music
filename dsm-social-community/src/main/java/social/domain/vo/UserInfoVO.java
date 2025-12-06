@@ -59,4 +59,18 @@ public class UserInfoVO {
      * 用户身份
      */
     private List<String> userRole;
+
+    /**
+     * 上次签到时间
+     */
+    private LocalDateTime lastCheckinTime;
+
+    /**
+     * 最后登录时间
+     */
+    private LocalDateTime lastLoginTime;
+    /**
+     * 信息更新时间
+     */
+    private LocalDateTime updatedTime;
 }
