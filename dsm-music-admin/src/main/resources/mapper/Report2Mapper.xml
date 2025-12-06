@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="admin.mapper.Report2Mapper">
+    <select id="roportList" resultType="admin.domain.vo.ReportVO">
+        select r.id,
+        r.reporter_id,
+        r.target_type,
+        r.target_id,
+        r.report_reason,
+        r.report_content,
+        r.created_time,
+        r.status
+        from report as r
+        left join user as u on r.reporter_id=u.id
+        <if test="r.target_type==3">
+        left join user as ud on r.target_id=ud.id
+        </if>
+        <if test="r.target_type==1">
+            left join song as s on r.target_id=s.id
+        </if>
+        <if test="r.target_type==2">
+            left join comment as c on r.target_id=c.id
+        </if>
+
+    </select>
+        <resultMap id="ReportVOMap" type="admin.domain.vo.ReportVO">
+            <id column="id" property="id"/>
+            <result column="reporter_id" property="reporterId"/>
+            <result column="target_type" property="targetType"/>
+            <result column="target_id" property="targetId"/>
+            <result column="report_reason" property="reason"/>
+            <result column="report_content" property="reportContent"/>
+            <result column="created_time" property="createdTime"/>
+            <result column="status" property="status"/>
+            <result column="reporter_name" property="reporterName"/>
+            <result column="reporter_avatar" property="reporterAvatar"/>
+            <result column="target_name" property="targetName"/>
+            <result column="target_avatar" property="targetAvatar"/>
+            <result column="is_musician" property="isMusician"/>
+            <result column="target_status" property="targetStatus"/>
+        </resultMap>
+
+    <select id="reportList" resultMap="ReportVOMap">
+        select
+        r.id,
+        r.reporter_id,
+        r.target_type,
+        r.target_id,
+        r.report_reason,
+        r.report_content,
+        r.created_time,
+        r.status,
+        u.username as reporter_name,
+        u.avatar as reporter_avatar,
+        CASE
+        WHEN r.target_type = 1 THEN mu.song_name        -- 音乐名
+        WHEN r.target_type = 2 THEN c.content         -- 评论内容
+        WHEN r.target_type = 3 THEN COALESCE(m.musician_name, ud.username) -- 用户名/音乐人名称
+        END as target_name,
+        -- 被举报目标头像（别名target_avatar）
+        CASE
+        WHEN r.target_type = 1 THEN mu.cover_avatar    -- 音乐封面
+        WHEN r.target_type = 2 THEN ud.avatar         -- 评论发布者头像
+        WHEN r.target_type = 3 THEN COALESCE(m.avatar, ud.avatar) -- 用户/音乐人头像
+        END as target_avatar,
+        CASE
+        WHEN r.target_type = 3 AND m.id IS NOT NULL THEN 1
+        ELSE 0
+        END as is_musician
+        CASE
+        WHEN r.target_type = 1 THEN
+        CASE mu.status
+        WHEN 2 THEN 0
+        WHEN 1 THEN 1
+        ELSE 1
+        END
+        WHEN r.target_type = 2 THEN
+        CASE c.status
+        WHEN 0 THEN 0
+        WHEN 1 THEN 1
+        ELSE 1
+        END
+        WHEN r.target_type = 3 THEN
+        CASE COALESCE(m.status, ud.status)
+        WHEN 0 THEN 0
+        WHEN 1 THEN 1
+        WHEN 2 THEN 2
+        ELSE 1
+        END
+        END as target_status
+        from report as r
+        -- 举报者关联
+        left join user as u on r.reporter_id = u.id
+        -- 动态关联目标表（按举报类型）
+        left join user as ud on (r.target_type = 3 and r.target_id = ud.id) or (r.target_type = 2 and c.user_id = ud.id)
+        left join musician as m on ud.id = m.user_id
+        left join music as mu on r.target_id = mu.id
+        left join comment as c on r.target_type = 2 and r.target_id = c.id
+        -- 多条件筛选
+        <where>
+            <if test="status != null">
+                r.status = #{status}
+            </if>
+            <if test="type != null">
+                and r.target_type = #{type}
+            </if>
+            <if test="reason != null">
+                and r.report_reason = #{reason}
+            </if>
+            <if test="key != null and key != ''">
+                and (
+                u.username like concat('%', #{key}, '%')  -- 举报人姓名
+                or r.report_content like concat('%', #{key}, '%')  -- 举报内容
+                or CASE
+                WHEN r.target_type = 1 THEN s.song_name
+                WHEN r.target_type = 2 THEN c.content
+                WHEN r.target_type = 3 THEN COALESCE(m.musician_name, ud.username)
+                END like concat('%', #{key}, '%')  -- 被举报目标名
+                )
+            </if>
+        </where>
+        order by r.created_time desc
+    </select>
+</mapper>
