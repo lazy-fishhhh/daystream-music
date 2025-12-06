@@ -192,7 +192,9 @@ public class UserHomeServiceImpl implements IUserHomeService {
             userInfoVO.setBackgroundImage(currentUser.getBackgroundImage());
             userInfoVO.setFollowCount(currentUser.getFollowCount());
             userInfoVO.setFansCount(currentUser.getFansCount());
-            userInfoVO.setOnlineStatus(0)   ;
+            userInfoVO.setOnlineStatus(0);
+
+            userInfoVO.setLikeCount(0);
             return Result.ok(userInfoVO);
         } catch (BusinessException e) {
             throw new BusinessException(e.getCode(), e.getMessage());

@@ -93,4 +93,10 @@ public class UserInfoVO {
      * 在线状态
      */
     private Integer onlineStatus;
+
+    /*
+     * 收获点赞数
+     */
+    private Integer likeCount;
 }
+
