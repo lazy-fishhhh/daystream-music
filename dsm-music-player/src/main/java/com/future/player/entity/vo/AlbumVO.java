@@ -19,5 +19,5 @@ public class AlbumVO {
     private Integer status;
     private Long collectCount;
     private Long commentCount;
-
+    private Long musicCount;
 }
