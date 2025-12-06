@@ -288,7 +288,7 @@ public class CommentServiceImpl implements CommentService {
                 lastId = Long.parseLong(commentListDTO.getLastId());
             }
             //查找lastId后面的评论
-            List<CommentListVO> commentListVOS = commentMapper.commentList(targetId, lastId, pageSize);
+            List<CommentListVO> commentListVOS = commentMapper.commentList(targetId, lastId, pageSize,currentUserId);
             if (commentListVOS == null||commentListVOS.isEmpty()) {
                 return Result.ok("后面没有数据了");
             }
