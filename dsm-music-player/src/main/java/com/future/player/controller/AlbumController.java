@@ -11,6 +11,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @Api(value = "专辑管理")
 @RestController
 public class AlbumController {
@@ -76,5 +78,11 @@ public class AlbumController {
         return albumService.getAlbumDetail(albumId);
     }
 
+
+    @ApiOperation(value = "关联歌曲到专辑")
+    @PostMapping("/{albumId}/songs/bind")
+    public Result<String> bindSongs(@PathVariable Long albumId, @RequestBody List<Long> songIds) {
+        return albumService.bindSongsToAlbum(albumId, songIds);
+    }
 
 }

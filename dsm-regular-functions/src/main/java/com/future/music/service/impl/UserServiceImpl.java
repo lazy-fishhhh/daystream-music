@@ -10,6 +10,7 @@ import com.future.login.domain.LoginUserDetails;
 import com.future.login.exception.BusinessException;
 import com.future.login.mapper.UserMapper;
 import com.future.login.util.SecurityUtil;
+import com.future.music.domain.message.SignInMessage;
 import com.future.music.domain.vo.*;
 import com.future.music.mapper.*;
 import com.future.music.service.IMusicService;
@@ -34,6 +35,7 @@ import lombok.RequiredArgsConstructor;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.cache.CacheProperties;
@@ -59,8 +61,10 @@ import java.util.stream.Collectors;
 
 import static com.future.music.code.PlaylistErrorCode.PLAYLIST_NAME_EXIST;
 import static com.future.music.constants.SignConstants.*;
-import static com.future.music.constants.SignConstants.TOMORROW_SIGN_IN_DAYS_5_REWORD;
+import static com.future.music.constants.SignConstants.SIGN_IN_DAYS_5_REWORD;
 import static com.future.music.util.constants.CHECK_IN_KEY;
+import static constants.RabbitConstants.ROUTING_KEY_SIGN_IN_SUCCESS;
+import static constants.RabbitConstants.SIGN_IN_SUCCESS_TOPIC_EXCHANGE;
 
 
 @Slf4j
@@ -97,6 +101,7 @@ public class UserServiceImpl  implements IUserService {
 
 
 
+
     @Resource
     private StringRedisTemplate stringRedisTemplate;
 
@@ -105,6 +110,8 @@ public class UserServiceImpl  implements IUserService {
     //构造方法注入
     private final PlaylistMapper playListMapper;
     private final PlaylistTagRelationMapper playlistTagRelationMapper;
+    public final RabbitTemplate rabbitTemplate;
+
     @Autowired
     private UserMapper userMapper;
 
@@ -252,6 +259,24 @@ public class UserServiceImpl  implements IUserService {
             long expireSeconds = Duration.between(now, endOfMonth).getSeconds();
             stringRedisTemplate.expire(key, expireSeconds, TimeUnit.SECONDS);
         }
+
+        // 7. 发送消息到消息队列
+        //    1.更新用户签到时间  2.发放签到奖励
+         int continuousSignInDays = getContinuousSignInDays().getData();
+        int reward = 0;
+        if (continuousSignInDays >= SIGN_IN_DAYS_7){
+             reward = SIGN_IN_DAYS_7_REWORD;
+        }else if (continuousSignInDays >= SIGN_IN_DAYS_5){
+             reward = SIGN_IN_DAYS_5_REWORD;
+        }else if (continuousSignInDays >= SIGN_IN_DAYS_3){
+             reward = SIGN_IN_DAYS_3_REWORD;
+        }else {
+             reward = SIGN_IN_DAYS_1_REWORD;
+        }
+
+        SignInMessage message = new SignInMessage(true, reward, userId, now);
+
+        rabbitTemplate.convertAndSend(SIGN_IN_SUCCESS_TOPIC_EXCHANGE, ROUTING_KEY_SIGN_IN_SUCCESS,  message);
 
         return Result.ok("签到成功");
     }
@@ -655,14 +680,14 @@ public class UserServiceImpl  implements IUserService {
         Integer data = getContinuousSignInDays().getData();
         int tomorrowSignInDays = data + 1;
         int reward = 0;
-        if (tomorrowSignInDays >= TOMORROW_SIGN_IN_DAYS_7) {
-            reward = TOMORROW_SIGN_IN_DAYS_7_REWORD;
-        }else if (tomorrowSignInDays >= TOMORROW_SIGN_IN_DAYS_5 ) {
-            reward = TOMORROW_SIGN_IN_DAYS_5_REWORD;
-        } else if (tomorrowSignInDays >= TOMORROW_SIGN_IN_DAYS_3 ) {
-            reward = TOMORROW_SIGN_IN_DAYS_3_REWORD;
-        } else if (tomorrowSignInDays >= TOMORROW_SIGN_IN_DAYS_1 ){
-            reward = TOMORROW_SIGN_IN_DAYS_1_REWORD;
+        if (tomorrowSignInDays >= SIGN_IN_DAYS_7) {
+            reward = SIGN_IN_DAYS_7_REWORD;
+        }else if (tomorrowSignInDays >= SIGN_IN_DAYS_5 ) {
+            reward = SIGN_IN_DAYS_5_REWORD;
+        } else if (tomorrowSignInDays >= SIGN_IN_DAYS_3 ) {
+            reward = SIGN_IN_DAYS_3_REWORD;
+        } else if (tomorrowSignInDays >= SIGN_IN_DAYS_1 ){
+            reward = SIGN_IN_DAYS_1_REWORD;
         }
         return Result.ok(reward);
     }

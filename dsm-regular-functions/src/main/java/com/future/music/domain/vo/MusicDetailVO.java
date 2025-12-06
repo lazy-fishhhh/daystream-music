@@ -15,6 +15,7 @@ import java.util.List;
 @NoArgsConstructor
 public class MusicDetailVO extends MusicVO {
     private List<String> tags;          // 歌曲标签（需关联标签表）
+    private String tagName;             // 临时字段，用于接收XML查询返回的标签字符串
     private String lyricType;           // 歌词文件类型
     private String lyricUrl;            // 歌词文件地址
     private List<LyricLineDTO> syncLyric; // LRC/KRC同步歌词（带时间戳）

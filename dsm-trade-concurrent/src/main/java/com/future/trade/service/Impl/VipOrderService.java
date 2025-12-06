@@ -45,7 +45,7 @@ import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 import static com.future.trade.constants.VipRedisConstant.*;
-import static constants.RedisCacheConstants.LOCK_EXPIRE_TTL;
+import static constants.RedisCacheConstants.LOCK_TTL;
 import static constants.TradeConstants.*;
 
 
@@ -478,7 +478,7 @@ public class VipOrderService implements IVipOrderService {
         try {
             // 3. 分布式锁：防止同一用户被多线程重复续费（过期时间30秒）
             Boolean lockSuccess = stringRedisTemplate.opsForValue()
-                    .setIfAbsent(lockKey, LOCKED_VALUE, LOCK_EXPIRE_TTL, java.util.concurrent.TimeUnit.SECONDS);
+                    .setIfAbsent(lockKey, LOCKED_VALUE, LOCK_TTL, java.util.concurrent.TimeUnit.SECONDS);
             if (Boolean.FALSE.equals(lockSuccess)) {
                 log.warn("用户[{}]VIP续费失败：获取分布式锁失败（可能正在续费中）", userId);
                 return;

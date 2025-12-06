@@ -1,4 +1,4 @@
-package com.future.trade.constants;
+package constants;
 
 /**
  * RabbitMQ 相关常量定义
@@ -11,6 +11,11 @@ public final class RabbitConstants {
     public static final String  SECKILL_RABBIT_LISTENER_CONTAINER_FACTORY = "seckillRabbitListenerContainerFactory";
 
     // ==================== 交换机 (Exchanges) ====================
+
+    /**
+     * 签到 交换机
+     */
+    public static final String SIGN_IN_SUCCESS_TOPIC_EXCHANGE = "sign.in.success.topic.exchange";
 
     /**
      * VIP 业务主交换机（处理普通消息）
@@ -29,7 +34,13 @@ public final class RabbitConstants {
     public static final String SECKILL_ORDER_EXCHANGE = "seckill.order.exchange";
 
 
+
     // ==================== 队列 (Queues) ====================
+
+    /**
+     * 签到队列
+     */
+    public static final String SIGN_IN_SUCCESS_QUEUE = "sign.in.success.queue";
 
     /**
      * VIP 支付成功队列
@@ -67,6 +78,10 @@ public final class RabbitConstants {
     public static final String SECKILL_ORDER_QUEUE = "seckill.order.queue";
 
     // ==================== 路由键 (Routing Keys) ====================
+    /**
+     * 签到路由键
+     */
+    public static final String ROUTING_KEY_SIGN_IN_SUCCESS = "sign.in.success";
 
     /**
      * 支付成功路由键

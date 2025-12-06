@@ -21,6 +21,7 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import javax.validation.Valid;
 import java.util.List;
 import java.util.Map;
 
@@ -109,7 +110,7 @@ public class MusicController {
 
     @ApiOperation(value = "上报播放状态（统计播放量）")
     @PostMapping("/play/report")
-    public Result<Void> reportPlayStatus(@RequestBody MusicPlayReportDTO dto) {
+    public Result<Void> reportPlayStatus(@Valid @RequestBody MusicPlayReportDTO dto) {
         return iMusicService.reportPlayStatus(dto);
     }
 

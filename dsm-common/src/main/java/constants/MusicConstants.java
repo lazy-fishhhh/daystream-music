@@ -29,7 +29,9 @@ public class MusicConstants {
     public static final String FILTER_DIMENSION_BPM = "BPM"; // 节奏
     public static final String FILTER_DIMENSION_INSTRUMENT = "INSTRUMENT"; // 乐器
 
-    //音乐统计时长
+    //音乐统计时长阈值（秒）
+    public static final int MIN_PLAY_SECONDS = 3;
+    // 播放达标率（播放时长占总时长的比例）
     public static final double MIN_PLAY_RATIO = 0.3;
 
     // 缓存 Key 前缀 + 过期时间（1小时，可根据业务调整）

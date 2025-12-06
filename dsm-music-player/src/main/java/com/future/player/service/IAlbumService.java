@@ -5,6 +5,8 @@ import com.future.player.entity.dto.AlbumDTO;
 import entity.pojo.util.PageResp;
 import entity.pojo.util.Result;
 
+import java.util.List;
+
 public interface IAlbumService {
     /**
      * 创建专辑
@@ -60,4 +62,12 @@ public interface IAlbumService {
     Result<AlbumVO> getAlbumDetail(Long albumId);
 
     Result<PageResp<AlbumVO>> queryPublicAlbum(int pageNum, int pageSize);
+
+    /**
+     * 关联歌曲到专辑
+     * @param albumId 专辑ID
+     * @param songIds 歌曲ID列表
+     * @return 操作结果
+     */
+    Result<String> bindSongsToAlbum(Long albumId, List<Long> songIds);
 }

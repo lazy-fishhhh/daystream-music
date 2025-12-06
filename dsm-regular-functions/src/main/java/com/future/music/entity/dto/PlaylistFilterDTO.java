@@ -1,4 +1,4 @@
-package entity.dto;
+package com.future.music.entity.dto;
 
 import lombok.Data;
 import javax.validation.constraints.NotNull;
