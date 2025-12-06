@@ -1,5 +1,6 @@
 package admin.service;
 
+import admin.domain.dto.HandleReportDTO;
 import admin.domain.dto.ReportDTO;
 import admin.domain.vo.ReportVO;
 import entity.pojo.util.PageResp;
@@ -10,4 +11,6 @@ import org.springframework.stereotype.Service;
 @Service
 public interface ReportService {
     Result<PageResp<ReportVO>> getReportList(ReportDTO reportDTO);
+
+   // Result handleReport(HandleReportDTO handleReportDTO);
 }

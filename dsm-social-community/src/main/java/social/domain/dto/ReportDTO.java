@@ -12,7 +12,7 @@ public class ReportDTO {
     @NotBlank(message = "目标Id不能为空")
     private String targetId;
     /**
-     * 举报目标类型 1-音乐 2-评论 3-用户
+     * 举报目标类型 1-音乐 2-评论 3-用户 4-音乐人
      */
     @NotNull(message = "举报目标类型不能为空")
     private Integer targetType;

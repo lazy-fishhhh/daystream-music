@@ -28,7 +28,6 @@ public class CommentListDTO {
      */
     @Min(value = 1, message = "获取条数不能小于1")
     @Max(value = 100,message = "获取条数不能大于100")
-    @NotNull(message = "每页大小不能为空")
-    private Integer size;
+    private Integer size=10;
 
 }

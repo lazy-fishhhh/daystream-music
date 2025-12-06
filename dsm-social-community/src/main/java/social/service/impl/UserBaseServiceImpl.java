@@ -816,6 +816,10 @@ public class UserBaseServiceImpl implements UserBaseService {
         FollowerVO followerVO=new FollowerVO();
         followerVO.setIsfollow(true);
         followerVO.setMsg("关注成功");
+        //更新关注数
+        followMapper.updateFollowCountUp(currentUserId);
+        //更新关注数
+        followMapper.updateFansCountUp(userId);
         LambdaQueryWrapper<UserRole> lambdaQueryWrapper=new LambdaQueryWrapper<>();
         lambdaQueryWrapper.eq(UserRole::getUserId,userId);
         UserRole userRole = userRoleMapper.selectOne(lambdaQueryWrapper);
@@ -904,6 +908,10 @@ public class UserBaseServiceImpl implements UserBaseService {
         FollowerVO followerVO=new FollowerVO();
         followerVO.setIsfollow(false);
         followerVO.setMsg("取消关注成功");
+        //更新关注数
+        followMapper.updateFollowCountDown(currentUserId);
+        //更新关注数
+        followMapper.updateFansCountDown(userId);
         return Result.ok(followerVO);
     }
 
@@ -914,9 +922,7 @@ public class UserBaseServiceImpl implements UserBaseService {
     public Result getFollowCount()
     {
         Long currentUserId = SecurityUtil.getCurrentUserId();
-        LambdaQueryWrapper<UserFollow> lambdaQueryWrapper=new LambdaQueryWrapper<>();
-        lambdaQueryWrapper.eq(UserFollow::getUserId,currentUserId);
-        Long count = followMapper.selectCount(lambdaQueryWrapper);
+        Long count = followMapper.followCount(currentUserId);
         return Result.ok(count);
     }
 
@@ -927,9 +933,7 @@ public class UserBaseServiceImpl implements UserBaseService {
     public Result getFollowerCount()
     {
         Long currentUserId=SecurityUtil.getCurrentUserId();
-        LambdaQueryWrapper<UserFollow> lambdaQueryWrapper=new LambdaQueryWrapper<>();
-        lambdaQueryWrapper.eq(UserFollow::getFollowedUserId,currentUserId);
-        Long count = followMapper.selectCount(lambdaQueryWrapper);
+        Long count = followMapper.fansCount(currentUserId);
         return Result.ok(count);
     }
 
@@ -1294,16 +1298,13 @@ public class UserBaseServiceImpl implements UserBaseService {
         }
         Long currentUserId = SecurityUtil.getCurrentUserId();
         //关注数
-        LambdaQueryWrapper<UserFollow> lambdaQueryWrapper=new LambdaQueryWrapper<>();
-        lambdaQueryWrapper.eq(UserFollow::getUserId,userId);
-        Long count = followMapper.selectCount(lambdaQueryWrapper);
+        Long count = followMapper.followCount(currentUserId);
         otherUserVO.setFollowCount(count);
         //设置粉丝数
-        LambdaQueryWrapper<UserFollow> lambdaQueryWrapper1=new LambdaQueryWrapper<>();
-        lambdaQueryWrapper1.eq(UserFollow::getFollowedUserId,userId);
-        Long followerCount = followMapper.selectCount(lambdaQueryWrapper1);
+        Long followerCount = followMapper.fansCount(currentUserId);
         otherUserVO.setFollowerCount(followerCount);
         //是否关注作者
+        LambdaQueryWrapper<UserFollow> lambdaQueryWrapper1 = new LambdaQueryWrapper<>();
         lambdaQueryWrapper1.eq(UserFollow::getUserId,currentUserId)
                 .eq(UserFollow::getFollowedUserId,userId);
         UserFollow userFollow = followMapper.selectOne(lambdaQueryWrapper1);

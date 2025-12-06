@@ -33,4 +33,6 @@ public class User {
     private LocalDateTime createdTime; // 创建时间
     private LocalDateTime updatedTime; // 更新时间
     private LocalDateTime lastLoginTime; // 最后登录时间
+    private Long fansCount;             //粉丝数
+    private Long followCount;        //关注数
 }

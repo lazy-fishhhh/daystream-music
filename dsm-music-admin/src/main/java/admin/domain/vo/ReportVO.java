@@ -53,10 +53,6 @@ public class ReportVO {
      */
     private Integer status;
     /**
-     * 是否是音乐人
-     */
-    private Integer isMusician;
-    /**
      * 目标状态 0-已下架/封禁 1-正常 2-注销
      */
     private Integer targetStatus;

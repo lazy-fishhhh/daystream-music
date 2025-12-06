@@ -3,6 +3,7 @@ package social.mapper;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
+import org.apache.ibatis.annotations.Update;
 import social.domain.pojo.UserFollow;
 import social.domain.vo.UserFollowerVO;
 
@@ -31,5 +32,15 @@ public interface FollowMapper extends BaseMapper<UserFollow> {
   List<Long> selectFollowUserIdsMusician(Long userId);
   Long countHasMore(@Param("userId") Long userId,
                     @Param("lastId") Long lastId);
+  Long fansCount(Long userId);
+  Long followCount(Long userId);
+  @Update("update user set follow_count = follow_count + 1 where id = #{userId}")
+  void updateFollowCountUp(@Param("userId") Long userId);
+  @Update("update user set follow_count = follow_count - 1 where id = #{userId}")
+  void updateFollowCountDown(@Param("userId") Long userId);
+  @Update("update user set fans_count = fans_count + 1 where id = #{userId}")
+  void updateFansCountUp(@Param("userId") Long userId);
+  @Update("update user set fans_count = fans_count - 1 where id = #{userId}")
+  void updateFansCountDown(@Param("userId") Long userId);
 
 }

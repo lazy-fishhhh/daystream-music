@@ -8,6 +8,7 @@ import entity.pojo.info.User;
 import entity.pojo.info.UserReport;
 import entity.pojo.music.Album;
 import entity.pojo.music.Music;
+import entity.pojo.music.Musician;
 import entity.pojo.social.Comment;
 import entity.pojo.social.CommunityPost;
 import entity.pojo.social.LikeRecord;
@@ -55,6 +56,8 @@ public class CommentServiceImpl implements CommentService {
     private User2Mapper user2Mapper;
     @Autowired
     private ReportMapper userReportMapper;
+    @Autowired
+    private SingerMapper singerMapper;
     /**
      * 发布评论
      *
@@ -492,6 +495,16 @@ public class CommentServiceImpl implements CommentService {
             if(user==null)
             {
                 return Result.fail("用户不存在");
+            }
+        }else{
+            LambdaQueryWrapper<Musician> musicianWrapper = new LambdaQueryWrapper();
+            musicianWrapper.eq(Musician::getId,targetId)
+                    .eq(Musician::getStatus, 1)
+                    .eq(Musician::getIsDeleted, 0);
+            Musician musician = singerMapper.selectOne(musicianWrapper);
+            if(musician==null)
+            {
+                return Result.fail("音乐人不存在");
             }
         }
         Long currentUserId = SecurityUtil.getCurrentUser().getId();
