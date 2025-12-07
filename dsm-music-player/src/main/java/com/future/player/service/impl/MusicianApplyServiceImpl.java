@@ -129,7 +129,7 @@ public class MusicianApplyServiceImpl implements MusicianApplyService {
             return Result.fail("请输入正确的验证码");
         }
         //注销
-        playerMusicianMapper.deleteById(musician.getId());
+        playerMusicianMapper.deleteMusician(musician.getId());
         //更新角色，从音乐人变成普通用户
         UpdateWrapper<UserRole> updateWrapper1=new UpdateWrapper<>();
         updateWrapper1.eq("user_id",userId)
@@ -204,12 +204,18 @@ public class MusicianApplyServiceImpl implements MusicianApplyService {
         }
         LambdaQueryWrapper<Musician> lambdaQueryWrapper1=new LambdaQueryWrapper<>();
         lambdaQueryWrapper1.eq(Musician::getUserId,currentUserId)
-                .eq(Musician::getStatus,1);
+                .eq(Musician::getStatus,1)
+                .eq(Musician::getIsDeleted,0);
         Musician musician1 = playerMusicianMapper.selectOne(lambdaQueryWrapper1);
         if(musician1!=null) {
             return Result.fail("您已经入驻过音乐人，请勿重复申请");
         }
         //判断是否申请过
+        String username = musicianApplyDTO.getStageName();
+        if (!RegexPatterns.matches(username, RegexPatterns.USERNAME_REGEX)) {
+            return Result.fail("用户名2-16位，请输入正确的用户名");
+        }
+        //判断用户名是否合法
         //如果申请过被驳回，则重新改成待审核
         LambdaQueryWrapper<Musician> lambdaQueryWrapper2=new LambdaQueryWrapper<>();
         lambdaQueryWrapper2.eq(Musician::getUserId,currentUserId)
@@ -225,12 +231,22 @@ public class MusicianApplyServiceImpl implements MusicianApplyService {
             playerMusicianMapper.update(musician2,lambdaQueryWrapper2);
             return Result.ok("申请成功，请等待审核");
         }
-        //判断用户名是否合法
-        String username = musicianApplyDTO.getStageName();
-        if (!RegexPatterns.matches(username, RegexPatterns.USERNAME_REGEX)) {
-            return Result.fail("用户名2-16位，请输入正确的用户名");
+        //如果之前是音乐人，现在注销了，把审核状态变成0，是否注销变成0
+        LambdaQueryWrapper<Musician> lambdaQueryWrapper3=new LambdaQueryWrapper<>();
+        lambdaQueryWrapper3.eq(Musician::getUserId,currentUserId)
+                .eq(Musician::getStatus,1)
+                .eq(Musician::getIsDeleted,1);
+        Musician musician4=playerMusicianMapper.selectOne(lambdaQueryWrapper3);
+        if(musician4!=null)
+        {
+            musician4.setStatus(0);
+            musician4.setIsDeleted(0);
+            musician2.setCreatedTime(LocalDateTime.now());
+            musician2.setStageName(musicianApplyDTO.getStageName());
+            musician2.setIntroduction(musicianApplyDTO.getIntroduction());
+            musician2.setAvatar(musicianApplyDTO.getAvatar());
+            playerMusicianMapper.update(musician4,lambdaQueryWrapper3);
         }
-
         //创建音乐人申请
         Musician musician3=new Musician();
         musician3.setUserId(currentUserId);

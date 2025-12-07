@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 
 import com.future.login.domain.LoginUserDetails;
 import com.future.login.exception.AccountDisabledException;
+import com.future.login.exception.DeactivatedUserException;
 import com.future.login.exception.EmailNoFoundException;
 import com.future.login.mapper.PermissionMapper;
 import com.future.login.mapper.RoleMapper;
@@ -37,6 +38,11 @@ public class UserDetailServiceImpl implements UserDetailsService {
         if(Objects.isNull(user))
         {
             throw new EmailNoFoundException("该邮箱未注册");
+        }
+        //如果用户注销了
+        if(user.getUserStatus()==2)
+        {
+            throw new DeactivatedUserException("用户不存在");
         }
         //如果是封禁用户，禁止登录
         if(user.getUserStatus()==0)

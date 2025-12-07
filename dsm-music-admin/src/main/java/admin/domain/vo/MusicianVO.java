@@ -21,7 +21,7 @@ public class MusicianVO {
      */
     private String email;
     /**
-     * 状态 0-待审核 1-审核通过 2-审核驳回
+     * 状态 0-待审核 1-审核通过 2-审核驳回 3-注销
      */
     private Integer status;
     /**

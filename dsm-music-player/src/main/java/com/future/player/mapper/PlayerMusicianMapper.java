@@ -29,5 +29,6 @@ public interface PlayerMusicianMapper extends BaseMapper<Musician> {
                                           @Param("page") Page<MusicianInfoVO> page);
     void updateMusicianInfo(UpdateMusicianDTO updateMusicianDTO);
     void insertTag(SingerTagRelation tagRelation);
+    void deleteMusician(Long id);
 
 }

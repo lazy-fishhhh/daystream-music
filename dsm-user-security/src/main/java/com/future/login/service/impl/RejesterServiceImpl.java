@@ -41,6 +41,12 @@ public class RejesterServiceImpl implements RejesterService {
         if (!RegexPatterns.matches(username, RegexPatterns.USERNAME_REGEX)) {
             return Result.fail("用户名2-16位，请输入正确的用户名");
         }
+        LambdaQueryWrapper<User> lambdaQueryWrapper1 = new LambdaQueryWrapper<>();
+        lambdaQueryWrapper1.eq(User::getUsername, username);
+        User user3 = userMapper.selectOne(lambdaQueryWrapper1);
+        if (user3 != null) {
+            return Result.fail("用户名已存在");
+        }
         if (!RegexPatterns.matches(password, RegexPatterns.PASSWORD_REGEX)) {
             return Result.fail("密码8-20位,包含大写字母、数字和特殊字符,请输入正确的密码格式");
         }
