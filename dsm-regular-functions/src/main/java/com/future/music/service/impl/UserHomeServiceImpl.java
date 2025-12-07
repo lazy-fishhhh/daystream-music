@@ -19,6 +19,7 @@ import com.future.music.mapper.PlaylistMapper;
 import com.future.music.mapper.UserCollectionMapper;
 import com.future.music.service.IMusicService;
 import com.future.music.service.IUserHomeService;
+import com.future.music.websocket.ChatEndPoint;
 import com.future.player.mapper.AlbumMapper;
 import entity.pojo.info.User;
 import entity.pojo.music.Album;
@@ -192,7 +193,10 @@ public class UserHomeServiceImpl implements IUserHomeService {
             userInfoVO.setBackgroundImage(currentUser.getBackgroundImage());
             userInfoVO.setFollowCount(currentUser.getFollowCount());
             userInfoVO.setFansCount(currentUser.getFansCount());
-            userInfoVO.setOnlineStatus(0);
+
+            // 获取在线状态
+            boolean userOnline = ChatEndPoint.isUserOnline(userId);
+            userInfoVO.setOnlineStatus(userOnline ? 1 : 0);
 
             userInfoVO.setLikeCount(0);
             return Result.ok(userInfoVO);
