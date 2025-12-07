@@ -822,14 +822,15 @@ public class UserBaseServiceImpl implements UserBaseService {
         followMapper.updateFansCountUp(userId);
         LambdaQueryWrapper<UserRole> lambdaQueryWrapper=new LambdaQueryWrapper<>();
         lambdaQueryWrapper.eq(UserRole::getUserId,userId);
-        UserRole userRole = userRoleMapper.selectOne(lambdaQueryWrapper);
-        //存入reids
+        List<UserRole> userRole = userRoleMapper.selectList(lambdaQueryWrapper);
+        List<Long> userIds=userRole.stream().map(UserRole::getRoleId).toList();
+        //存入redis
         try {
-            String followKey=null;
             //关注列表缓存
-            if(userRole.getRoleId()==1||userRole.getRoleId()==2) {
-               followKey = RedisCacheConstants.USER_FOLLOW + ":" + currentUserId+"normal";
-            }else if(userRole.getRoleId()==3)
+            String followKey=null;
+            if(!userIds.contains(3L)) {
+                followKey= RedisCacheConstants.USER_FOLLOW + ":" + currentUserId+"normal";
+            }else if(userIds.contains(3L))
             {
                 followKey=RedisCacheConstants.USER_FOLLOW+":"+currentUserId+"music";
             }
@@ -879,14 +880,15 @@ public class UserBaseServiceImpl implements UserBaseService {
         }
         LambdaQueryWrapper<UserRole> lambdaQueryWrapper=new LambdaQueryWrapper<>();
         lambdaQueryWrapper.eq(UserRole::getUserId,userId);
-        UserRole userRole = userRoleMapper.selectOne(lambdaQueryWrapper);
+        List<UserRole> userRole = userRoleMapper.selectList(lambdaQueryWrapper);
+        List<Long> userIds=userRole.stream().map(UserRole::getRoleId).toList();
         //从reids中删除
         try {
             //关注列表缓存
             String followKey=null;
-            if(userRole.getRoleId()==1||userRole.getRoleId()==2) {
+            if(!userIds.contains(3L)) {
                  followKey= RedisCacheConstants.USER_FOLLOW + ":" + currentUserId+"normal";
-            }else if(userRole.getRoleId()==3)
+            }else if(userIds.contains(3L))
             {
                 followKey=RedisCacheConstants.USER_FOLLOW+":"+currentUserId+"music";
             }
