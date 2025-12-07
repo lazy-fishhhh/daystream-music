@@ -73,10 +73,22 @@ public class AdminMusicianServiceImpl implements AdminMusicianService {
             //变更用户身份
             if(status==MusicianAdminEnum.APPROVED.getCode())
             {
-                UpdateWrapper<UserRole> queryWrapper = new UpdateWrapper<>();
-                queryWrapper.eq("user_id", musician.getUserId())
-                        .set("role_id", 3);
-                userRole3Mapper.update(queryWrapper);
+                LambdaQueryWrapper<UserRole> queryWrapper = new LambdaQueryWrapper<>();
+                queryWrapper.eq(UserRole::getUserId, musicianDTO.getId())
+                        .eq(UserRole::getRoleId, 2);
+                UserRole userRole = userRole3Mapper.selectOne(queryWrapper);
+                //判断用户是不是vip用户，如果不是，直接把普通用户变成vip
+                if(userRole==null) {
+                    UpdateWrapper<UserRole> queryWrapper1 = new UpdateWrapper<>();
+                    queryWrapper1.eq("user_id", musician.getUserId())
+                            .set("role_id", 3);
+                    userRole3Mapper.update(queryWrapper1);
+                }
+                //如果是，创建一个新的音乐人身份
+                UserRole userRole1 = new UserRole();
+                userRole1.setUserId(musician.getUserId());
+                userRole1.setRoleId(3L);
+                userRole3Mapper.insert(userRole1);
                 //变更redis中的权限
                 updateUserInfoService.updateUserInfo(musician.getUserId());
             }

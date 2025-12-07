@@ -12,7 +12,7 @@ public class MusiciansDTO {
      */
     private String key;
     /**
-     * 状态查找 0-待审核 1-审核通过 2-审核驳回
+     * 状态查找 1-审核通过 2-审核驳回
      */
     private Integer status;
     /**

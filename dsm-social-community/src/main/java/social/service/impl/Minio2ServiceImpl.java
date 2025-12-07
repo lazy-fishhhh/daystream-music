@@ -56,7 +56,7 @@ public class Minio2ServiceImpl implements Minio2Service {
                             .method(Method.GET)
                             .build()
             ));*/
-            return Result.ok("http://39.96.214.163:9000/"+bucketName+"/"+fileName);
+            return Result.ok("https://www.histweilai.top/minio/"+bucketName+"/"+fileName);
         } catch (Exception e) {
             log.error("文件上传到 MinIO 失败: {}", e.getMessage(), e);
             return Result.fail("文件上传失败");

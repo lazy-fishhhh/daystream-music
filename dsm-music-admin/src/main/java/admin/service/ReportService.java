@@ -12,5 +12,5 @@ import org.springframework.stereotype.Service;
 public interface ReportService {
     Result<PageResp<ReportVO>> getReportList(ReportDTO reportDTO);
 
-   // Result handleReport(HandleReportDTO handleReportDTO);
+    Result handleReport(HandleReportDTO handleReportDTO);
 }

@@ -35,8 +35,8 @@ class MinIoServiceImpl implements IMinIoService {
     @Value("${minio.bucket-name}")
     private String bucketName;
 
-    @Value("${minio.endpoint}")
-    private String endpoint;
+    @Value("${minio.proxy-host}")
+    private String proxyHost;
 
     /**
      * 上传文件
@@ -63,7 +63,7 @@ class MinIoServiceImpl implements IMinIoService {
             );
 
             // 返回文件存储路径（格式：桶名/文件名）
-            return  endpoint+ "/"+ bucketName + "/" + fileName;
+            return  proxyHost+ "/"+ bucketName + "/" + fileName;
         } catch (Exception e) {
             return null;
         }
@@ -273,7 +273,7 @@ class MinIoServiceImpl implements IMinIoService {
                             .contentType(contentType)
                             .build()
             );
-            return endpoint+ "/"+ bucketName + "/" + fileName; // 返回存储路径，后续可通过预签名URL访问
+            return proxyHost+ "/"+ bucketName + "/" + fileName; // 返回存储路径，后续可通过预签名URL访问
         } catch (Exception e) {
             return null;
         }

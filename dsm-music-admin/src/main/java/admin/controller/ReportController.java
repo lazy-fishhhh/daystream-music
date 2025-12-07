@@ -26,5 +26,10 @@ public class ReportController {
     public Result<PageResp<ReportVO>> getReportList(@Valid @RequestBody ReportDTO reportDTO) {
         return reportService.getReportList(reportDTO);
     }
+    @PostMapping("/handleReport")
+    @ApiOperation(value = "处理举报")
+    public Result handleReport(@Valid @RequestBody HandleReportDTO handle) {
+        return reportService.handleReport(handle);
+    }
 
 }
