@@ -195,7 +195,7 @@ class MinIoServiceImpl implements IMinIoService {
         List<String> allowedExtensions = new ArrayList<>();
         if (type.equals("music")) { // 新增音乐类型
             // 常用音乐格式：MP3（主流）、FLAC（无损）、AAC（高清）、WAV（无损）
-            allowedExtensions = Arrays.asList("mp3", "flac", "aac", "wav", "m4a");
+            allowedExtensions = Arrays.asList("mp3", "flac", "aac", "wav");
         }else if (type.equals("picture")) {
             allowedExtensions = Arrays.asList("jpg", "jpeg", "png", "gif");
         }else if (type.equals("lyric")) {
