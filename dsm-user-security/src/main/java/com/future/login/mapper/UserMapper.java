@@ -17,4 +17,7 @@ public interface UserMapper extends BaseMapper<User> {
     List<Long> selectAllUserId();
     @Select("select wallet_balance from user where id = #{userId}")
     Integer selectMyWaves(@Param("userId")Long userId);
+
+    @Select("select role_id from user_role where user_id = #{userId}")
+    Integer selectRoleId(Long userId);
 }
