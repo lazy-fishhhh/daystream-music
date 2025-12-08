@@ -143,5 +143,19 @@
         j.followed_user_id=#{userId}
         and u.id &lt; #{lastId}
     </select>
+    <select id="fansCount" resultType="Long">
+        select fans_count
+        from
+        user
+        where
+        id=#{userId}
+    </select>
+    <select id="followCount" resultType="Long">
+            select follow_count
+            from
+            user
+            where
+            id= #{userId}
+    </select>
 
 </mapper>

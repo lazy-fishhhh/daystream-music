@@ -18,6 +18,7 @@
         WHERE u.id = #{userId}
           AND u.user_status = 1
           AND m.status = 1
+          amd m.is_deleted = 0
     </select>
 
     <!-- 查询音乐人标签 -->
@@ -46,6 +47,7 @@
         </if>
         WHERE u.user_status = 1
         AND m.status = 1
+          and m.is_deleted = 0
         <if test="name != null and name != ''">
             AND m.stage_name LIKE CONCAT('%', #{name}, '%')
         </if>
@@ -78,6 +80,12 @@
         singer_tag_relation(musician_id,tag_id)
         values(#{musicianId},#{tagId})
     </insert>
+
+    <update id="deleteMusician">
+        update musician
+        set is_deleted = 1
+        where id = #{id}
+    </update>
 
 
 </mapper>

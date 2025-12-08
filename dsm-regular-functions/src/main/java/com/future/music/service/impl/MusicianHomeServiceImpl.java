@@ -3,10 +3,12 @@ package com.future.music.service.impl;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.future.login.util.SecurityUtil;
-
-
+import com.future.music.domain.vo.AlbumVO;
+import com.future.music.domain.vo.MusicVO;
 import com.future.music.entity.vo.MusicDetailVO;
+
 import com.future.music.mapper.MusicMapper;
+import com.future.music.mapper.RegularAlbumMapper;
 import com.future.music.service.IMusicianHomeService;
 import entity.pojo.util.PageReq;
 import entity.pojo.util.PageResp;
@@ -21,6 +23,7 @@ import java.util.Objects;
 @RequiredArgsConstructor
 public class MusicianHomeServiceImpl implements IMusicianHomeService {
     private final MusicMapper musicMapper;
+    private final RegularAlbumMapper albumMapper;
 
     @Override
     public Result<PageResp<List<MusicDetailVO>>> getMyMusic(PageReq pageReq) {
@@ -58,5 +61,20 @@ public class MusicianHomeServiceImpl implements IMusicianHomeService {
         pageResp.setPages(musicVOIPage.getPages());
 
         return Result.ok(pageResp);
+    }
+
+    @Override
+    public Result<AlbumVO> getAlbumDetail(Long albumId) {
+        // 查询专辑详情
+        AlbumVO albumVO = albumMapper.selectAlbumDetailById(albumId);
+        if (albumVO == null) {
+            return Result.fail("专辑不存在");
+        }
+
+        // 查询专辑下的所有歌曲
+        List<MusicVO> musicList = albumMapper.selectMusicsByAlbumId(albumId);
+        albumVO.setMusicList(musicList);
+
+        return Result.ok(albumVO);
     }
 }

@@ -1,6 +1,7 @@
 package entity.pojo.info;
 
 import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -33,4 +34,11 @@ public class User {
     private LocalDateTime createdTime; // 创建时间
     private LocalDateTime updatedTime; // 更新时间
     private LocalDateTime lastLoginTime; // 最后登录时间
+
+    private String backgroundImage;
+    private Integer followCount;
+    private Integer fansCount;
+    @TableField(exist = false)
+    private Integer onlineStatus;
+
 }

@@ -20,4 +20,5 @@ public class Musician {
     private Integer totalFans;       // 粉丝总数
     private BigDecimal totalIncome;  // 累计收入
     private LocalDateTime createdTime; // 创建时间
+    private Integer IsDeleted;     // 是否删除（0-未注销 1-已注销）
 }

@@ -6,7 +6,8 @@
 
 <select id="commentList" resultType="social.domain.vo.CommentListVO">
     select c.id,c.content,c.user_id,c.created_time,c.parent_id,c.like_count,
-           u.username,u.avatar,c.reply_count as childCount
+           u.username,u.avatar,c.reply_count as childCount,
+    CASE WHEN c.user_id = #{currentUserId} THEN 1 ELSE 0 END as isSelfComment
     from
         comment c
     left join user u on c.user_id = u.id
@@ -16,7 +17,7 @@
     </if>
     and c.status = 1
     and c.parent_id=0
-    order by c.created_time desc
+    order by isSelfComment desc, c.created_time desc
     limit #{size}
 </select>
     <select id="commentListvo" resultType="social.domain.vo.CommentListVO">

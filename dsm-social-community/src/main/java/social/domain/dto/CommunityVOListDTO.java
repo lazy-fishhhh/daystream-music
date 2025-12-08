@@ -24,6 +24,5 @@ public class CommunityVOListDTO {
      */
     @Max(value = 100,message = "每页条数不能超过100")
     @Min(value = 1,message = "每页条数不能小于1")
-    @NotNull(message = "每页条数不能为空")
-    private Integer pageSize;
+    private Integer pageSize=10;
 }

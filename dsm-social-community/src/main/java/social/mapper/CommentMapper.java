@@ -20,7 +20,8 @@ public interface CommentMapper extends BaseMapper<Comment> {
     Long selectCount(Long targetId);
     List<CommentListVO>commentList(@Param("targetId")Long targetId,
                                    @Param("lastId")Long lastId,
-                                   @Param("size")Integer size);
+                                   @Param("size")Integer size,
+                                   @Param("currentUserId")Long currentUserId);
     List<ReplyCommentListVO> replyCommentList(@Param("targetId")Long targetId,
                                               @Param("lastId")Long lastId,
                                               @Param("size")Integer size);

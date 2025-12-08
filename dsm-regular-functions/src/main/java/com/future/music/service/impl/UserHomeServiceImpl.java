@@ -19,6 +19,7 @@ import com.future.music.mapper.PlaylistMapper;
 import com.future.music.mapper.UserCollectionMapper;
 import com.future.music.service.IMusicService;
 import com.future.music.service.IUserHomeService;
+import com.future.music.websocket.ChatEndPoint;
 import com.future.player.mapper.AlbumMapper;
 import entity.pojo.info.User;
 import entity.pojo.music.Album;
@@ -54,6 +55,7 @@ public class UserHomeServiceImpl implements IUserHomeService {
     private final PlaylistMapper playlistMapper;
     private final AlbumMapper albumMapper;
     private final IMusicService musicService;
+    private final MinIoServiceImpl minIoService;
 
     @Override
     public Result<String> updateUserInfo(UserDetailDTO dto) {
@@ -64,7 +66,6 @@ public class UserHomeServiceImpl implements IUserHomeService {
             return Result.fail("用户未登录，更新失败");
         }
         try {
-
             // 2. 业务逻辑校验
             User existUser = userMapper.selectById(userId);
             if (existUser == null) {
@@ -72,35 +73,78 @@ public class UserHomeServiceImpl implements IUserHomeService {
                 return Result.fail("用户不存在，更新失败");
             }
 
+            // 头像上传
+            if (dto.getAvatarFile() != null && !dto.getAvatarFile().isEmpty()) {
+                // 校验头像格式
+                boolean isAvatarAllowed = minIoService.isAllowedFile(dto.getAvatarFile(), "picture");
+                if (!isAvatarAllowed) {
+                    log.warn("更新头像失败，文件格式不合法，用户ID：{}", userId);
+                    return Result.fail("头像仅支持jpg/jpeg/png/gif格式");
+                }
+                String avatarUrl = minIoService.uploadFile(dto.getAvatarFile());
+                if (avatarUrl == null) {
+                    log.warn("更新头像失败，MinIO上传失败，用户ID：{}", userId);
+                    return Result.fail("头像上传失败，请重试");
+                }
+                dto.setAvatar(avatarUrl);
+                String oldAvatar = existUser.getAvatar();
+                if (oldAvatar != null && !oldAvatar.isEmpty()) {
+                    minIoService.deleteFile(oldAvatar);
+                }
+            }
 
+            //背景图片上传
+            if (dto.getBackgroundImageFile() != null && !dto.getBackgroundImageFile().isEmpty()) {
+                // 校验背景图格式
+                boolean isBgAllowed = minIoService.isAllowedFile(dto.getBackgroundImageFile(), "picture");
+                if (!isBgAllowed) {
+                    log.warn("更新背景图片失败，文件格式不合法，用户ID：{}", userId);
+                    return Result.fail("背景图片仅支持jpg/jpeg/png/gif格式");
+                }
+                String bgImageUrl = minIoService.uploadFile(dto.getBackgroundImageFile());
+                if (bgImageUrl == null) {
+                    log.warn("更新背景图片失败，MinIO上传失败，用户ID：{}", userId);
+                    return Result.fail("背景图片上传失败，请重试");
+                }
+                dto.setBackgroundImage(bgImageUrl);
+                String oldBgImage = existUser.getBackgroundImage();
+                if (oldBgImage != null && !oldBgImage.isEmpty()) {
+                    minIoService.deleteFile(oldBgImage);
+                }
+            }
 
-            BeanUtil.copyProperties(dto, existUser, true); // 第三个参数为true表示忽略空值
+            BeanUtil.copyProperties(dto, existUser, "gender");
 
+            if (dto.getGender() != null) {
+                if ("男".equals(dto.getGender())) {
+                    existUser.setGender(1);
+                } else if ("女".equals(dto.getGender())) {
+                    existUser.setGender(2);
+                } else if ("未知".equals(dto.getGender())) {
+                    existUser.setGender(0);
+                } else {
+                    log.warn("更新用户信息失败，用户性别参数错误，用户ID：{}", userId);
+                    return Result.fail("用户性别参数错误，更新失败");
+                }
+            }
 
-            // 5. 执行更新操作
+            // 执行更新操作
             userMapper.updateById(existUser);
 
-
-            // 7. 日志记录（操作成功）
+            // 日志记录
             log.info("更新用户信息成功，用户ID：{}，更新内容：{}", userId, StrUtil.hide(dto.toString(), 0, 50));
 
-            // 8. 成功返回
+            // 成功返回
             return Result.ok("个人信息更新成功");
 
         } catch (IllegalArgumentException e) {
-            // 参数校验异常
-            log.error("更新用户信息失败，参数校验不通过：{}，用户ID：{}", e.getMessage(),
-                    dto != null ? userId : "未知");
+            log.error("更新用户信息失败，参数校验不通过：{}，用户ID：{}", e.getMessage(), userId);
             return Result.fail(e.getMessage());
         } catch (BusinessException e) {
-            // 自定义业务异常
-            log.error("更新用户信息失败，业务异常：{}，用户ID：{}", e.getMessage(),
-                    dto != null ? userId : "未知");
+            log.error("更新用户信息失败，业务异常：{}，用户ID：{}", e.getMessage(), userId);
             return Result.fail(e.getMessage());
         } catch (Exception e) {
-            // 全局异常捕获
-            log.error("更新用户信息失败，系统异常，用户ID：{}",
-                    dto != null ? userId: "未知", e);
+            log.error("更新用户信息失败，系统异常，用户ID：{}", userId, e);
             return Result.fail("系统异常，更新失败，请联系管理员");
         }
     }
@@ -146,6 +190,15 @@ public class UserHomeServiceImpl implements IUserHomeService {
             userInfoVO.setLastCheckinTime(currentUser.getLastCheckinTime());
             userInfoVO.setLastLoginTime(currentUser.getLastLoginTime());
             userInfoVO.setUpdatedTime(currentUser.getUpdatedTime());
+            userInfoVO.setBackgroundImage(currentUser.getBackgroundImage());
+            userInfoVO.setFollowCount(currentUser.getFollowCount());
+            userInfoVO.setFansCount(currentUser.getFansCount());
+
+            // 获取在线状态
+            boolean userOnline = ChatEndPoint.isUserOnline(userId);
+            userInfoVO.setOnlineStatus(userOnline ? 1 : 0);
+
+            userInfoVO.setLikeCount(0);
             return Result.ok(userInfoVO);
         } catch (BusinessException e) {
             throw new BusinessException(e.getCode(), e.getMessage());

@@ -181,18 +181,26 @@ public class CommunityPostServiceImpl implements CommunityPostService {
         }
         //存在就返回
         PostDetailVO detailVO=communityPostMapper.selectDetail(postId);
-        //设置关注数
         Long currentUserId = SecurityUtil.getCurrentUserId();
+        //设置关注数
+        /*
         LambdaQueryWrapper<UserFollow> lambdaQueryWrapper=new LambdaQueryWrapper<>();
         lambdaQueryWrapper.eq(UserFollow::getUserId,communityPost.getUserId());
         Long count = followMapper.selectCount(lambdaQueryWrapper);
-        detailVO.setFollowCount(count);
+        detailVO.setFollowCount(count);*/
         //设置粉丝数
-        LambdaQueryWrapper<UserFollow> lambdaQueryWrapper1=new LambdaQueryWrapper<>();
+        /*LambdaQueryWrapper<UserFollow> lambdaQueryWrapper1=new LambdaQueryWrapper<>();
         lambdaQueryWrapper1.eq(UserFollow::getFollowedUserId,communityPost.getUserId());
         Long followerCount = followMapper.selectCount(lambdaQueryWrapper1);
-        detailVO.setFollowerCount(followerCount);
+        detailVO.setFollowerCount(followerCount);*/
+        //设置粉丝数
+        Long fansCount = followMapper.fansCount(currentUserId);
+        detailVO.setFollowerCount(fansCount);
+        //设置关注数
+        Long followCount = followMapper.followCount(communityPost.getUserId());
+        detailVO.setFollowCount(followCount);
         //是否关注作者
+        LambdaQueryWrapper<UserFollow> lambdaQueryWrapper1=new LambdaQueryWrapper<>();
         lambdaQueryWrapper1.eq(UserFollow::getUserId,currentUserId)
                 .eq(UserFollow::getFollowedUserId,detailVO.getAuthorId());
         UserFollow userFollow = followMapper.selectOne(lambdaQueryWrapper1);
