@@ -3,8 +3,8 @@
 <mapper namespace="com.future.music.mapper.LikeRecordMapper">
     <select id="selectLikeCountByUserId" resultType="java.lang.Long">
         SELECT IFNULL(SUM(m.like_count), 0) AS total_like_count
-        FROM like_record lr
-        LEFT JOIN music m ON lr.target_id = m.id
-        WHERE lr.user_id = #{userId} and lr.target_type = 1;
+        FROM music m
+        LEFT JOIN musician mu on m.musician_id = mu.id
+        WHERE mu.user_id = #{userId};
     </select>
 </mapper>
