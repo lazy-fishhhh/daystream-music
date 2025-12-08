@@ -64,6 +64,7 @@ mybatis-plus:
 ---
 minio:
   endpoint: http://39.96.214.163:9000
+  proxy-host: https://www.histweilai.top/minio # 新增：用于返回给前端的地址
   accessKey: asdfghjkl
   secretKey: Lz112112!
   bucketName: file
