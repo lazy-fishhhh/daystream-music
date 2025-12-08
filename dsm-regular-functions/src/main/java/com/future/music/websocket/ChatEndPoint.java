@@ -4,17 +4,26 @@ import com.alibaba.fastjson2.JSON;
 import com.future.login.util.SecurityUtil;
 import entity.pojo.util.WebSocketMessage;
 import entity.pojo.util.WebSocketMessageUtils;
+import io.jsonwebtoken.Claims;
 import jakarta.websocket.*;
 import jakarta.websocket.server.ServerEndpoint;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
+import util.JwtUtil;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+
+import static constants.RedisCacheConstants.TOKEN_USER_PREFIX;
 
 /*
  * 前端发送常规的HTTP请求，并在请求头中携带Upgrade:websocket(将http请求升级为websocket)
@@ -23,7 +32,11 @@ import java.util.concurrent.TimeUnit;
  */
 @ServerEndpoint("/chat")
 @Component
+@RequiredArgsConstructor
+@Slf4j
 public class ChatEndPoint {
+    private  final StringRedisTemplate stringRedisTemplate;
+
     private static final String PING = "ping";
     private static final String PONG = "pong";
 
@@ -62,7 +75,28 @@ public class ChatEndPoint {
      */
     @OnOpen
     public void onOpen(Session session) throws EncodeException, IOException {
-        Long userId = SecurityUtil.getCurrentUserId();
+        // 鉴权
+        Map<String, List<String>> params = session.getRequestParameterMap();
+        String token = params.get("token") != null ? params.get("token").get(0) : null;
+
+        Claims claims = JwtUtil.parseJWT(token);
+        Long userId = claims.getSubject() != null ? Long.parseLong(claims.getId()) : null;
+        if (userId == null) {
+            // 鉴权失败，关闭连接
+            session.close(new CloseReason(CloseReason.CloseCodes.VIOLATED_POLICY, "token无效/未登录"));
+            log.warn("token中的userId为null,无法建立WebSocket连接");
+            throw new RuntimeException("token无效,无法建立WebSocket连接");
+        }
+
+        String redisTokenKey = TOKEN_USER_PREFIX + userId;
+        String redisToken = stringRedisTemplate.opsForValue().get(redisTokenKey);
+
+        // 检查Redis中的token是否存在且与请求中的token一致
+        if (!StringUtils.hasText(redisToken) || !redisToken.equals(token)) {
+            log.warn("未查询到redis中该token的缓存信息,无法建立WebSocket连接");
+            throw new RuntimeException("token无效,无法建立WebSocket连接");
+        }
+
         // 存储Session和初始心跳时间
         onlineUsers.put(userId, session);
         userLastHeartbeat.put(userId, System.currentTimeMillis());

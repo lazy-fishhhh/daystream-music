@@ -39,19 +39,19 @@ public class UserHomeController {
     }
 
     @ApiOperation("查询我喜欢的歌曲")
-    @GetMapping("/getMyLikeSongs")
+    @PostMapping("/getMyLikeSongs")
     public Result<PageResp<List<MusicVO>>> getMyLikeSongs(@RequestBody PageReq pageReq) {
         return userHomeService.getMyLikeSongs(pageReq);
     }
 
     @ApiOperation("查询我收藏的歌单")
-    @GetMapping("/getMyCollectSongLists")
+    @PostMapping("/getMyCollectSongLists")
     public Result<PageResp<List<PlaylistVO>>>getMyCollectSongLists(@RequestBody PageReq pageReq) {
         return userHomeService.getMyCollectSongLists(pageReq);
     }
 
     @ApiOperation("查询我收藏的专辑")
-    @GetMapping("/getMyCollectAlbums")
+    @PostMapping("/getMyCollectAlbums")
     public Result<PageResp<List<Album>>> getMyCollectAlbums(@RequestBody PageReq pageReq) {
         return userHomeService.getMyCollectAlbums(pageReq);
     }
