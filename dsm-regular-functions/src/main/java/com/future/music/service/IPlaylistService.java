@@ -22,5 +22,15 @@ public interface IPlaylistService {
     
     Result<PageResp<List<PlaylistVO>>> queryMyPlaylistByCollect(int pageNum, int pageSize);
 
+    Result<String> addSongToPlaylist(Long playlistId, Long songId);
+
+    Result<String> batchAddSongToPlaylist(Long playlistId, List<Long> songIds);
+
+    Result<String> removeSongFromPlaylist(Long playlistId, Long songId);
+
+    Result<String> batchRemoveSongFromPlaylist(Long playlistId, List<Long> songIds);
+
+    Result<PageResp<MusicVO>> querySongsByPlaylist(Long playlistId, int pageNum, int pageSize);
+
 }
 

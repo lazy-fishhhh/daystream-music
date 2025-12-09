@@ -8,10 +8,12 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.future.login.mapper.UserMapper;
 import com.future.login.util.SecurityUtil;
 import com.future.music.domain.vo.*;
+import com.future.music.mapper.LikeRecordMapper;
 import com.future.music.mapper.MusicTagMapper;
 import com.future.music.mapper.PlaylistMapper;
 import com.future.music.mapper.PlaylistMusicMapper;
 import com.future.music.service.IMusicService;
+import com.future.music.service.IPlaylistMusicService;
 import com.future.music.service.IPlaylistService;
 import constants.MusicTagTypeConstants;
 import constants.RedisCacheConstants;
@@ -19,6 +21,7 @@ import com.future.music.entity.dto.PlaylistFilterDTO;
 import entity.dto.SearchDTO;
 import entity.pojo.info.User;
 import entity.pojo.music.*;
+import entity.pojo.social.LikeRecord;
 import entity.pojo.util.PageResp;
 import entity.pojo.util.Result;
 import jakarta.annotation.Resource;
@@ -29,8 +32,10 @@ import org.springframework.beans.BeanUtils;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -47,10 +52,16 @@ public class PlaylistServiceImpl implements IPlaylistService {
     private PlaylistMusicMapper playlistMusicMapper;
 
     @Resource
+    private IPlaylistMusicService playlistMusicService;
+
+    @Resource
     private MusicTagMapper musicTagMapper;
 
     @Resource
     private UserMapper userMapper;
+    
+    @Resource
+    private LikeRecordMapper likeRecordMapper;
 
     @Resource
     private StringRedisTemplate stringRedisTemplate;
@@ -400,6 +411,310 @@ public class PlaylistServiceImpl implements IPlaylistService {
         return pageResult;
     }
 
+    @Override
+    public Result<String> addSongToPlaylist(Long playlistId, Long songId) {
+        try {
+            // 1. 参数校验
+            if (playlistId == null || playlistId <= 0 || songId == null || songId <= 0) {
+                return Result.fail("参数错误");
+            }
+
+            // 2. 获取当前用户ID
+            Long userId = SecurityUtil.getCurrentUserId();
+            if (userId == null) {
+                return Result.fail("用户未登录");
+            }
+
+            // 3. 验证歌单是否存在且属于当前用户
+            Playlist playlist = playlistMapper.selectById(playlistId);
+            if (playlist == null) {
+                return Result.fail("歌单不存在");
+            }
+            if (!playlist.getUserId().equals(userId)) {
+                return Result.fail("无权限操作该歌单");
+            }
+
+            // 4. 验证音乐是否存在
+            Music music = musicService.getById(songId);
+            if (music == null) {
+                return Result.fail("音乐不存在");
+            }
+
+            // 5. 检查歌曲是否已在歌单中
+            QueryWrapper<PlaylistMusic> queryWrapper = new QueryWrapper<>();
+            queryWrapper.eq("playlist_id", playlistId)
+                    .eq("music_id", songId);
+            if (playlistMusicMapper.exists(queryWrapper)) {
+                return Result.fail("歌曲已在歌单中");
+            }
+
+            // 6. 获取当前歌单中歌曲的最大排序值，新歌曲放在最后
+            PlaylistMusic maxSortPlaylistMusic = playlistMusicMapper.selectOne(
+                    new QueryWrapper<PlaylistMusic>()
+                            .eq("playlist_id", playlistId)
+                            .select("MAX(sort_order) as sort_order")
+            );
+            Integer maxSortOrder = maxSortPlaylistMusic != null ? maxSortPlaylistMusic.getSortOrder() : null;
+            maxSortOrder = maxSortOrder == null ? 0 : maxSortOrder;
+
+            // 7. 添加歌曲到歌单
+            PlaylistMusic playlistMusic = new PlaylistMusic();
+            playlistMusic.setPlaylistId(playlistId);
+            playlistMusic.setMusicId(songId);
+            playlistMusic.setSortOrder(maxSortOrder + 1);
+            playlistMusic.setAddedTime(LocalDateTime.now());
+            playlistMusicMapper.insert(playlistMusic);
+
+            // 8. 更新歌单的歌曲数量
+            playlist.setMusicCount(playlist.getMusicCount() + 1);
+            playlistMapper.updateById(playlist);
+
+            // 9. 清除歌单详情缓存
+            clearPlaylistCache(playlistId);
+
+            return Result.ok("歌曲添加成功");
+        } catch (Exception e) {
+            return Result.fail("添加歌曲失败：" + e.getMessage());
+        }
+    }
+
+    @Override
+    public Result<String> batchAddSongToPlaylist(Long playlistId, List<Long> songIds) {
+        try {
+            // 1. 参数校验
+            if (playlistId == null || playlistId <= 0 || songIds == null || songIds.isEmpty()) {
+                return Result.fail("参数错误");
+            }
+
+            // 2. 获取当前用户ID
+            Long userId = SecurityUtil.getCurrentUserId();
+            if (userId == null) {
+                return Result.fail("用户未登录");
+            }
+
+            // 3. 验证歌单是否存在且属于当前用户
+            Playlist playlist = playlistMapper.selectById(playlistId);
+            if (playlist == null) {
+                return Result.fail("歌单不存在");
+            }
+            if (!playlist.getUserId().equals(userId)) {
+                return Result.fail("无权限操作该歌单");
+            }
+
+            // 4. 验证音乐是否存在
+            List<Music> musicList = musicService.listByIds(songIds);
+            if (musicList.isEmpty()) {
+                return Result.fail("音乐不存在");
+            }
+
+            // 5. 检查歌曲是否已在歌单中
+            QueryWrapper<PlaylistMusic> queryWrapper = new QueryWrapper<>();
+            queryWrapper.eq("playlist_id", playlistId)
+                    .in("music_id", songIds);
+            List<PlaylistMusic> existingSongs = playlistMusicMapper.selectList(queryWrapper);
+            if (!existingSongs.isEmpty()) {
+                return Result.fail("部分歌曲已在歌单中");
+            }
+
+            // 6. 获取当前歌单中歌曲的最大排序值，新歌曲放在最后
+            PlaylistMusic maxSortPlaylistMusic = playlistMusicMapper.selectOne(
+                    new QueryWrapper<PlaylistMusic>()
+                            .eq("playlist_id", playlistId)
+                            .select("MAX(sort_order) as sort_order")
+            );
+            Integer maxSortOrder = maxSortPlaylistMusic != null ? maxSortPlaylistMusic.getSortOrder() : null;
+            maxSortOrder = maxSortOrder == null ? 0 : maxSortOrder;
+
+            // 7. 批量添加歌曲到歌单
+            List<PlaylistMusic> playlistMusicList = new ArrayList<>();
+            for (Long songId : songIds) {
+                PlaylistMusic playlistMusic = new PlaylistMusic();
+                playlistMusic.setPlaylistId(playlistId);
+                playlistMusic.setMusicId(songId);
+                playlistMusic.setSortOrder(++maxSortOrder);
+                playlistMusic.setAddedTime(LocalDateTime.now());
+                playlistMusicList.add(playlistMusic);
+            }
+            playlistMusicService.saveBatch(playlistMusicList);
+
+            // 8. 更新歌单的歌曲数量
+            playlist.setMusicCount(playlist.getMusicCount() + songIds.size());
+            playlistMapper.updateById(playlist);
+
+            // 9. 清除歌单详情缓存
+            clearPlaylistCache(playlistId);
+
+            return Result.ok("批量添加歌曲成功");
+        } catch (Exception e) {
+            return Result.fail("批量添加歌曲失败：" + e.getMessage());
+        }
+    }
+
+    @Override
+    public Result<String> removeSongFromPlaylist(Long playlistId, Long songId) {
+        try {
+            // 1. 参数校验
+            if (playlistId == null || playlistId <= 0 || songId == null || songId <= 0) {
+                return Result.fail("参数错误");
+            }
+
+            // 2. 获取当前用户ID
+            Long userId = SecurityUtil.getCurrentUserId();
+            if (userId == null) {
+                return Result.fail("用户未登录");
+            }
+
+            // 3. 验证歌单是否存在且属于当前用户
+            Playlist playlist = playlistMapper.selectById(playlistId);
+            if (playlist == null) {
+                return Result.fail("歌单不存在");
+            }
+            if (!playlist.getUserId().equals(userId)) {
+                return Result.fail("无权限操作该歌单");
+            }
+
+            // 4. 删除歌曲从歌单
+            QueryWrapper<PlaylistMusic> queryWrapper = new QueryWrapper<>();
+            queryWrapper.eq("playlist_id", playlistId)
+                    .eq("music_id", songId);
+            int rows = playlistMusicMapper.delete(queryWrapper);
+            if (rows == 0) {
+                return Result.fail("歌曲不在歌单中");
+            }
+
+            // 5. 更新歌单的歌曲数量
+            playlist.setMusicCount(playlist.getMusicCount() - 1);
+            playlistMapper.updateById(playlist);
+
+            // 6. 清除歌单详情缓存
+            clearPlaylistCache(playlistId);
+
+            return Result.ok("歌曲移除成功");
+        } catch (Exception e) {
+            return Result.fail("移除歌曲失败：" + e.getMessage());
+        }
+    }
+
+    @Override
+    public Result<String> batchRemoveSongFromPlaylist(Long playlistId, List<Long> songIds) {
+        try {
+            // 1. 参数校验
+            if (playlistId == null || playlistId <= 0 || songIds == null || songIds.isEmpty()) {
+                return Result.fail("参数错误");
+            }
+
+            // 2. 获取当前用户ID
+            Long userId = SecurityUtil.getCurrentUserId();
+            if (userId == null) {
+                return Result.fail("用户未登录");
+            }
+
+            // 3. 验证歌单是否存在且属于当前用户
+            Playlist playlist = playlistMapper.selectById(playlistId);
+            if (playlist == null) {
+                return Result.fail("歌单不存在");
+            }
+            if (!playlist.getUserId().equals(userId)) {
+                return Result.fail("无权限操作该歌单");
+            }
+
+            // 4. 从歌单批量删除歌曲
+            QueryWrapper<PlaylistMusic> queryWrapper = new QueryWrapper<>();
+            queryWrapper.eq("playlist_id", playlistId)
+                    .in("music_id", songIds);
+            int rows = playlistMusicMapper.delete(queryWrapper);
+            if (rows == 0) {
+                return Result.fail("未找到要删除的歌曲");
+            }
+
+            // 5. 更新歌单的歌曲数量
+            playlist.setMusicCount(playlist.getMusicCount() - rows);
+            playlistMapper.updateById(playlist);
+
+            // 6. 清除歌单详情缓存
+            clearPlaylistCache(playlistId);
+
+            return Result.ok("批量移除歌曲成功");
+        } catch (Exception e) {
+            return Result.fail("批量移除歌曲失败：" + e.getMessage());
+        }
+    }
+
+    /**
+     * 清除歌单详情缓存
+     */
+    private void clearPlaylistCache(Long playlistId) {
+        // 删除该歌单所有分页的缓存
+        String cacheKeyPattern = RedisCacheConstants.CACHE_KEY_PLAYLIST_DETAIL + playlistId + ":*";
+        Set<String> keys = stringRedisTemplate.keys(cacheKeyPattern);
+        if (keys != null && !keys.isEmpty()) {
+            stringRedisTemplate.delete(keys);
+        }
+    }
+
+    /**
+     * 分页查询指定歌单的歌曲
+     * @param playlistId 歌单ID
+     * @param pageNum 页码
+     * @param pageSize 每页数量
+     * @return 歌曲列表分页结果
+     */
+    @Override
+    public Result<PageResp<MusicVO>> querySongsByPlaylist(Long playlistId, int pageNum, int pageSize) {
+        try {
+            // 1. 参数校验
+            if (playlistId == null || playlistId <= 0) {
+                return Result.fail("歌单ID无效");
+            }
+            if (pageNum <= 0) {
+                pageNum = 1;
+            }
+            if (pageSize <= 0 || pageSize > 50) {
+                pageSize = 10;
+            }
+            
+            // 2. 验证歌单是否存在
+            Playlist playlist = playlistMapper.selectById(playlistId);
+            if (playlist == null) {
+                return Result.fail("歌单不存在");
+            }
+            
+            // 3. 连表查询直接返回MusicVO
+            Page<MusicVO> page = new Page<>(pageNum, pageSize);
+            IPage<MusicVO> musicVOPage = playlistMusicMapper.selectMusicVOsByPlaylistId(page, playlistId);
+            
+            // 4. 处理isLiked字段
+            List<MusicVO> musicVOs = musicVOPage.getRecords();
+            Long currentUserId = SecurityUtil.getCurrentUserId();
+            if (currentUserId != null) {
+                for (MusicVO musicVO : musicVOs) {
+                    QueryWrapper<LikeRecord> likeWrapper = new QueryWrapper<>();
+                    likeWrapper.eq("user_id", currentUserId)
+                            .eq("target_type", 1) // 目标类型：1=音乐
+                            .eq("target_id", musicVO.getId());
+                    LikeRecord likeRecord = likeRecordMapper.selectOne(likeWrapper);
+                    musicVO.setIsLiked(likeRecord != null ? 1 : 0);
+                }
+            } else {
+                // 未登录用户所有音乐都标记为未点赞
+                for (MusicVO musicVO : musicVOs) {
+                    musicVO.setIsLiked(0);
+                }
+            }
+            
+            // 5. 封装为PageResp对象
+            PageResp<MusicVO> pageResult = new PageResp<>();
+            pageResult.setRecords(musicVOs);
+            pageResult.setTotal(musicVOPage.getTotal());
+            pageResult.setPages(musicVOPage.getPages());
+            pageResult.setCurrent(musicVOPage.getCurrent());
+            pageResult.setSize(musicVOPage.getSize());
+            
+            return Result.ok(pageResult);
+        } catch (Exception e) {
+            return Result.fail("查询歌单歌曲失败：" + e.getMessage());
+        }
+    }
 
 }
 
