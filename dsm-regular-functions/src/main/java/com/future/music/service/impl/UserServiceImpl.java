@@ -31,6 +31,8 @@ import entity.pojo.util.PageResp;
 import entity.pojo.util.Result;
 import io.swagger.models.auth.In;
 import jakarta.annotation.Resource;
+import java.util.ArrayList;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
@@ -137,10 +139,18 @@ public class UserServiceImpl  implements IUserService {
         playList.setUpdatedTime(LocalDateTime.now());
         playListMapper.insert(playList);
 
-         PlaylistTagRelation playListTagRelation = new PlaylistTagRelation();
-         playListTagRelation.setPlaylistId(playList.getId());
-         playListTagRelation.setTagId((long) playListDTO.getTagId());
-         playlistTagRelationMapper.insert(playListTagRelation);
+         // 处理多个标签
+         if (playListDTO.getTagIds() != null && !playListDTO.getTagIds().isEmpty()) {
+             List<PlaylistTagRelation> tagRelations = new ArrayList<>();
+             for (Integer tagId : playListDTO.getTagIds()) {
+                 PlaylistTagRelation playListTagRelation = new PlaylistTagRelation();
+                 playListTagRelation.setPlaylistId(playList.getId());
+                 playListTagRelation.setTagId(tagId.longValue());
+                 tagRelations.add(playListTagRelation);
+             }
+             // 使用批量插入
+             playlistTagRelationMapper.insertBatch(tagRelations);
+         }
     }
 
     @Transactional
@@ -178,10 +188,23 @@ public class UserServiceImpl  implements IUserService {
         // 使用 MyBatis-Plus 的 updateById 方法
         playListMapper.updateById(playlist);
 
-        PlaylistTagRelation playListTagRelation = new PlaylistTagRelation();
-        playListTagRelation.setPlaylistId(dto.getId());
-        playListTagRelation.setTagId((long) dto.getTagId());
-        playlistTagRelationMapper.updateById(playListTagRelation);
+        // 先删除该歌单当前所有的标签关联
+        QueryWrapper<PlaylistTagRelation> queryWrapper = new QueryWrapper<>();
+        queryWrapper.eq("playlist_id", dto.getId());
+        playlistTagRelationMapper.delete(queryWrapper);
+        
+        // 为新的标签列表创建新的标签关联
+        if (dto.getTagIds() != null && !dto.getTagIds().isEmpty()) {
+            List<PlaylistTagRelation> tagRelations = new ArrayList<>();
+            for (Integer tagId : dto.getTagIds()) {
+                PlaylistTagRelation playListTagRelation = new PlaylistTagRelation();
+                playListTagRelation.setPlaylistId(dto.getId());
+                playListTagRelation.setTagId(tagId.longValue());
+                tagRelations.add(playListTagRelation);
+            }
+            // 批量插入
+            playlistTagRelationMapper.insertBatch(tagRelations);
+        }
 
         String cacheKeyPattern = RedisCacheConstants.CACHE_KEY_PLAYLIST_DETAIL + dto.getId() + ":*";
         stringRedisTemplate.delete(cacheKeyPattern);
