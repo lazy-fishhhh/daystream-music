@@ -36,6 +36,7 @@ public class User {
     private LocalDateTime lastLoginTime; // 最后登录时间
 
     private String backgroundImage;
+    private String qqOpenId; // QQ登录ID
     private Integer followCount;
     private Integer fansCount;
     @TableField(exist = false)

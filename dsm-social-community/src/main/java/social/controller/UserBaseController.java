@@ -33,19 +33,19 @@ public class UserBaseController {
         return userBaseService.collectUnCollect(collectionDTO);
     }
     @ApiOperation(value = "获取用户所有点赞的音乐")
-    @GetMapping("/getLikeMusic")
+    @PostMapping("/getLikeMusic")
     public Result getLikeMusic(@Valid @RequestBody PageDTO pageDTO)
     {
         return userBaseService.getLikeMusic(pageDTO);
     }
     @ApiOperation(value = "获取用户收藏的专辑")
-    @GetMapping("/getAlbums")
+    @PostMapping("/getAlbums")
     public Result getAlbums(@Valid @RequestBody PageDTO pageDTO)
     {
         return userBaseService.getCollectAlbum(pageDTO);
     }
     @ApiOperation(value = "获取用户收藏的歌单")
-    @GetMapping("/getPlayList")
+    @PostMapping("/getPlayList")
     public Result getPlayList(@Valid @RequestBody PageDTO pageDTO)
     {
         return userBaseService.getPlayList(pageDTO);

@@ -18,4 +18,5 @@ public interface LoginService {
     Result LoginOut();
     //忘记密码
     Result fogetPassword(FogetDTO fogetDTO);
+    Result loginByQQ(String openId);
 }

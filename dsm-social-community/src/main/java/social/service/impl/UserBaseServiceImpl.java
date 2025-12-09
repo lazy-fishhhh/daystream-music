@@ -1,7 +1,5 @@
 package social.service.impl;
 
-import cn.hutool.Hutool;
-import cn.hutool.core.bean.BeanUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -14,9 +12,7 @@ import entity.pojo.music.Album;
 import entity.pojo.music.Music;
 import entity.pojo.social.*;
 import entity.pojo.util.Result;
-import io.lettuce.core.RedisClient;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.BeanUtils;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ZSetOperations;
@@ -34,7 +30,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.sql.Time;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.*;
@@ -363,7 +358,7 @@ public class UserBaseServiceImpl implements UserBaseService {
             if(targetType==CollectionEnum.PLAYLIST.getValue())
             {
                 String key=USER_COLLECTION+":"+"playList"+currentUserId;
-                Long epochSecond = userCollection.getUpdatedTime().atZone(ZoneId.systemDefault()).toInstant().getEpochSecond();
+                Long epochSecond = userCollection1.getUpdatedTime().atZone(ZoneId.systemDefault()).toInstant().getEpochSecond();
                 CollectonLIstVO collectonLIstVO=playList2Mapper.selectPlayListVO(targetId,currentUserId);
                 stringRedisTemplate.opsForZSet().add(key,objectMapper.writeValueAsString(collectonLIstVO),epochSecond);
                 stringRedisTemplate.expire(key,7,TimeUnit.DAYS);
@@ -371,7 +366,7 @@ public class UserBaseServiceImpl implements UserBaseService {
             else if(targetType==CollectionEnum.AlBUM.getValue())
             {
                 String key=USER_COLLECTION+":"+"album"+currentUserId;
-                Long epochSecond = userCollection.getUpdatedTime().atZone(ZoneId.systemDefault()).toInstant().getEpochSecond();
+                Long epochSecond = userCollection1.getUpdatedTime().atZone(ZoneId.systemDefault()).toInstant().getEpochSecond();
                 CollectioAlbumVO collectioAlbumVO=album2Mapper.selectAlbumList(targetId,currentUserId);
                 stringRedisTemplate.opsForZSet().add(key,objectMapper.writeValueAsString(collectioAlbumVO),epochSecond);
                 stringRedisTemplate.expire(key,7,TimeUnit.DAYS);
