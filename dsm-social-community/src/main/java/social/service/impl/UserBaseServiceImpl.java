@@ -1343,11 +1343,13 @@ public class UserBaseServiceImpl implements UserBaseService {
         else {
             userInfoVO.setIsVip(false);
         }
-        //判断用户身份
-        List<Integer> roleIds = user2Mapper.roleIds(currentUserId);
-        List<String> docs = RoleEnum.docs(roleIds);
-        userInfoVO.setUserRole(docs);
+
+
+        Integer i = user2Mapper.selectRoleIds(currentUserId);
+        RoleEnum roleEnum = RoleEnum.valueOf(i);
+        userInfoVO.setUserRole(roleEnum.getDoc());
         return Result.ok(userInfoVO);
+
     }
 
 }

@@ -14,12 +14,14 @@ import com.future.music.mapper.*;
 import com.future.music.service.IMinIoService;
 
 import com.future.music.service.IMusicService;
+import com.future.music.util.AudioMetadataParser;
 import com.future.music.util.LyricParseUtil;
 import com.future.player.entity.vo.AlbumVO;
 import com.future.player.mapper.AlbumMapper;
 import com.future.trade.entity.Vip;
 import com.future.trade.mapper.VipMapper;
 import constants.MusicConstants;
+import constants.ProjectAudioQualitySpec;
 import constants.RedisCacheConstants;
 import constants.SystemConstants;
 import entity.dto.MusicDTO;
@@ -108,6 +110,10 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
     @Autowired
     private RedissonClient redissonClient; // 注入 Redisson 客户端
 
+    @Autowired
+    private AudioMetadataParser metadataParser;
+
+
     /**
      * 保存音乐信息（包含音乐主信息、音频、歌词、封面）
      * 标注 @Transactional 确保所有数据库操作在同一事务中，保证数据一致性
@@ -115,32 +121,32 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
      * @param musicDTO 音乐基本信息DTO（包含歌名、歌手等非文件信息）
      * @param lyric    歌词文件
      * @param cover    封面图片文件
-     * @param audio1    音频文件
+     * @param standardAudio    音频文件
      * @return 处理结果（成功/失败信息）
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
     public Result<Void> saveMusic(MusicDTO musicDTO, MultipartFile lyric, MultipartFile cover,
-                            MultipartFile audio1,  // 音质1：标准
-                            MultipartFile audio2,  // 音质2：高清
-                            MultipartFile audio3,  // 音质3：无损
-                            MultipartFile audio4   // 音质4：空间
+                            MultipartFile standardAudio,  // 音质1：标准
+                            MultipartFile hdAudio,  // 音质2：高清
+                            MultipartFile losslessAudio,  // 音质3：无损
+                            MultipartFile spatialAudio   // 音质4：空间
                             ) {
         if (SecurityUtil.getCurrentUserId() ==  null){
             return Result.fail("请先登录再进行该操作");
         }
 
         // 1. 校验至少上传一个音质
-        if (audio1 == null && audio2 == null && audio3 == null && audio4 == null) {
+        if (standardAudio == null && hdAudio == null && losslessAudio == null && spatialAudio == null) {
             return Result.fail("至少需上传一个音质的音频文件");
         }
 
         // 2. 处理每个音质（示例：循环判断并上传）
         Map<Integer, MultipartFile> audioMap = new HashMap<>();
-        if (audio1 != null && !audio1.isEmpty()) audioMap.put(1, audio1);
-        if (audio2 != null && !audio2.isEmpty()) audioMap.put(2, audio2);
-        if (audio3 != null && !audio3.isEmpty()) audioMap.put(3, audio3);
-        if (audio4 != null && !audio4.isEmpty()) audioMap.put(4, audio4);
+        if (standardAudio != null && !standardAudio.isEmpty()) audioMap.put(1, standardAudio);
+        if (hdAudio != null && !hdAudio.isEmpty()) audioMap.put(2, hdAudio);
+        if (losslessAudio != null && !losslessAudio.isEmpty()) audioMap.put(3, losslessAudio);
+        if (spatialAudio != null && !spatialAudio.isEmpty()) audioMap.put(4, spatialAudio);
 
         List<String> uploadedFilePaths = new ArrayList<>(); // 用于回滚删除的文件路径
 
@@ -200,7 +206,7 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
                 }
 
                 // 3.3 上传音频文件
-                String audioName = minIoService.uploadFile(audio);
+                String audioName = uploadAudio(audio,quality);
                 if (audioName == null) {
                     throw new RuntimeException("音频文件（音质：" + quality + "）上传失败");
                 }
@@ -324,6 +330,80 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
         // 最终去除首尾整体空白（可选，避免歌词开头/结尾有多余换行/空格）
         return cleaned.trim();
     }
+
+    /**
+     * 音频上传（适配项目的4种音质类型）
+     * @param audioFile 音频文件
+     * @param qualityTypeCode 音质类型编码（1-4）
+     */
+    public String uploadAudio(MultipartFile audioFile, int qualityTypeCode) {
+        // 1. 基础校验
+        if (audioFile.isEmpty()) {
+            throw new IllegalArgumentException("音频文件不能为空");
+        }
+
+        // 2. 获取目标音质规格
+        ProjectAudioQualitySpec.Spec targetSpec = ProjectAudioQualitySpec.getSpecByCode(qualityTypeCode);
+
+        // 3. 解析音频实际元数据
+        AudioMetadataParser.AudioMetadata metadata;
+        try {
+            metadata = metadataParser.parse(audioFile);
+        } catch (Exception e) {
+            throw new IllegalArgumentException("音频文件损坏或格式不支持");
+        }
+        System.out.println(metadata);
+
+        // 4. 校验实际音质是否符合目标规格
+        validateAudioQuality(metadata, targetSpec);
+
+        // 5. 校验通过，执行上传
+        return minIoService.uploadFile(audioFile);
+    }
+
+    /**
+     * 适配4种音质的校验逻辑
+     */
+    private void validateAudioQuality(AudioMetadataParser.AudioMetadata metadata, ProjectAudioQualitySpec.Spec targetSpec) {
+        List<String> errors = new ArrayList<>();
+
+        // 1. 采样率校验（Hi-Res需≥96kHz，其余固定44.1kHz）
+        if (metadata.getSampleRate() < targetSpec.getMinSampleRate()) {
+            errors.add(String.format("采样率%dHz不符合%s要求（需≥%dHz）",
+                    metadata.getSampleRate(), targetSpec.getTypeName(), targetSpec.getMinSampleRate()));
+        }
+
+        // 2. 位深校验
+        if (metadata.getBitDepth() < targetSpec.getMinBitDepth()) {
+            errors.add(String.format("位深%dbit不符合%s要求（需≥%dbit）",
+                    metadata.getBitDepth(), targetSpec.getTypeName(), targetSpec.getMinBitDepth()));
+        }
+
+        // 4. 码率校验（固定码率/最低码率）
+        if (metadata.getBitRate() < targetSpec.getMinBitRate()) {
+            errors.add(String.format("码率%dbps不符合%s要求（需≥%dbps）",
+                    metadata.getBitRate(), targetSpec.getTypeName(), targetSpec.getMinBitRate()));
+        }
+        // 标准音质需严格128kbps，高清需严格320kbps
+        if (targetSpec.getTypeCode() == 1 && metadata.getBitRate() != 128) {
+            errors.add("标准音质需严格为128kbps，当前为" + metadata.getBitRate() + "kbps");
+        }
+        if (targetSpec.getTypeCode() == 2 && metadata.getBitRate() != 320) {
+            errors.add("高清音质需严格为320kbps，当前为" + metadata.getBitRate() + "kbps");
+        }
+
+        // 5. 声道数校验（全为双声道）
+        if (metadata.getChannels() != targetSpec.getMinChannels()) {
+            errors.add(String.format("%s仅支持双声道，当前为%s声道",
+                    targetSpec.getTypeName(), metadata.getChannels()));
+        }
+
+        // 校验失败抛出异常
+        if (!errors.isEmpty()) {
+            throw new IllegalArgumentException(targetSpec.getTypeName() + "规格校验失败：" + String.join("；", errors));
+        }
+    }
+
 
     /**
      * 删除音乐（包含音乐主信息及关联的音频信息）

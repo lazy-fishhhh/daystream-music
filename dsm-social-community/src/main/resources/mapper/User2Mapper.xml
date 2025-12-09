@@ -39,4 +39,11 @@
         where
         id= #{userId}
     </select>
+    <select id="selectRoleIds" resultType="java.lang.Integer">
+        select role_id
+        from
+        user_role
+        where
+        user_id= #{userId}
+    </select>
 </mapper>

@@ -6,4 +6,5 @@ import org.apache.ibatis.annotations.Mapper;
 
 @Mapper
 public interface LikeRecordMapper extends BaseMapper<LikeRecord> {
+    Long selectLikeCountByUserId(Long userId);
 }

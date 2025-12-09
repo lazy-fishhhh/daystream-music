@@ -17,7 +17,7 @@ import java.util.List;
 import java.util.Map;
 
 public interface IMusicService extends IService<Music> {
-    Result<Void> saveMusic(MusicDTO musicDTO, MultipartFile lyric, MultipartFile cover, MultipartFile audio1, MultipartFile audio2, MultipartFile audio3, MultipartFile audio4 );
+    Result<Void> saveMusic(MusicDTO musicDTO, MultipartFile lyric, MultipartFile cover, MultipartFile standardAudio, MultipartFile hdAudio, MultipartFile losslessAudio, MultipartFile spatialAudio);
 
     Result<Void> removeMusic(Long musicId);
 

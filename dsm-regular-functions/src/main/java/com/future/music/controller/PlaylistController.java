@@ -1,12 +1,14 @@
 package com.future.music.controller;
 
 import com.future.music.domain.vo.MusicFilterTagVO;
+import com.future.music.domain.vo.MusicVO;
 import com.future.music.domain.vo.PlaylistDetailVO;
 import com.future.music.domain.vo.PlaylistVO;
 import com.future.music.service.IPlaylistService;
 import com.future.music.service.IUserService;
 import entity.dto.PlayListDTO;
 import com.future.music.entity.dto.PlaylistFilterDTO;
+import entity.pojo.music.Music;
 import entity.pojo.util.PageResp;
 import entity.pojo.util.Result;
 import io.swagger.annotations.Api;
@@ -105,6 +107,38 @@ public class PlaylistController {
         return playlistService.queryMyPlaylistByCollect(pageNum, pageSize);
     }
 
+
+    @ApiOperation(value = "将歌曲添加到指定歌单")
+    @PostMapping("/add-song-to-playlist")
+    public Result<String> addSongToPlaylist(@RequestParam Long playlistId, @RequestParam Long songId) {
+        return playlistService.addSongToPlaylist(playlistId, songId);
+    }
+
+    @ApiOperation(value = "批量将歌曲添加到指定歌单")
+    @PostMapping("/batch-add-song-to-playlist")
+    public Result<String> batchAddSongToPlaylist(@RequestParam Long playlistId, @RequestParam List<Long> songIds) {
+        return playlistService.batchAddSongToPlaylist(playlistId, songIds);
+    }
+
+    @ApiOperation(value = "将歌曲从指定歌单中移除")
+    @PostMapping("/remove-song-from-playlist")
+    public Result<String> removeSongFromPlaylist(@RequestParam Long playlistId, @RequestParam Long songId) {
+        return playlistService.removeSongFromPlaylist(playlistId, songId);
+    }
+
+    @ApiOperation(value = "批量将歌曲从指定歌单中移除")
+    @PostMapping("/batch-remove-song-from-playlist")
+    public Result<String> batchRemoveSongFromPlaylist(@RequestParam Long playlistId, @RequestParam List<Long> songIds) {
+        return playlistService.batchRemoveSongFromPlaylist(playlistId, songIds);
+    }
+
+    @ApiOperation(value = "分页查询指定歌单的歌曲")
+    @GetMapping("/query-songs-by-playlist")
+    public Result<PageResp<MusicVO>> querySongsByPlaylist(@RequestParam Long playlistId,
+                                                          @RequestParam(defaultValue = "1") int pageNum,
+                                                          @RequestParam(defaultValue = "10") int pageSize) {
+        return playlistService.querySongsByPlaylist(playlistId, pageNum, pageSize);
+    }
 
 
 }

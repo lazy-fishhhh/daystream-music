@@ -32,8 +32,12 @@ import entity.pojo.util.PageResp;
 import entity.pojo.util.Result;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import social.domain.RoleEnum;
 import social.domain.vo.UserInfoVO;
+import springfox.documentation.spi.service.contexts.SecurityContext;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -198,12 +202,24 @@ public class UserHomeServiceImpl implements IUserHomeService {
             boolean userOnline = ChatEndPoint.isUserOnline(userId);
             userInfoVO.setOnlineStatus(userOnline ? 1 : 0);
 
-            userInfoVO.setLikeCount(0);
+            // 获取用户身份
+            Integer i = userMapper.selectRoleId(userId);
+            if (i == null){
+                throw new BusinessException(USER_NOT_FOUND.getCode(),"未查询到用户身份");
+            }
+            RoleEnum roleEnum = RoleEnum.valueOf(i);
+            userInfoVO.setUserRole(roleEnum.getDoc());
+
+            // 获取当前音乐人的所有歌曲点赞总数
+            Long l = likeRecordMapper.selectLikeCountByUserId(userId);
+
+            userInfoVO.setLikeCount(Math.toIntExact(l));
             return Result.ok(userInfoVO);
         } catch (BusinessException e) {
             throw new BusinessException(e.getCode(), e.getMessage());
         } catch (Exception e){
-            throw new BusinessException(USER_INFO_ERROR.getCode(),"用户信息获取失败");
+            log.error("用户信息获取失败" + e.getMessage(),e);
+            throw new BusinessException(USER_INFO_ERROR.getCode(),"用户信息获取失败" + e.getMessage());
         }
     }
 

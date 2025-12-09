@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.future.music.mapper.LikeRecordMapper">
+    <select id="selectLikeCountByUserId" resultType="java.lang.Long">
+        SELECT IFNULL(SUM(m.like_count), 0) AS total_like_count
+        FROM music m
+        LEFT JOIN musician mu on m.musician_id = mu.id
+        WHERE mu.user_id = #{userId};
+    </select>
+</mapper>

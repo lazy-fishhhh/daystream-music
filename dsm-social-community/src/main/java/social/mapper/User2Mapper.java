@@ -2,6 +2,7 @@ package social.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import entity.pojo.info.User;
+import io.swagger.models.auth.In;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import social.domain.vo.OtherUserVO;
@@ -16,4 +17,6 @@ public interface User2Mapper extends BaseMapper<User> {
     OtherUserVO otherUserInfo(Long userId);
     String selectPassword(@Param("userId") Long userId, @Param("email") String email);
     String selectEmail(Long userId);
+
+    Integer selectRoleIds(Long currentUserId);
 }

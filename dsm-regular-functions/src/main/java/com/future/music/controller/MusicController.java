@@ -6,6 +6,7 @@ import com.future.music.domain.dto.MusicPlayReportDTO;
 import com.future.music.domain.vo.*;
 import com.future.music.service.IMusicService;
 import com.future.music.service.IPlaylistService;
+import com.future.music.service.impl.MusicServiceImpl;
 import com.future.player.mapper.AlbumMapper;
 import entity.dto.MusicDTO;
 import entity.dto.MusicFilterDTO;
@@ -50,12 +51,12 @@ public class MusicController {
     public Result<Void> saveMusic(@RequestPart() MusicDTO musicDTO,
                             @RequestPart("lyric") MultipartFile lyric,
                             @RequestPart("cover") MultipartFile cover,
-                            @RequestPart(value = "audio_1", required = false) MultipartFile audio1,  // 音质1：标准
-                            @RequestPart(value = "audio_2", required = false) MultipartFile audio2,  // 音质2：高清
-                            @RequestPart(value = "audio_3", required = false) MultipartFile audio3,  // 音质3：无损
-                            @RequestPart(value = "audio_4", required = false) MultipartFile audio4   // 音质4：空间
+                            @RequestPart(value = "standardAudio", required = false) MultipartFile standardAudio,  // 音质1：标准
+                            @RequestPart(value = "hdAudio", required = false) MultipartFile hdAudio,  // 音质2：高清
+                            @RequestPart(value = "losslessAudio", required = false) MultipartFile losslessAudio,  // 音质3：无损
+                            @RequestPart(value = "spatialAudio", required = false) MultipartFile spatialAudio   // 音质4：空间
                             ) {
-        return iMusicService.saveMusic(musicDTO, lyric, cover, audio1, audio2, audio3, audio4);
+        return iMusicService.saveMusic(musicDTO, lyric, cover, standardAudio, hdAudio, losslessAudio, spatialAudio);
     }
 
     @ApiOperation(value = "删除音乐")

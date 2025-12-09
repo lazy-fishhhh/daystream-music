@@ -58,7 +58,7 @@ public class UserInfoVO {
     /**
      * 用户身份
      */
-    private List<String> userRole;
+    private String userRole;
 
     /**
      * 上次签到时间
@@ -98,5 +98,7 @@ public class UserInfoVO {
      * 收获点赞数
      */
     private Integer likeCount;
+
+
 }
 
