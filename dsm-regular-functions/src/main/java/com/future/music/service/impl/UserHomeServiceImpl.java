@@ -274,7 +274,7 @@ public class UserHomeServiceImpl implements IUserHomeService {
 
             LambdaQueryWrapper<UserCollection> queryWrapper = new LambdaQueryWrapper<>();
             queryWrapper.eq(UserCollection::getUserId, userId)
-                    .eq(UserCollection::getTargetType, 3)
+                    .eq(UserCollection::getTargetType, 1)
                     .eq(UserCollection::getIsCanceled, 0)
                     .orderByDesc(UserCollection::getCollectedTime);
 
@@ -325,7 +325,7 @@ public class UserHomeServiceImpl implements IUserHomeService {
             // 构建查询条件
             LambdaQueryWrapper<UserCollection> queryWrapper = new LambdaQueryWrapper<>();
             queryWrapper.eq(UserCollection::getUserId, userId)
-                    .eq(UserCollection::getTargetType, 4)
+                    .eq(UserCollection::getTargetType, 2)
                     .eq(UserCollection::getIsCanceled, 0)
                     .orderByDesc(UserCollection::getCollectedTime);
 

@@ -5,6 +5,7 @@ import cn.hutool.core.bean.BeanUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.future.login.exception.BusinessException;
 import com.future.login.mapper.UserRoleMapper;
 import com.future.login.util.SecurityUtil;
 import constants.RedisCacheConstants;
@@ -12,9 +13,11 @@ import entity.pojo.info.User;
 import entity.pojo.info.UserRole;
 import entity.pojo.music.Album;
 import entity.pojo.music.Music;
+import entity.pojo.music.PlaylistMusic;
 import entity.pojo.social.*;
 import entity.pojo.util.Result;
 import io.lettuce.core.RedisClient;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.dao.DuplicateKeyException;
@@ -48,7 +51,10 @@ import static constants.RedisCacheConstants.*;
  */
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class UserBaseServiceImpl implements UserBaseService {
+    private final CommunityPlaylistMapper communityPlaylistMapper;
+
     @Autowired
     private LikeRecord1Mapper likeRecordMapper;
     @Autowired
@@ -145,6 +151,21 @@ public class UserBaseServiceImpl implements UserBaseService {
                         LikeMusicVO likeMusicVO = music2Mapper.selectLikeMusicVO(targetId,currentUserId);
                         stringRedisTemplate.opsForZSet().remove(key,objectMapper.writeValueAsString(likeMusicVO));
                     }
+                    //  在"我的喜欢"歌单中删除这首歌
+                    LambdaQueryWrapper<Playlist> playlistWrapper = new LambdaQueryWrapper<>();
+                    playlistWrapper.eq(Playlist::getUserId,currentUserId)
+                            .eq(Playlist::getPlaylistName,"我的喜欢");
+                    Playlist playlist = playList2Mapper.selectOne(playlistWrapper);
+                    if(playlist == null)
+                    {
+                        throw new BusinessException("10001","歌单'我的喜欢'不存在");
+                    }
+
+                    LambdaQueryWrapper<PlaylistMusic> communityPlaylistWrapper = new LambdaQueryWrapper<>();
+                    communityPlaylistWrapper.eq(PlaylistMusic::getPlaylistId,playlist.getId())
+                                            .eq(PlaylistMusic::getMusicId,targetId);
+                    communityPlaylistMapper.delete(communityPlaylistWrapper);
+                    log.info("删除我的喜欢歌曲成功");
                     return Result.ok(likevo);
                 }
                 //如果此前取消了,现在要恢复
@@ -165,6 +186,20 @@ public class UserBaseServiceImpl implements UserBaseService {
                         stringRedisTemplate.expire(key, 7, TimeUnit.DAYS); // 先设过期
                         Boolean addResult = stringRedisTemplate.opsForZSet().add(key, objectMapper.writeValueAsString(likeMusicVO), epochSecond);
                     }
+                    //  在"我的喜欢"歌单中添加这首歌
+                    LambdaQueryWrapper<Playlist> playlistWrapper = new LambdaQueryWrapper<>();
+                    playlistWrapper.eq(Playlist::getUserId,currentUserId)
+                            .eq(Playlist::getPlaylistName,"我的喜欢");
+                    Playlist playlist = playList2Mapper.selectOne(playlistWrapper);
+                    if(playlist == null)
+                    {
+                        throw new BusinessException("10001","歌单'我的喜欢'不存在");
+                    }
+                    PlaylistMusic playlistMusic = new PlaylistMusic();
+                    playlistMusic.setPlaylistId(playlist.getId());
+                    playlistMusic.setMusicId(targetId);
+                    communityPlaylistMapper.insert(playlistMusic);
+                    log.info("添加我的喜欢歌曲成功");
                     return Result.ok(likevo);
                 }
             }
@@ -186,6 +221,20 @@ public class UserBaseServiceImpl implements UserBaseService {
                 stringRedisTemplate.opsForZSet().add(key,objectMapper.writeValueAsString(likeMusicVO),epochSecond);
                 stringRedisTemplate.expire(key,7, TimeUnit.DAYS);
             }
+            // 在"我的喜欢"歌单中添加这首歌
+            LambdaQueryWrapper<Playlist> playlistWrapper = new LambdaQueryWrapper<>();
+            playlistWrapper.eq(Playlist::getUserId,currentUserId)
+                    .eq(Playlist::getPlaylistName,"我的喜欢");
+            Playlist playlist = playList2Mapper.selectOne(playlistWrapper);
+            if(playlist == null)
+            {
+                throw new BusinessException("10001","歌单'我的喜欢'不存在");
+            }
+            PlaylistMusic playlistMusic = new PlaylistMusic();
+            playlistMusic.setPlaylistId(playlist.getId());
+            playlistMusic.setMusicId(targetId);
+            communityPlaylistMapper.insert(playlistMusic);
+            log.info("添加我的喜欢歌曲成功");
             return Result.ok(likevo);
         } catch (DuplicateKeyException e) {
             log.error("并发错误", e);
