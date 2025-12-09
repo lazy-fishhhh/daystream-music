@@ -152,6 +152,9 @@ public class UserServiceImpl  implements IUserService {
         if (playlist1 == null){
             throw new RuntimeException("歌单不存在");
         }
+        if (playlist1.getName().equals("我的喜欢")){
+            throw new BusinessException("10001","歌单'我的喜欢'信息不允许修改");
+        }
 
         LoginUserDetails loginUser = (LoginUserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         Long userId = loginUser.getUser().getId();
@@ -213,6 +216,10 @@ public class UserServiceImpl  implements IUserService {
         Playlist playlist = playListMapper.selectOne(lqw);
         if (playlist == null){
             throw new RuntimeException("歌单不存在");
+        }
+
+        if (playlist.getName().equals("我的喜欢")){
+            throw new BusinessException("10001","歌单'我的喜欢'不允许删除");
         }
 
         LoginUserDetails loginUser = (LoginUserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
