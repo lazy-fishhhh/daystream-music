@@ -2,12 +2,15 @@ package com.future.login.service.impl;
 
 
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.future.login.domain.LoginUserDetails;
 import com.future.login.domain.dto.FogetDTO;
 import com.future.login.domain.dto.LoginEmailDTO;
+import com.future.login.exception.AccountDisabledException;
+import com.future.login.exception.DeactivatedUserException;
 import com.future.login.exception.EmailNoFoundException;
 import com.future.login.mapper.UserMapper;
 import com.future.login.service.CaptchaService;
@@ -95,6 +98,28 @@ public class LoginServiceImpl implements LoginService {
         userUpdateWrapper.set("password",bCryptPasswordEncoder.encode(password));
         userMapper.update(null,userUpdateWrapper);
         return Result.ok();
+    }
+    //通过openId查找本地用户，如果有登录，没有创建
+    @Override
+    public Result loginByQQ(String openId) {
+        LambdaQueryWrapper<User> queryWrapper=new LambdaQueryWrapper<>();
+        queryWrapper.eq(User::getQqOpenId,openId);
+        User user=userMapper.selectOne(queryWrapper);
+        if (user!=null){
+            //用户存在，判断用户状态
+            if(user.getUserStatus()==2)
+            {
+                throw new DeactivatedUserException("用户不存在");
+            }
+            //如果是封禁用户，禁止登录
+            if(user.getUserStatus()==0)
+            {
+                throw new AccountDisabledException("封禁用户禁用");
+            }
+
+        }
+        return null;
+
     }
 
     private  Result authenticateAndGenerateToken(LoginEmailDTO emailDTO) {

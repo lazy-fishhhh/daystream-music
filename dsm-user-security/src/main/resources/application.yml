@@ -9,4 +9,15 @@ spring:
       mail:
         smtp:
           ssl:
-            enable: true        # 启用SSL
+            enable: true        # 启用SS
+---
+qq:
+  auth:
+    app-id: 102818237
+    app-key: 4CGDLQPH90nU4fIp
+    redirect-uri: https://www.histweilai.top/api/auth/qq/callback
+    # 其余QQ API地址保持默认即可
+    authorize-url: https://graph.qq.com/oauth2.0/authorize
+    access-token-url: https://graph.qq.com/oauth2.0/token
+    openid-url: https://graph.qq.com/oauth2.0/me
+    user-info-url: https://graph.qq.com/user/get_user_info
