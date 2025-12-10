@@ -22,6 +22,6 @@ public class EchoMusicVO {
 
     private String lyricUrl;            // 歌词URL
     private List<MusicAudio> audioList; // 音频列表
-    private List<String> tags;          // 歌曲标签（需关联标签表）
+    private List<MusicTagVO> tags;          // 歌曲标签（需关联标签表）
     private String albumName;           // 所属专辑名字
 }

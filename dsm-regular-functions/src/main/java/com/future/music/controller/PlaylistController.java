@@ -15,6 +15,7 @@ import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import jakarta.annotation.Resource;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
@@ -33,16 +34,16 @@ public class PlaylistController {
 
 
     @ApiOperation(value = "创建歌单", notes = "不需要传id")
-    @PostMapping("/api/play-list/create-play-list")
-    public Result<Void> createPlayList(@Validated @RequestBody PlayListDTO playListDTO) {
+    @PostMapping(value = "/api/play-list/create-play-list", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public Result<Void> createPlayList(@Validated @ModelAttribute PlayListDTO playListDTO) {
         userService.createPlayList(playListDTO);
         return Result.ok();
     }
 
 
     @ApiOperation("修改歌单")
-    @PostMapping("/playList/update-playList")
-    public Result<Void> updatePlayList(@Validated @RequestBody PlayListDTO playList) {
+    @PostMapping(value = "/playList/update-playList", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public Result<Void> updatePlayList(@Validated @ModelAttribute PlayListDTO playList) {
         // 若@Validated校验失败，会自动抛出MethodArgumentNotValidException异常
         userService.updatePlayList(playList);
         return Result.ok();

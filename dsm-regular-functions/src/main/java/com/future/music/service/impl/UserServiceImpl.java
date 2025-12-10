@@ -13,6 +13,7 @@ import com.future.login.util.SecurityUtil;
 import com.future.music.domain.message.SignInMessage;
 import com.future.music.domain.vo.*;
 import com.future.music.mapper.*;
+import com.future.music.service.IMinIoService;
 import com.future.music.service.IMusicService;
 import com.future.music.service.IMusicianService;
 import com.future.music.service.IPlaylistService;
@@ -31,6 +32,8 @@ import entity.pojo.util.PageResp;
 import entity.pojo.util.Result;
 import io.swagger.models.auth.In;
 import jakarta.annotation.Resource;
+
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -41,6 +44,7 @@ import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.cache.CacheProperties;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.redis.connection.BitFieldSubCommands;
 import org.springframework.data.redis.connection.RedisConnection;
 import org.springframework.data.redis.core.RedisCallback;
@@ -107,7 +111,8 @@ public class UserServiceImpl  implements IUserService {
     @Resource
     private StringRedisTemplate stringRedisTemplate;
 
-
+    @Resource
+    private IMinIoService minIoService;
 
     //构造方法注入
     private final PlaylistMapper playListMapper;
@@ -127,30 +132,46 @@ public class UserServiceImpl  implements IUserService {
             throw new BusinessException(PLAYLIST_NAME_EXIST.getCode(),"歌单名称已存在,不允许重复");
         }
 
-        LoginUserDetails loginUser = (LoginUserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        Long userId = loginUser.getUser().getId();
-        Playlist playList = new Playlist();
-        playList.setUserId(userId);
-        playList.setName(playListDTO.getName());
-        playList.setCover(playListDTO.getCover());
-        playList.setDescription(playListDTO.getDescription());
-        playList.setIsPublic(playListDTO.getIsPublic());
-        playList.setCreatedTime(LocalDateTime.now());
-        playList.setUpdatedTime(LocalDateTime.now());
-        playListMapper.insert(playList);
+        try {
+            LoginUserDetails loginUser = (LoginUserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+            Long userId = loginUser.getUser().getId();
+            
+            // 处理封面文件上传
+            String coverUrl = null;
+            if (playListDTO.getCoverFile() != null && !playListDTO.getCoverFile().isEmpty()) {
+                coverUrl = minIoService.uploadFile(playListDTO.getCoverFile());
+                if (coverUrl == null) {
+                    throw new BusinessException("10002", "封面文件上传失败");
+                }
+            }
+            
+            Playlist playList = new Playlist();
+            playList.setUserId(userId);
+            playList.setName(playListDTO.getName());
+            playList.setCover(coverUrl);
+            playList.setDescription(playListDTO.getDescription());
+            playList.setIsPublic(playListDTO.getIsPublic());
+            playList.setCreatedTime(LocalDateTime.now());
+            playList.setUpdatedTime(LocalDateTime.now());
+            playListMapper.insert(playList);
 
-         // 处理多个标签
-         if (playListDTO.getTagIds() != null && !playListDTO.getTagIds().isEmpty()) {
-             List<PlaylistTagRelation> tagRelations = new ArrayList<>();
-             for (Integer tagId : playListDTO.getTagIds()) {
-                 PlaylistTagRelation playListTagRelation = new PlaylistTagRelation();
-                 playListTagRelation.setPlaylistId(playList.getId());
-                 playListTagRelation.setTagId(tagId.longValue());
-                 tagRelations.add(playListTagRelation);
-             }
-             // 使用批量插入
-             playlistTagRelationMapper.insertBatch(tagRelations);
-         }
+            // 处理多个标签
+            if (playListDTO.getTagIds() != null && !playListDTO.getTagIds().isEmpty()) {
+                List<PlaylistTagRelation> tagRelations = new ArrayList<>();
+                for (Integer tagId : playListDTO.getTagIds()) {
+                    PlaylistTagRelation playListTagRelation = new PlaylistTagRelation();
+                    playListTagRelation.setPlaylistId(playList.getId());
+                    playListTagRelation.setTagId(tagId.longValue());
+                    tagRelations.add(playListTagRelation);
+                }
+                // 使用批量插入
+                playlistTagRelationMapper.insertBatch(tagRelations);
+            }
+        }catch (DataIntegrityViolationException e) {
+            throw new BusinessException("标签异常10001",  "请检查标签是否存在");
+        } catch (Exception e) {
+            throw new BusinessException("业务异常100001", "业务异常" + e.getMessage());
+        }
     }
 
     @Transactional
@@ -160,7 +181,7 @@ public class UserServiceImpl  implements IUserService {
         lqw.eq(Playlist::getId,dto.getId());
         Playlist playlist1 = playListMapper.selectOne(lqw);
         if (playlist1 == null){
-            throw new RuntimeException("歌单不存在");
+            throw new BusinessException("10002","歌单不存在");
         }
         if (playlist1.getName().equals("我的喜欢")){
             throw new BusinessException("10001","歌单'我的喜欢'信息不允许修改");
@@ -171,43 +192,58 @@ public class UserServiceImpl  implements IUserService {
         Long playListUserId = playlist1.getUserId();
 
         if (!playListUserId.equals(userId)) {
-            throw new RuntimeException("您没有权限修改此歌单");
+            throw new BusinessException("权限不足10003","您没有权限修改此歌单");
         }
 
 
-        // 创建 PlayList 对象并设置 ID 属性
-        Playlist playlist = new Playlist();
-        //updateById是通过id来更新的，所以必须设置id
-        playlist.setId(dto.getId());
-        playlist.setName(dto.getName());
-        playlist.setCover(dto.getCover());
-        playlist.setDescription(dto.getDescription());
-        playlist.setIsPublic(dto.getIsPublic());
-        playlist.setUpdatedTime(LocalDateTime.now());
-
-        // 使用 MyBatis-Plus 的 updateById 方法
-        playListMapper.updateById(playlist);
-
-        // 先删除该歌单当前所有的标签关联
-        QueryWrapper<PlaylistTagRelation> queryWrapper = new QueryWrapper<>();
-        queryWrapper.eq("playlist_id", dto.getId());
-        playlistTagRelationMapper.delete(queryWrapper);
-        
-        // 为新的标签列表创建新的标签关联
-        if (dto.getTagIds() != null && !dto.getTagIds().isEmpty()) {
-            List<PlaylistTagRelation> tagRelations = new ArrayList<>();
-            for (Integer tagId : dto.getTagIds()) {
-                PlaylistTagRelation playListTagRelation = new PlaylistTagRelation();
-                playListTagRelation.setPlaylistId(dto.getId());
-                playListTagRelation.setTagId(tagId.longValue());
-                tagRelations.add(playListTagRelation);
+        try {
+            // 处理封面文件上传
+            String coverUrl = playlist1.getCover(); // 默认使用原有封面
+            if (dto.getCoverFile() != null && !dto.getCoverFile().isEmpty()) {
+                coverUrl = minIoService.uploadFile(dto.getCoverFile());
+                if (coverUrl == null) {
+                    throw new BusinessException("10002", "封面文件上传失败");
+                }
             }
-            // 批量插入
-            playlistTagRelationMapper.insertBatch(tagRelations);
-        }
+            
+            // 创建 PlayList 对象并设置 ID 属性
+            Playlist playlist = new Playlist();
+            //updateById是通过id来更新的，所以必须设置id
+            playlist.setId(dto.getId());
+            playlist.setName(dto.getName());
+            playlist.setCover(coverUrl);
+            playlist.setDescription(dto.getDescription());
+            playlist.setIsPublic(dto.getIsPublic());
+            playlist.setUpdatedTime(LocalDateTime.now());
 
-        String cacheKeyPattern = RedisCacheConstants.CACHE_KEY_PLAYLIST_DETAIL + dto.getId() + ":*";
-        stringRedisTemplate.delete(cacheKeyPattern);
+            // 使用 MyBatis-Plus 的 updateById 方法
+            playListMapper.updateById(playlist);
+
+            // 先删除该歌单当前所有的标签关联
+            QueryWrapper<PlaylistTagRelation> queryWrapper = new QueryWrapper<>();
+            queryWrapper.eq("playlist_id", dto.getId());
+            playlistTagRelationMapper.delete(queryWrapper);
+
+            // 为新的标签列表创建新的标签关联
+            if (dto.getTagIds() != null && !dto.getTagIds().isEmpty()) {
+                List<PlaylistTagRelation> tagRelations = new ArrayList<>();
+                for (Integer tagId : dto.getTagIds()) {
+                    PlaylistTagRelation playListTagRelation = new PlaylistTagRelation();
+                    playListTagRelation.setPlaylistId(dto.getId());
+                    playListTagRelation.setTagId(tagId.longValue());
+                    tagRelations.add(playListTagRelation);
+                }
+                // 批量插入
+                playlistTagRelationMapper.insertBatch(tagRelations);
+            }
+
+            String cacheKeyPattern = RedisCacheConstants.CACHE_KEY_PLAYLIST_DETAIL + dto.getId() + ":*";
+            stringRedisTemplate.delete(cacheKeyPattern);
+        }catch (DataIntegrityViolationException e) {
+            throw new BusinessException("标签异常10001",  "请检查标签是否存在");
+        } catch (Exception e) {
+            throw new BusinessException("业务异常100001", "业务异常" + e.getMessage());
+        }
     }
 
     @Override

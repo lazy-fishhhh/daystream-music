@@ -286,9 +286,9 @@ public class PlaylistServiceImpl implements IPlaylistService {
     /**
      * MusicTag 转 MusicTagVO
      */
-    private List<MusicFilterTagVO.MusicTagVO> convertToVO(List<MusicTag> musicTags) {
+    private List<MusicTagVO> convertToVO(List<MusicTag> musicTags) {
         return musicTags.stream().map(tag -> {
-            MusicFilterTagVO.MusicTagVO vo = new MusicFilterTagVO.MusicTagVO();
+            MusicTagVO vo = new MusicTagVO();
             BeanUtils.copyProperties(tag, vo);
             return vo;
         }).collect(Collectors.toList());
