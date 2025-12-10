@@ -23,7 +23,7 @@ public class AlbumController {
 
     @ApiOperation(value = "创建专辑")
     @PostMapping("/api/album/create-album")
-    public Result<Void> createAlbum(@Validated @RequestBody AlbumDTO albumDTO) {
+    public Result<AlbumVO> createAlbum(@Validated @RequestBody AlbumDTO albumDTO) {
         return albumService.createAlbum(albumDTO);
     }
 

@@ -35,9 +35,9 @@ public class PlaylistController {
 
     @ApiOperation(value = "创建歌单", notes = "不需要传id")
     @PostMapping(value = "/api/play-list/create-play-list", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public Result<Void> createPlayList(@Validated @ModelAttribute PlayListDTO playListDTO) {
-        userService.createPlayList(playListDTO);
-        return Result.ok();
+    public Result<PlaylistVO> createPlayList(@Validated @ModelAttribute PlayListDTO playListDTO) {
+
+        return userService.createPlayList(playListDTO);
     }
 
 

@@ -124,7 +124,7 @@ public class UserServiceImpl  implements IUserService {
 
     @Transactional
     @Override
-    public void createPlayList(PlayListDTO playListDTO) {
+    public Result<PlaylistVO> createPlayList(PlayListDTO playListDTO) {
         LambdaQueryWrapper<Playlist> lqw = new LambdaQueryWrapper<>();
         lqw.eq(Playlist::getName, playListDTO.getName());
         Playlist playlist = playListMapper.selectOne(lqw);
@@ -167,6 +167,16 @@ public class UserServiceImpl  implements IUserService {
                 // 使用批量插入
                 playlistTagRelationMapper.insertBatch(tagRelations);
             }
+
+            // 返回结果
+            PlaylistVO playlistVO = new PlaylistVO();
+            playlistVO.setId(playList.getId());
+            playlistVO.setName(playList.getName());
+            playlistVO.setCover(playList.getCover());
+            playlistVO.setDescription(playList.getDescription());
+            playlistVO.setTagIds(playListDTO.getTagIds());
+
+            return Result.ok(playlistVO);
         }catch (DataIntegrityViolationException e) {
             throw new BusinessException("标签异常10001",  "请检查标签是否存在");
         } catch (Exception e) {

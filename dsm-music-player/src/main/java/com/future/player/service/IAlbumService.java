@@ -14,7 +14,7 @@ public interface IAlbumService {
      * @param albumDTO 专辑信息
      * @return 操作结果
      */
-    Result<Void> createAlbum(AlbumDTO albumDTO);
+    Result<AlbumVO> createAlbum(AlbumDTO albumDTO);
 
     /**
      * 修改专辑
