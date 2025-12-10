@@ -181,7 +181,7 @@ public class UserServiceImpl  implements IUserService {
         lqw.eq(Playlist::getId,dto.getId());
         Playlist playlist1 = playListMapper.selectOne(lqw);
         if (playlist1 == null){
-            throw new RuntimeException("歌单不存在");
+            throw new BusinessException("10002","歌单不存在");
         }
         if (playlist1.getName().equals("我的喜欢")){
             throw new BusinessException("10001","歌单'我的喜欢'信息不允许修改");
@@ -192,7 +192,7 @@ public class UserServiceImpl  implements IUserService {
         Long playListUserId = playlist1.getUserId();
 
         if (!playListUserId.equals(userId)) {
-            throw new RuntimeException("您没有权限修改此歌单");
+            throw new BusinessException("权限不足10003","您没有权限修改此歌单");
         }
 
 
