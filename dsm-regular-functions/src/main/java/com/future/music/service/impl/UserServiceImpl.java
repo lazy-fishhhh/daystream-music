@@ -13,6 +13,7 @@ import com.future.login.util.SecurityUtil;
 import com.future.music.domain.message.SignInMessage;
 import com.future.music.domain.vo.*;
 import com.future.music.mapper.*;
+import com.future.music.service.IMinIoService;
 import com.future.music.service.IMusicService;
 import com.future.music.service.IMusicianService;
 import com.future.music.service.IPlaylistService;
@@ -110,7 +111,8 @@ public class UserServiceImpl  implements IUserService {
     @Resource
     private StringRedisTemplate stringRedisTemplate;
 
-
+    @Resource
+    private IMinIoService minIoService;
 
     //构造方法注入
     private final PlaylistMapper playListMapper;
@@ -133,10 +135,20 @@ public class UserServiceImpl  implements IUserService {
         try {
             LoginUserDetails loginUser = (LoginUserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
             Long userId = loginUser.getUser().getId();
+            
+            // 处理封面文件上传
+            String coverUrl = null;
+            if (playListDTO.getCoverFile() != null && !playListDTO.getCoverFile().isEmpty()) {
+                coverUrl = minIoService.uploadFile(playListDTO.getCoverFile());
+                if (coverUrl == null) {
+                    throw new BusinessException("10002", "封面文件上传失败");
+                }
+            }
+            
             Playlist playList = new Playlist();
             playList.setUserId(userId);
             playList.setName(playListDTO.getName());
-            playList.setCover(playListDTO.getCover());
+            playList.setCover(coverUrl);
             playList.setDescription(playListDTO.getDescription());
             playList.setIsPublic(playListDTO.getIsPublic());
             playList.setCreatedTime(LocalDateTime.now());
@@ -169,7 +181,7 @@ public class UserServiceImpl  implements IUserService {
         lqw.eq(Playlist::getId,dto.getId());
         Playlist playlist1 = playListMapper.selectOne(lqw);
         if (playlist1 == null){
-            throw new RuntimeException("歌单不存在");
+            throw new BusinessException("10002","歌单不存在");
         }
         if (playlist1.getName().equals("我的喜欢")){
             throw new BusinessException("10001","歌单'我的喜欢'信息不允许修改");
@@ -180,17 +192,26 @@ public class UserServiceImpl  implements IUserService {
         Long playListUserId = playlist1.getUserId();
 
         if (!playListUserId.equals(userId)) {
-            throw new RuntimeException("您没有权限修改此歌单");
+            throw new BusinessException("权限不足10003","您没有权限修改此歌单");
         }
 
 
         try {
+            // 处理封面文件上传
+            String coverUrl = playlist1.getCover(); // 默认使用原有封面
+            if (dto.getCoverFile() != null && !dto.getCoverFile().isEmpty()) {
+                coverUrl = minIoService.uploadFile(dto.getCoverFile());
+                if (coverUrl == null) {
+                    throw new BusinessException("10002", "封面文件上传失败");
+                }
+            }
+            
             // 创建 PlayList 对象并设置 ID 属性
             Playlist playlist = new Playlist();
             //updateById是通过id来更新的，所以必须设置id
             playlist.setId(dto.getId());
             playlist.setName(dto.getName());
-            playlist.setCover(dto.getCover());
+            playlist.setCover(coverUrl);
             playlist.setDescription(dto.getDescription());
             playlist.setIsPublic(dto.getIsPublic());
             playlist.setUpdatedTime(LocalDateTime.now());

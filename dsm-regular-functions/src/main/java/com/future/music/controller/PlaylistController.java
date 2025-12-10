@@ -1,7 +1,9 @@
 package com.future.music.controller;
 
-import com.future.music.domain.vo.*;
-import com.future.music.mapper.PlaylistMapper;
+import com.future.music.domain.vo.MusicFilterTagVO;
+import com.future.music.domain.vo.MusicVO;
+import com.future.music.domain.vo.PlaylistDetailVO;
+import com.future.music.domain.vo.PlaylistVO;
 import com.future.music.service.IPlaylistService;
 import com.future.music.service.IUserService;
 import entity.dto.PlayListDTO;
@@ -13,7 +15,7 @@ import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import jakarta.annotation.Resource;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
@@ -28,21 +30,20 @@ public class PlaylistController {
 
     @Resource
     private IPlaylistService playlistService;
-    @Autowired
-    private PlaylistMapper playlistMapper;
+
 
 
     @ApiOperation(value = "创建歌单", notes = "不需要传id")
-    @PostMapping("/api/play-list/create-play-list")
-    public Result<Void> createPlayList(@Validated @RequestBody PlayListDTO playListDTO) {
+    @PostMapping(value = "/api/play-list/create-play-list", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public Result<Void> createPlayList(@Validated @ModelAttribute PlayListDTO playListDTO) {
         userService.createPlayList(playListDTO);
         return Result.ok();
     }
 
 
     @ApiOperation("修改歌单")
-    @PostMapping("/playList/update-playList")
-    public Result<Void> updatePlayList(@Validated @RequestBody PlayListDTO playList) {
+    @PostMapping(value = "/playList/update-playList", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public Result<Void> updatePlayList(@Validated @ModelAttribute PlayListDTO playList) {
         // 若@Validated校验失败，会自动抛出MethodArgumentNotValidException异常
         userService.updatePlayList(playList);
         return Result.ok();
@@ -66,17 +67,6 @@ public class PlaylistController {
                                               @RequestParam(defaultValue = "10") int pageSize,
                                               @PathVariable Long playlistId) {
         return playlistService.getPlaylistDetail(playlistId, pageNum, pageSize);
-    }
-
-    @ApiOperation(value = "查询歌单收藏用户")
-    @GetMapping("/getPlaylistCollections/{playlistId}")
-    public Result<List<SearchUserVO>> getPlaylistCollections(@PathVariable Long playlistId) {
-        try {
-            List<SearchUserVO> userList = playlistMapper.selectUserByCollection(playlistId);
-            return Result.ok(userList);
-        } catch (Exception e) {
-            return Result.fail("查询歌单收藏用户失败");
-        }
     }
 
     /**

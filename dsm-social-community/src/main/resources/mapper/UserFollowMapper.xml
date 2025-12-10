@@ -19,8 +19,8 @@
         from
         user as u
         left join user_follow as f on u.id=f.user_id
-        where u.id=#{userId}
-        and f.user_id=#{userId}
+        where
+         f.user_id=#{userId}
         and f.followed_user_id=#{currentId}
     </select>
     <select id="selectFollowUserBatch" resultType="social.domain.vo.UserFollowerVO">
