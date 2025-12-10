@@ -242,41 +242,4 @@ class MinIoServiceImpl implements IMinIoService {
         }
     }
 
-    /**
-     * 从MinIO下载图片为BufferedImage
-     */
-    @Override
-    public BufferedImage downloadImage(String objectName) {
-        try (InputStream is = minioClient.getObject(
-                GetObjectArgs.builder()
-                        .bucket(bucketName)
-                        .object(objectName.substring(objectName.lastIndexOf("/") + 1))
-                        .build()
-        )) {
-            return ImageIO.read(is);
-        } catch (Exception e) {
-            return null;
-        }
-    }
-
-    /**
-     * 上传图片输入流到MinIO
-     */
-    @Override
-    public String uploadFileStream(InputStream is, String fileName, String contentType) {
-        try {
-            minioClient.putObject(
-                    PutObjectArgs.builder()
-                            .bucket(bucketName)
-                            .object(fileName)
-                            .stream(is, is.available(), -1)
-                            .contentType(contentType)
-                            .build()
-            );
-            return proxyHost+ "/"+ bucketName + "/" + fileName; // 返回存储路径，后续可通过预签名URL访问
-        } catch (Exception e) {
-            return null;
-        }
-    }
-
 }

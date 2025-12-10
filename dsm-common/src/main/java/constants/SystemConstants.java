@@ -1,5 +1,7 @@
 package constants;
 
+import java.time.format.DateTimeFormatter;
+
 /**
  * 系统通用常量
  */
@@ -21,6 +23,10 @@ public class SystemConstants {
     public static final int JWT_EXPIRE_HOURS = 2; // JWT过期时间(小时)
     public static final String REPORT_GENERATE_TIME = "02:00:00"; // 听歌报告生成时间
     public static final int DATA_DELAY_MAX = 30; // 数据延迟上限(分钟)
+    // 周标识格式：yyyy-ww（ww为周数，1-53）
+    public static final DateTimeFormatter WEEK_FORMATTER = DateTimeFormatter.ofPattern("yyyy-ww"); // 周标识格式化器
+
+
 
     // 存储相关
     public static final String UNCHECKED_FILE_PRIVATE = "private"; // 未审核文件权限
