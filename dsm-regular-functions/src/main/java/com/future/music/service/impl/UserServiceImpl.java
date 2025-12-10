@@ -158,10 +158,10 @@ public class UserServiceImpl  implements IUserService {
             // 处理多个标签
             if (playListDTO.getTagIds() != null && !playListDTO.getTagIds().isEmpty()) {
                 List<PlaylistTagRelation> tagRelations = new ArrayList<>();
-                for (Integer tagId : playListDTO.getTagIds()) {
+                for (String tagId : playListDTO.getTagIds()) {
                     PlaylistTagRelation playListTagRelation = new PlaylistTagRelation();
                     playListTagRelation.setPlaylistId(playList.getId());
-                    playListTagRelation.setTagId(tagId.longValue());
+                    playListTagRelation.setTagId(Long.valueOf(tagId));
                     tagRelations.add(playListTagRelation);
                 }
                 // 使用批量插入
@@ -227,10 +227,10 @@ public class UserServiceImpl  implements IUserService {
             // 为新的标签列表创建新的标签关联
             if (dto.getTagIds() != null && !dto.getTagIds().isEmpty()) {
                 List<PlaylistTagRelation> tagRelations = new ArrayList<>();
-                for (Integer tagId : dto.getTagIds()) {
+                for (String tagId : dto.getTagIds()) {
                     PlaylistTagRelation playListTagRelation = new PlaylistTagRelation();
                     playListTagRelation.setPlaylistId(dto.getId());
-                    playListTagRelation.setTagId(tagId.longValue());
+                    playListTagRelation.setTagId(Long.valueOf(tagId));
                     tagRelations.add(playListTagRelation);
                 }
                 // 批量插入

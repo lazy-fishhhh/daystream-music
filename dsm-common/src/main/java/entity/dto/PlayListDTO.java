@@ -36,5 +36,5 @@ public class PlayListDTO {
     @IsZeroOrOne //自定义注解
     private int isPublic;
     @NotNull(message = "歌单标签不能为空")
-    private List<Integer> tagIds;
+    private List<String> tagIds;
 }
