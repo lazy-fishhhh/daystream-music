@@ -57,4 +57,11 @@ public class UserHomeController {
     }
 
 
+    @ApiOperation("查询本周的每日听歌次数")
+    @GetMapping("/getDailyListenCount")
+    public Result<List<Integer>> getDailyListenCount() {
+        return userHomeService.getDailyListenCount();
+    }
+
+
 }

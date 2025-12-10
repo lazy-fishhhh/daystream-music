@@ -9,6 +9,8 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.List;
+
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -27,5 +29,5 @@ public class PlayListDTO {
     @IsZeroOrOne //自定义注解
     private int isPublic;
     @NotNull(message = "歌单标签不能为空")
-    private int tagId;
+    private List<Integer> tagIds;
 }

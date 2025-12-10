@@ -1060,12 +1060,12 @@ public class UserBaseServiceImpl implements UserBaseService {
                 if (userIds == null || userIds.isEmpty()) {
                     return Result.ok("暂无粉丝");
                 }
-                userFollowerVOList=followMapper.selectFollowAll(userIds);
+                userFollowerVOList=followMapper.selectFollowAll(userIds,currentUserId);
                 if(userFollowerVOList==null||userFollowerVOList.isEmpty())
                 {
                     return Result.ok("暂无粉丝");
                 }
-                userFollowerVOS=followMapper.selectFollowUserBatch(userIds,lastId,pageSize);
+                userFollowerVOS=followMapper.selectFollowUserBatch(userIds,lastId,pageSize,currentUserId);
                 if(userFollowerVOS==null||userFollowerVOS.isEmpty())
                 {
                     return Result.ok("当前lastId后面没有数据");
@@ -1178,12 +1178,12 @@ public class UserBaseServiceImpl implements UserBaseService {
             if (userIds == null || userIds.isEmpty()) {
                 return Result.ok("暂无关注的音乐人");
             }
-            userFollowerVOList=followMapper.selectFollowedAllMuscian(userIds);
+            userFollowerVOList=followMapper.selectFollowedAllMuscian(userIds,currentUserId);
             if(userFollowerVOList==null||userFollowerVOList.isEmpty())
             {
                 return Result.ok("暂无关注的音乐人");
             }
-            userFollowerVOS=followMapper.selectFollowedUserBatchMuscian(userIds,lastId,pageSize);
+            userFollowerVOS=followMapper.selectFollowedUserBatchMuscian(userIds,lastId,pageSize,currentUserId);
             if(userFollowerVOS==null||userFollowerVOS.isEmpty())
             {
                 return Result.ok("当前lastId后面没有数据");
@@ -1294,12 +1294,12 @@ public class UserBaseServiceImpl implements UserBaseService {
             if (userIds == null || userIds.isEmpty()) {
                 return Result.ok("暂无关注的普通用户");
             }
-            userFollowerVOList=followMapper.selectFollowedAllNormal(userIds);
+            userFollowerVOList=followMapper.selectFollowedAllNormal(userIds,currentUserId);
             if(userFollowerVOList==null||userFollowerVOList.isEmpty())
             {
                 return Result.ok("暂无关注的普通用户");
             }
-            userFollowerVOS=followMapper.selectFollowedUserBatchNormal(userIds,lastId,pageSize);
+            userFollowerVOS=followMapper.selectFollowedUserBatchNormal(userIds,lastId,pageSize,currentUserId);
             if(userFollowerVOS==null||userFollowerVOS.isEmpty())
             {
                 return Result.ok("当前lastId后面没有数据");

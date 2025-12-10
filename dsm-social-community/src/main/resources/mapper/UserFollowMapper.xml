@@ -35,6 +35,7 @@
         <if test="lastId!=null and lastId!=''">
            and u.id &lt; lastId
         </if>
+        and f.followed_user_id=#{currentId}
         order by f.follow_time desc
         limit #{pageSize}
     </select>
@@ -47,6 +48,7 @@
         <foreach collection="userIds" item="id" open="(" separator="," close=")">
             #{id}
         </foreach>
+        and f.followed_user_id= #{currentId}
         order by f.follow_time desc
     </select>
     <select id="selectFollowedUserBatchNormal" resultType="social.domain.vo.UserFollowerVO">
@@ -62,7 +64,8 @@
         <if test="lastId!=null">
             and u.id &lt; lastId
         </if>
-        and ur.role_id in(1,2)
+        and ur.role_id in(1)
+        and f.user_id=#{currentId}
         order by f.follow_time desc
         limit #{pageSize}
     </select>
@@ -80,20 +83,21 @@
             and u.id &lt; lastId
         </if>
         and ur.role_id in (3)
+        and f.user_id= #{currentId}
         order by f.follow_time desc
         limit #{pageSize}
     </select>
     <select id="selectFollowedAllNormal" resultType="social.domain.vo.UserFollowerVO">
-        select u.id, u.username, u.avatar, u.introduction, u.user_status,f.follow_time
+        select distinct u.id, u.username, u.avatar, u.introduction, u.user_status,f.follow_time
         from
         user as u
         left join user_follow as f on u.id=f.followed_user_id
-        left join user_role as ur on u.id=ur.user_id
+        left join user_role as ur on u.id=ur.user_id and ur.role_id=1
         where u.id in
         <foreach collection="userIds" item="id" open="(" separator="," close=")">
             #{id}
         </foreach>
-        and ur.role_id in (1,2)
+        and f.user_id=#{currentId}
         order by f.follow_time desc
     </select>
     <select id="selectFollowedAllMuscian" resultType="social.domain.vo.UserFollowerVO">
@@ -107,6 +111,7 @@
             #{id}
         </foreach>
         and ur.role_id in (3)
+        and f.user_id=#{currentId}
         order by f.follow_time desc
     </select>
     <select id="selectFollowerUserIds" resultType="Long">
@@ -123,7 +128,7 @@
         left join user_role as ur on f.followed_user_id=ur.user_id
         where
         f.user_id=#{userId}
-        and ur.role_id in (1,2)
+        and ur.role_id =1
     </select>
     <select id="selectFollowUserIdsMusician" resultType="Long">
         select f.followed_user_id
