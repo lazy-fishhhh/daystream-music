@@ -4,12 +4,12 @@ package com.future.music.service.impl;
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.future.login.exception.BusinessException;
 import com.future.login.mapper.UserMapper;
 import com.future.login.util.SecurityUtil;
 import com.future.music.domain.dto.UserDetailDTO;
+import com.future.music.domain.dto.DailyListenCountDTO;
 import com.future.music.domain.vo.MusicVO;
 import com.future.music.domain.vo.PlaylistVO;
 
@@ -17,13 +17,13 @@ import com.future.music.mapper.LikeRecordMapper;
 import com.future.music.mapper.MusicMapper;
 import com.future.music.mapper.PlaylistMapper;
 import com.future.music.mapper.UserCollectionMapper;
+import com.future.music.mapper.UserListenHistoryMapper;
 import com.future.music.service.IMusicService;
 import com.future.music.service.IUserHomeService;
 import com.future.music.websocket.ChatEndPoint;
 import com.future.player.mapper.AlbumMapper;
 import entity.pojo.info.User;
 import entity.pojo.music.Album;
-import entity.pojo.music.Music;
 import entity.pojo.music.Playlist;
 import entity.pojo.social.LikeRecord;
 import entity.pojo.social.UserCollection;
@@ -32,18 +32,18 @@ import entity.pojo.util.PageResp;
 import entity.pojo.util.Result;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import social.domain.RoleEnum;
 import social.domain.vo.UserInfoVO;
-import springfox.documentation.spi.service.contexts.SecurityContext;
 
-import java.util.List;
-import java.util.stream.Collectors;
-
-import java.security.Security;
+import java.time.DayOfWeek;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.temporal.TemporalAdjusters;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 import static code.BusinessErrorCode.USER_INFO_ERROR;
 import static code.BusinessErrorCode.USER_NOT_FOUND;
@@ -60,6 +60,7 @@ public class UserHomeServiceImpl implements IUserHomeService {
     private final AlbumMapper albumMapper;
     private final IMusicService musicService;
     private final MinIoServiceImpl minIoService;
+    private final UserListenHistoryMapper userListenHistoryMapper;
 
     @Override
     public Result<String> updateUserInfo(UserDetailDTO dto) {
@@ -274,7 +275,7 @@ public class UserHomeServiceImpl implements IUserHomeService {
 
             LambdaQueryWrapper<UserCollection> queryWrapper = new LambdaQueryWrapper<>();
             queryWrapper.eq(UserCollection::getUserId, userId)
-                    .eq(UserCollection::getTargetType, 3)
+                    .eq(UserCollection::getTargetType, 1)
                     .eq(UserCollection::getIsCanceled, 0)
                     .orderByDesc(UserCollection::getCollectedTime);
 
@@ -325,7 +326,7 @@ public class UserHomeServiceImpl implements IUserHomeService {
             // 构建查询条件
             LambdaQueryWrapper<UserCollection> queryWrapper = new LambdaQueryWrapper<>();
             queryWrapper.eq(UserCollection::getUserId, userId)
-                    .eq(UserCollection::getTargetType, 4)
+                    .eq(UserCollection::getTargetType, 2)
                     .eq(UserCollection::getIsCanceled, 0)
                     .orderByDesc(UserCollection::getCollectedTime);
 
@@ -354,6 +355,49 @@ public class UserHomeServiceImpl implements IUserHomeService {
         } catch (Exception e) {
             log.error("获取用户收藏的专辑失败：", e);
             return Result.fail("获取用户收藏的专辑失败");
+        }
+    }
+
+    @Override
+    public Result<List<Integer>> getDailyListenCount() {
+        try {
+            // 1. 获取当前登录用户ID
+            Long userId = SecurityUtil.getCurrentUserId();
+            if (userId == null) {
+                log.warn("获取本周每日听歌次数失败，用户未登录");
+                return Result.fail("用户未登录，获取失败");
+            }
+
+            // 2. 计算本周的开始和结束日期
+            LocalDate today = LocalDate.now();
+            LocalDate startOfWeek = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+            LocalDate endOfWeek = today.with(TemporalAdjusters.nextOrSame(DayOfWeek.SUNDAY));
+
+            // 3. 查询数据库获取本周的听歌记录
+            List<DailyListenCountDTO> listenCounts =
+                    userListenHistoryMapper.getWeeklyDailyListenCount(userId, startOfWeek, endOfWeek);
+
+            // 4. 将查询结果转换为Map，方便查找每日的听歌次数
+            Map<LocalDate, Integer> countMap = listenCounts.stream()
+                    .collect(Collectors.toMap(
+                            DailyListenCountDTO::getDay,
+                            DailyListenCountDTO::getCount
+                    ));
+
+            // 5. 生成本周每天的日期列表，并填充对应日期的听歌次数
+            List<Integer> dailyCounts = new ArrayList<>();
+            LocalDate currentDate = startOfWeek;
+            while (!currentDate.isAfter(endOfWeek)) {
+                dailyCounts.add(countMap.getOrDefault(currentDate, 0));
+                currentDate = currentDate.plusDays(1);
+            }
+
+            // 6. 返回结果
+            log.info("获取用户本周每日听歌次数成功，用户ID：{}，次数：{}", userId, dailyCounts);
+            return Result.ok(dailyCounts);
+        } catch (Exception e) {
+            log.error("获取用户本周每日听歌次数失败：", e);
+            return Result.fail("获取失败，请稍后重试");
         }
     }
 }

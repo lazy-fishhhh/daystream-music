@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<!-- 确保 namespace 和 Mapper 接口全类名一致 -->
+<mapper namespace="com.future.music.mapper.PlaylistTagRelationMapper">
+
+    <!-- 批量插入歌单标签关联 -->
+    <insert id="insertBatch" parameterType="java.util.List">
+        INSERT INTO playlist_tag_relation (playlist_id, tag_id)
+        VALUES
+        <foreach collection="tagRelations" item="item" separator=",">
+            (#{item.playlistId}, #{item.tagId})
+        </foreach>
+    </insert>
+
+</mapper>

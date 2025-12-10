@@ -11,18 +11,21 @@ import entity.pojo.info.User;
 import entity.pojo.info.UserRole;
 import entity.pojo.util.Result;
 import jakarta.annotation.Resource;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.awt.desktop.UserSessionEvent;
 import java.util.Objects;
 
 import static constants.RedisCacheConstants.USER_EMAILCAPTCHA;
 
-
+@RequiredArgsConstructor
 @Service
 public class RejesterServiceImpl implements RejesterService {
+
     @Autowired
     private UserMapper userMapper;
     @Autowired
@@ -84,12 +87,17 @@ public class RejesterServiceImpl implements RejesterService {
             }
         }
         userMapper.insert(user1);
+
+        // TODO 下面这些全都可以扔到消息队列
         //创建user_role表
         UserRole userRole=new UserRole();
         userRole.setUserId(user1.getId());
         //默认普通用户
         userRole.setRoleId(1L);
         userRoleMapper.insert(userRole);
+
+        // 创建“我的喜欢”歌单
+        userMapper.createPlaylist(user1.getId() , "我的喜欢", "https://picsum.photos/200/300", "我的喜欢");
         return Result.ok();
     }
 }

@@ -140,6 +140,5 @@ public class PlaylistController {
         return playlistService.querySongsByPlaylist(playlistId, pageNum, pageSize);
     }
 
-
 }
 

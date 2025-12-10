@@ -21,4 +21,6 @@ public interface IUserHomeService {
     Result<PageResp<List<PlaylistVO>>> getMyCollectSongLists(PageReq pageReq);
 
     Result<PageResp<List<Album>>> getMyCollectAlbums(PageReq pageReq);
+
+    Result<List<Integer>> getDailyListenCount();
 }

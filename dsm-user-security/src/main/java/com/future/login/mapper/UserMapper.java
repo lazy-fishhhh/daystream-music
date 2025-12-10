@@ -20,4 +20,7 @@ public interface UserMapper extends BaseMapper<User> {
 
     @Select("select role_id from user_role where user_id = #{userId}")
     Integer selectRoleId(Long userId);
+
+    @Select("insert into playlist(user_id, playlist_name, cover_url, description, is_public) values(#{id},#{playlistName}, #{coverUrl}, #{description}, 0)")
+    void createPlaylist(Long id, String playlistName, String coverUrl, String description);
 }
