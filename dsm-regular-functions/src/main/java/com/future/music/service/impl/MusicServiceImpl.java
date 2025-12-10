@@ -38,15 +38,19 @@ import org.redisson.api.RedissonClient;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.serializer.StringRedisSerializer;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.interceptor.TransactionAspectSupport;
+import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 import social.mapper.CommentMapper;
 import util.AudioDurationUtil;
 
 import java.nio.charset.StandardCharsets;
+import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
@@ -1150,6 +1154,39 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
                 if (!locked) {
                     return Result.fail("系统繁忙，请稍后重试");
                 }
+                // 存储歌曲标签听歌记录
+                if (listenCount > 0) {
+                    // 查询歌曲标签
+                    List<MusicTagVO> tagNames = musicTagMapper.getTagNamesByMusicId(dto.getMusicId());
+
+                    if (!tagNames.isEmpty()) {
+                        String weekId = generateWeekId(LocalDate.now());
+                        String cacheKey = MusicConstants.USER_LISTEN_TAG_WEEK + dto.getUserId() + ":" + weekId;
+
+                        // 存储标签听歌记录
+                        for (MusicTagVO tag : tagNames) {
+
+                            // 读取Redis Hash值
+                            String currentCountStr = (String) stringRedisTemplate.opsForHash().get(cacheKey, tag.getTagName());
+                            long currentCount = 0;
+                            // 安全转换：避免空值或非数字字符串导致的异常
+                            if (StringUtils.hasText(currentCountStr)) {
+                                try {
+                                    currentCount = Long.parseLong(currentCountStr);
+                                } catch (NumberFormatException e) {
+                                    // 异常时重置为0，避免数据污染
+                                    currentCount = 0;
+                                }
+                            }
+                            // 累加后存入（统一转为字符串类型）
+                            stringRedisTemplate.opsForHash().put(cacheKey, tag.getTagName(), String.valueOf(currentCount + 1));
+                            // 设置过期时间（仅首次存入时设置，避免重复覆盖）
+                            if (currentCount == 0) {
+                                stringRedisTemplate.expire(cacheKey, RedisCacheConstants.CACHE_QUESTIONNAIRE_TTL, TimeUnit.SECONDS);
+                            }
+                        }
+                    }
+                }
                 // 执行insertOrUpdate
                 userListenHistoryMapper.insertOrUpdateListenHistory(
                         dto.getUserId(), dto.getMusicId(), dto.getPlayedDuration(),
@@ -1231,6 +1268,17 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
                 lock.unlock();
             }
         }
+    }
+    /**
+     * 生成指定日期的周标识（周一为周初，周日为周末）
+     * @param date 播放日期（null 则取当前日期）
+     * @return 周标识，如 2025-49
+     */
+    public String generateWeekId(LocalDate date) {
+        LocalDate targetDate = date == null ? LocalDate.now() : date;
+        // 调整为本周一（确保整周统一标识）
+        LocalDate mondayOfWeek = targetDate.with(DayOfWeek.MONDAY);
+        return mondayOfWeek.format(SystemConstants.WEEK_FORMATTER);
     }
 
     /**

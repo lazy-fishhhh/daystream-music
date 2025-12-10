@@ -56,7 +56,7 @@ public class AlbumServiceImpl implements IAlbumService {
     private BaseMapper<Musician> musicianMapper;
 
     @Override
-    public Result<Void> createAlbum(AlbumDTO albumDTO) {
+    public Result<AlbumVO> createAlbum(AlbumDTO albumDTO) {
         try {
             Album album = new Album();
             // 拷贝DTO属性到实体
@@ -73,7 +73,9 @@ public class AlbumServiceImpl implements IAlbumService {
             }
 
             albumMapper.insert(album);
-            return Result.ok();
+            AlbumVO albumVO = new AlbumVO();
+            BeanUtils.copyProperties(album, albumVO);
+            return Result.ok(albumVO);
         } catch (Exception e) {
             return Result.fail("创建专辑失败：" + e.getMessage());
         }

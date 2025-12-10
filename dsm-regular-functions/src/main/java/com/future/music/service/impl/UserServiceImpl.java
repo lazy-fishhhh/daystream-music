@@ -124,7 +124,7 @@ public class UserServiceImpl  implements IUserService {
 
     @Transactional
     @Override
-    public void createPlayList(PlayListDTO playListDTO) {
+    public Result<PlaylistVO> createPlayList(PlayListDTO playListDTO) {
         LambdaQueryWrapper<Playlist> lqw = new LambdaQueryWrapper<>();
         lqw.eq(Playlist::getName, playListDTO.getName());
         Playlist playlist = playListMapper.selectOne(lqw);
@@ -158,15 +158,25 @@ public class UserServiceImpl  implements IUserService {
             // 处理多个标签
             if (playListDTO.getTagIds() != null && !playListDTO.getTagIds().isEmpty()) {
                 List<PlaylistTagRelation> tagRelations = new ArrayList<>();
-                for (Integer tagId : playListDTO.getTagIds()) {
+                for (String tagId : playListDTO.getTagIds()) {
                     PlaylistTagRelation playListTagRelation = new PlaylistTagRelation();
                     playListTagRelation.setPlaylistId(playList.getId());
-                    playListTagRelation.setTagId(tagId.longValue());
+                    playListTagRelation.setTagId(Long.valueOf(tagId));
                     tagRelations.add(playListTagRelation);
                 }
                 // 使用批量插入
                 playlistTagRelationMapper.insertBatch(tagRelations);
             }
+
+            // 返回结果
+            PlaylistVO playlistVO = new PlaylistVO();
+            playlistVO.setId(playList.getId());
+            playlistVO.setName(playList.getName());
+            playlistVO.setCover(playList.getCover());
+            playlistVO.setDescription(playList.getDescription());
+            playlistVO.setTagIds(playListDTO.getTagIds());
+
+            return Result.ok(playlistVO);
         }catch (DataIntegrityViolationException e) {
             throw new BusinessException("标签异常10001",  "请检查标签是否存在");
         } catch (Exception e) {
@@ -227,10 +237,10 @@ public class UserServiceImpl  implements IUserService {
             // 为新的标签列表创建新的标签关联
             if (dto.getTagIds() != null && !dto.getTagIds().isEmpty()) {
                 List<PlaylistTagRelation> tagRelations = new ArrayList<>();
-                for (Integer tagId : dto.getTagIds()) {
+                for (String tagId : dto.getTagIds()) {
                     PlaylistTagRelation playListTagRelation = new PlaylistTagRelation();
                     playListTagRelation.setPlaylistId(dto.getId());
-                    playListTagRelation.setTagId(tagId.longValue());
+                    playListTagRelation.setTagId(Long.valueOf(tagId));
                     tagRelations.add(playListTagRelation);
                 }
                 // 批量插入

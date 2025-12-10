@@ -6,6 +6,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 @AllArgsConstructor
@@ -17,4 +18,5 @@ public class PlaylistVO {
     /** 描述信息 */
     private String description;
     private Long playCount;
+    private List<String> tagIds;
 }
