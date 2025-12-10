@@ -124,7 +124,7 @@ public class LoginServiceImpl implements LoginService {
 
         if (isNewUser) {
             // 新用户：创建
-            user = createNewQQUser(userInfo);
+            user = createNewQQUser(userInfo,openId);
             userMapper.insert(user);
             // 创建默认用户角色
             assignDefaultRole(user.getId());
@@ -143,13 +143,15 @@ public class LoginServiceImpl implements LoginService {
     /**
      * 创建新的QQ用户
      */
-    private User createNewQQUser(Map<String, String> userInfo) {
+    private User createNewQQUser(Map<String, String> userInfo,String openId) {
         User newUser = new User();
         // 基础信息
         newUser.setQqOpenId(userInfo.get("openid"));
         newUser.setUsername(userInfo.get("nickname"));
         newUser.setAvatar(userInfo.get("figureurl_qq_2"));
         newUser.setGender(changeSex(userInfo.get("gender")));
+        //设置唯一标识
+        newUser.setQqOpenId(openId);
         newUser.setPassword(null);
         newUser.setUserStatus(1);
         // 生成唯一邀请码
@@ -188,7 +190,7 @@ public class LoginServiceImpl implements LoginService {
     private void assignDefaultRole(Long userId) {
         UserRole userRole = new UserRole();
         userRole.setUserId(userId);
-        userRole.setRoleId(0L); // 普通用户角色
+        userRole.setRoleId(1L); // 普通用户角色
         userRoleMapper.insert(userRole);
     }
 
