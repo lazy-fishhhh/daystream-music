@@ -1025,7 +1025,7 @@ public class UserBaseServiceImpl implements UserBaseService {
                         {
                             return Result.ok("该lastId后面没有数据了");
                         }
-                        start = totalSize - rank - 1;
+                        start =Rank+1;
                         end = Math.min(start + pageSize - 1, totalSize - 1);
                 } catch (JsonProcessingException e) {
                     throw new RuntimeException(e);
@@ -1130,20 +1130,20 @@ public class UserBaseServiceImpl implements UserBaseService {
                 end = Math.min(pageSize - 1, totalSize - 1);
             } else {
                 Long lastId = Long.parseLong(pageDTO.getLastId());
-                //定位到当前lastId
-                UserFollowerVO user = followMapper.selectFollowedUser(lastId,currentUserId);
+                //定位到当前lastId,lastid是userId
+                UserFollowerVO user = followMapper.selectFollowUser(lastId,currentUserId);
                 try {
                     String s = objectMapper.writeValueAsString(user);
                     Long rank = zSetOperations.rank(followKey, s);
                     if (rank == null) {
                         return Result.fail("未找到相关记录");
                     }
-                    Long Rank = totalSize - rank - 1;
+                    Long Rank = totalSize - rank-1;
                     if(Rank<0)
                     {
                         return Result.ok("该lastId后面没有数据了");
                     }
-                    start = totalSize - rank - 1;
+                    start = Rank+1;
                     end = Math.min(start + pageSize - 1, totalSize - 1);
                 } catch (JsonProcessingException e) {
                     throw new RuntimeException(e);
@@ -1247,19 +1247,19 @@ public class UserBaseServiceImpl implements UserBaseService {
             } else {
                 Long lastId = Long.parseLong(pageDTO.getLastId());
                 //定位到当前lastId
-                UserFollowerVO user = followMapper.selectFollowedUser(lastId,currentUserId);
+                UserFollowerVO user = followMapper.selectFollowUser(lastId,currentUserId);
                 try {
                     String s = objectMapper.writeValueAsString(user);
                     Long rank = zSetOperations.rank(followKey, s);
                     if (rank == null) {
                         return Result.fail("未找到相关记录");
                     }
-                    Long Rank = totalSize - rank - 1;
+                    Long Rank = totalSize - rank-1;
                     if(Rank<0)
                     {
                         return Result.ok("该lastId后面没有数据了");
                     }
-                    start = totalSize - rank - 1;
+                    start = Rank+1;
                     end = Math.min(start + pageSize - 1, totalSize - 1);
                 } catch (JsonProcessingException e) {
                     throw new RuntimeException(e);
