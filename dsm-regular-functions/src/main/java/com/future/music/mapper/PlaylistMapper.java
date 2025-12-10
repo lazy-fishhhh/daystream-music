@@ -6,6 +6,7 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.future.music.domain.vo.SearchUserVO;
 import entity.pojo.music.Playlist;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
@@ -47,6 +48,20 @@ public interface PlaylistMapper extends BaseMapper<Playlist> {
             Page<Playlist> page,
             @Param("ew") QueryWrapper<Playlist> queryWrapper
     );
+
+    /**
+     * 查询收藏了指定targetId（target_type=1、未取消）的用户列表
+     * @param targetId 收藏目标ID（参数）
+     * @return 符合条件的用户列表
+     */
+    @Select("SELECT u.id, u.username, u.avatar, u.gender, u.introduction " +
+            "FROM `user` u " +
+            "INNER JOIN user_collection uc ON u.id = uc.user_id " +
+            "WHERE uc.target_type = 1 " +
+            "  AND uc.is_canceled = 0 " +
+            "  AND u.user_status = 1 " +
+            "  AND uc.target_id = #{targetId}")
+    List<SearchUserVO> selectUserByCollection(@Param("targetId") Long targetId);
 
     String selectPlaylistCreator(@Param("playlistId") Long playlistId);
 

@@ -9,7 +9,6 @@ import com.future.music.service.IPlaylistService;
 import com.future.music.service.impl.MusicServiceImpl;
 import com.future.player.mapper.AlbumMapper;
 import entity.dto.MusicDTO;
-import entity.dto.MusicFilterDTO;
 import entity.pojo.util.PageResp;
 import entity.pojo.util.Result;
 import entity.vo.MusicAlbumVO;
@@ -48,15 +47,12 @@ public class MusicController {
 
     @ApiOperation(value = "上传音乐")
     @PostMapping("/upload")
-    public Result<Void> saveMusic(@RequestPart() MusicDTO musicDTO,
-                            @RequestPart("lyric") MultipartFile lyric,
-                            @RequestPart("cover") MultipartFile cover,
-                            @RequestPart(value = "standardAudio", required = false) MultipartFile standardAudio,  // 音质1：标准
-                            @RequestPart(value = "hdAudio", required = false) MultipartFile hdAudio,  // 音质2：高清
-                            @RequestPart(value = "losslessAudio", required = false) MultipartFile losslessAudio,  // 音质3：无损
-                            @RequestPart(value = "spatialAudio", required = false) MultipartFile spatialAudio   // 音质4：空间
-                            ) {
-        return iMusicService.saveMusic(musicDTO, lyric, cover, standardAudio, hdAudio, losslessAudio, spatialAudio);
+    public Result<Void> saveMusic(
+            @RequestPart() MusicDTO musicDTO,
+            @RequestPart("lyric") MultipartFile lyric,
+            @RequestPart("cover") MultipartFile cover,
+            @RequestPart(value = "audioMap", required = false) Map<Integer, MultipartFile> audioMap) {
+        return iMusicService.saveMusic(musicDTO, lyric, cover, audioMap);
     }
 
     @ApiOperation(value = "删除音乐")
@@ -117,14 +113,18 @@ public class MusicController {
 
     /**
      * 根据标签筛选音乐
-     * @param filterDTO 音乐筛选请求参数（从请求体获取）
+     * @param tagIds 标签ID列表（从请求参数获取）
+     * @param pageNum 页码（从请求参数获取，默认值1）
+     * @param pageSize 每页数量（从请求参数获取，默认值10）
      * @return 统一返回格式（成功/失败 + 数据）
      */
     @ApiOperation(value = "根据标签筛选音乐")
-    @PostMapping("/by-tags")
+    @GetMapping("/by-tags")
     public Result<PageResp<MusicVO>> filterMusicByTagIds(
-            @Validated @RequestBody MusicFilterDTO filterDTO){
-        return iMusicService.filterMusicByTags(filterDTO);
+            @RequestParam List<Long> tagIds,
+            @RequestParam(defaultValue = "1") int pageNum,
+            @RequestParam(defaultValue = "10") int pageSize){
+        return iMusicService.filterMusicByTags(tagIds, pageNum, pageSize);
     }
 
     @ApiOperation(value = "上传音乐时查询自己所有专辑")

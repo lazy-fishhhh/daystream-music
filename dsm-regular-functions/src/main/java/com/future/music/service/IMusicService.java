@@ -5,7 +5,6 @@ import com.baomidou.mybatisplus.extension.service.IService;
 import com.future.music.domain.dto.MusicPlayReportDTO;
 import com.future.music.domain.vo.*;
 import entity.dto.MusicDTO;
-import entity.dto.MusicFilterDTO;
 import entity.dto.SearchDTO;
 import entity.pojo.music.Music;
 import entity.pojo.util.PageResp;
@@ -17,7 +16,7 @@ import java.util.List;
 import java.util.Map;
 
 public interface IMusicService extends IService<Music> {
-    Result<Void> saveMusic(MusicDTO musicDTO, MultipartFile lyric, MultipartFile cover, MultipartFile standardAudio, MultipartFile hdAudio, MultipartFile losslessAudio, MultipartFile spatialAudio);
+    Result<Void> saveMusic(MusicDTO musicDTO, MultipartFile lyric, MultipartFile cover, Map<Integer, MultipartFile> audioMap);
 
     Result<Void> removeMusic(Long musicId);
 
@@ -39,6 +38,6 @@ public interface IMusicService extends IService<Music> {
 
     Result<Void> reportPlayStatus(MusicPlayReportDTO dto);
 
-    Result<PageResp<MusicVO>> filterMusicByTags(MusicFilterDTO musicFilterDTO);
+    Result<PageResp<MusicVO>> filterMusicByTags(List<Long> tagIds, int pageNum, int pageSize);
 
 }
