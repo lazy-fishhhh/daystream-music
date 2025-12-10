@@ -44,14 +44,11 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.disable())
                 .authorizeHttpRequests(auth -> auth
 
-                        .requestMatchers( "/ai/chat", "ai/music/create", "/resources/**").permitAll()
-                        // 放行
-                        .requestMatchers(
-                                "/login/getCaptcha",
-                                "/login/loginByemail",
-                                "/rejester/getEmailCaptcha",
-                                "/rejester/insertUser",
-                                "/login/fogetPassword").anonymous()
+                        .requestMatchers( "/ai/chat",
+                                "ai/music/create",
+                                "/resources/**",
+                                "/login/*",
+                                "/rejester/**").permitAll()
 
                         // 其他所有请求都必须认证（登录后才能访问）
                         .anyRequest().authenticated()

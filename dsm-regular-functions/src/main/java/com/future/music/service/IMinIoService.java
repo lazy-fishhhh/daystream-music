@@ -54,14 +54,5 @@ public interface IMinIoService {
 
     String generatePresignedUrl(String objectName, int expireSeconds);
 
-    /**
-     * 上传图片输入流到MinIO
-     */
-    public String uploadFileStream(InputStream is, String fileName, String contentType);
-
-    /**
-     * 从MinIO下载图片为BufferedImage
-     */
-    public BufferedImage downloadImage(String objectName);
 
 }

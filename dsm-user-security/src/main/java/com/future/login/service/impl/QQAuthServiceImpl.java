@@ -106,7 +106,8 @@ public class QQAuthServiceImpl {
             resultData.put("token", token);
             resultData.put("qq_openid", openid);
             resultData.put("qq_info", userInfo);
-
+            String frontendRedirectUrl = "https://www.histweilai.top/?token=" + token + "&openid=" + openid;
+            resultData.put("redirect_url", frontendRedirectUrl);
             return Result.ok(resultData);
         } catch (Exception e) {
             // 捕获所有异常，返回失败结果
