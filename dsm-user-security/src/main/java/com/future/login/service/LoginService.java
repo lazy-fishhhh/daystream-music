@@ -6,6 +6,8 @@ import com.future.login.domain.dto.LoginEmailDTO;
 import entity.pojo.util.Result;
 import org.springframework.stereotype.Service;
 
+import java.util.Map;
+
 /**
  * 登录
  */
@@ -18,5 +20,5 @@ public interface LoginService {
     Result LoginOut();
     //忘记密码
     Result fogetPassword(FogetDTO fogetDTO);
-    Result loginByQQ(String openId);
+    String loginByQQ(String openid,Map<String, String> userInfo);
 }
