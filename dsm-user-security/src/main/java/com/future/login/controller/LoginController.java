@@ -5,6 +5,8 @@ import com.future.login.domain.dto.LoginEmailDTO;
 import com.future.login.domain.vo.CaptchaVO;
 import com.future.login.service.CaptchaService;
 import com.future.login.service.LoginService;
+import com.future.login.service.QQAuthService;
+import com.future.login.service.impl.QQAuthServiceImpl;
 import entity.pojo.util.Result;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
@@ -13,6 +15,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import java.awt.*;
+import java.util.Map;
 
 @Api(tags = "登录管理")
 @RestController
@@ -22,6 +25,8 @@ public class LoginController {
     private LoginService loginService;
     @Autowired
     private CaptchaService captchaService;
+    @Autowired
+    private QQAuthServiceImpl qqAuthService;
     @ApiOperation("通过邮箱密码登录")
     @PostMapping("/loginByemail")
     public Result loginByEmail(@Valid @RequestBody LoginEmailDTO loginEmailDTO)
@@ -45,5 +50,17 @@ public class LoginController {
     public Result fogetPassword(@Valid @RequestBody FogetDTO fogetDTO)
     {
         return loginService.fogetPassword(fogetDTO);
+    }
+    @ApiOperation("获取qq登录授权url")
+    @GetMapping("/url")
+    public Result<String> getAuthorizationUrl()
+    {
+        return qqAuthService.getAuthorizationUrl();
+    }
+    @ApiOperation("QQ登录回调接口")
+    @GetMapping("/callback")
+    public Result<Map<String, Object>> qqCallback(@RequestParam("code") String code,
+                                                  @RequestParam(value = "state", required = false) String state) {
+        return qqAuthService.handleCallback(code, state);
     }
 }
