@@ -25,4 +25,5 @@ public class MusicVO {
     private Integer isLiked;            // 是否点赞（0-未点赞，1-已点赞）
     private String albumName;           // 所属专辑名字
     private String musicianName;        // 作者名字（音乐人名称）
+    private List<String> audioList;     // 音频类型列表
 }

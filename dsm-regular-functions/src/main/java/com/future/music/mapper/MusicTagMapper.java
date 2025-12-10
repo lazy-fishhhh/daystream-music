@@ -1,6 +1,7 @@
 package com.future.music.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.future.music.domain.vo.MusicTagVO;
 import entity.pojo.music.MusicTag;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
@@ -25,11 +26,11 @@ public interface MusicTagMapper extends BaseMapper<MusicTag> {
      * @param musicId 音乐ID
      * @return 标签名集合
      */
-    @Select("SELECT mt.tag_name " +
+    @Select("SELECT mt.tag_name, mt.id " +
             "FROM music_tag mt " +
             "JOIN music_tag_relation mtr ON mt.id = mtr.tag_id " +
             "WHERE mtr.music_id = #{musicId}")
-    List<String> getTagNamesByMusicId(@Param("musicId") Long musicId);
+    List<MusicTagVO> getTagNamesByMusicId(@Param("musicId") Long musicId);
 
     /**
      * 前缀匹配标签名，按关联歌曲数倒序（热门优先）

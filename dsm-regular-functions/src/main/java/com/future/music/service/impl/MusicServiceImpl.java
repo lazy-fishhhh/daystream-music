@@ -25,7 +25,6 @@ import constants.ProjectAudioQualitySpec;
 import constants.RedisCacheConstants;
 import constants.SystemConstants;
 import entity.dto.MusicDTO;
-import entity.dto.MusicFilterDTO;
 import entity.dto.SearchDTO;
 import entity.pojo.music.*;
 import entity.pojo.social.Comment;
@@ -50,7 +49,6 @@ import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
-import java.util.regex.Pattern;
 
 /**
  * 音乐服务实现类
@@ -121,38 +119,23 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
      * @param musicDTO 音乐基本信息DTO（包含歌名、歌手等非文件信息）
      * @param lyric    歌词文件
      * @param cover    封面图片文件
-     * @param standardAudio    音频文件
+     * @param audioMap    音频文件
      * @return 处理结果（成功/失败信息）
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
     public Result<Void> saveMusic(MusicDTO musicDTO, MultipartFile lyric, MultipartFile cover,
-                            MultipartFile standardAudio,  // 音质1：标准
-                            MultipartFile hdAudio,  // 音质2：高清
-                            MultipartFile losslessAudio,  // 音质3：无损
-                            MultipartFile spatialAudio   // 音质4：空间
+                                  Map<Integer, MultipartFile> audioMap
                             ) {
         if (SecurityUtil.getCurrentUserId() ==  null){
             return Result.fail("请先登录再进行该操作");
         }
 
-        // 1. 校验至少上传一个音质
-        if (standardAudio == null && hdAudio == null && losslessAudio == null && spatialAudio == null) {
-            return Result.fail("至少需上传一个音质的音频文件");
-        }
-
-        // 2. 处理每个音质（示例：循环判断并上传）
-        Map<Integer, MultipartFile> audioMap = new HashMap<>();
-        if (standardAudio != null && !standardAudio.isEmpty()) audioMap.put(1, standardAudio);
-        if (hdAudio != null && !hdAudio.isEmpty()) audioMap.put(2, hdAudio);
-        if (losslessAudio != null && !losslessAudio.isEmpty()) audioMap.put(3, losslessAudio);
-        if (spatialAudio != null && !spatialAudio.isEmpty()) audioMap.put(4, spatialAudio);
-
         List<String> uploadedFilePaths = new ArrayList<>(); // 用于回滚删除的文件路径
 
         try {
             // 1. 基础参数校验
-            if (!musicDTO.validate()) {
+            if (!musicDTO.saveValidate()) {
                 throw new RuntimeException("音乐参数有错");
             }
 
@@ -182,7 +165,7 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
             lyricContent = cleanLyricContent(lyricContent);
 
             // 3. 校验音频文件集合（非空+格式+大小）+ 合并上传/时长校验/URL记录
-            if (audioMap.isEmpty()) {
+            if (audioMap == null || audioMap.isEmpty()) {
                 throw new RuntimeException("至少需上传一个音质的音频文件");
             }
 
@@ -332,7 +315,7 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
     }
 
     /**
-     * 音频上传（适配项目的4种音质类型）
+     * 音频检验上传（适配项目的4种音质类型）
      * @param audioFile 音频文件
      * @param qualityTypeCode 音质类型编码（1-4）
      */
@@ -592,7 +575,7 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
             }
 
             // 5. 查询标签
-            List<String> tags = musicTagMapper.getTagNamesByMusicId(musicId);
+            List<MusicTagVO> tags = musicTagMapper.getTagNamesByMusicId(musicId);
             echoMusicVO.setTags(tags);
 
             // 歌词
@@ -626,7 +609,8 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
     @Override
     @Transactional(rollbackFor = Exception.class) // 事务注解：任何异常触发回滚
     public Result<Void> updateMusic(Long musicId, MusicDTO musicDTO,
-                                    MultipartFile lyric, MultipartFile cover, Map<Integer, MultipartFile> audioMap) {
+                                    MultipartFile lyric, MultipartFile cover,
+                                    Map<Integer, MultipartFile> audioMap) {
 
         if (SecurityUtil.getCurrentUserId() == null) {
             return Result.fail("请先登录再进行该操作");
@@ -650,7 +634,7 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
             }
 
             // 2. 校验DTO参数合法性
-            if (!musicDTO.validate()) {
+            if (!musicDTO.updateValidate()) {
                 throw new RuntimeException("音乐参数有误");
             }
 
@@ -733,7 +717,7 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
                     }
 
                     // 上传新音频文件
-                    String newAudioUrl = minIoService.uploadFile(audio);
+                    String newAudioUrl = uploadAudio(audio, quality);
                     if (newAudioUrl == null) {
                         throw new RuntimeException("音频文件（音质：" + quality + "）上传失败");
                     }
@@ -828,7 +812,6 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
 
     /**
      * 音乐完整详情查询接口（面向前端）
-     * 在基础详情（echoMusic）之上，补充专辑名称、音乐人名称、标签列表、用户点赞状态
      * @param musicId 音乐主键ID
      * @return Result<MusicDetailVO> 完整详情VO（含关联信息和用户交互状态）
      */
@@ -890,7 +873,7 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
                 BeanUtils.copyProperties(musicVO, musicDetailVO);
 
                 // 查询标签
-                List<String> tags = musicTagMapper.getTagNamesByMusicId(musicId);
+                List<MusicTagVO> tags = musicTagMapper.getTagNamesByMusicId(musicId);
                 musicDetailVO.setTags(tags);
 
                 // 查询歌词
@@ -966,37 +949,7 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
         // 5. 转换为MusicDetailVO并填充关联信息（专辑名、点赞状态、音频列表等）
         List<MusicVO> voList = new ArrayList<>();
         for (Music music : musicPage.getRecords()) {
-            MusicVO vo = new MusicDetailVO();
-            BeanUtils.copyProperties(music, vo);
-
-            // 转换时长
-            vo.setDuration(AudioDurationUtil.formatSecondsToMS(music.getDuration()));
-
-            // 5.1 关联专辑名称（通过albumId查album表）
-            Album album = albumMapper.selectById(music.getAlbumId());
-            if (album != null) {
-                vo.setAlbumName(album.getAlbumName());
-            }
-
-            // 5.2 关联点赞状态
-            if (SecurityUtil.getCurrentUserId() != null) {
-                QueryWrapper<LikeRecord> likeWrapper = new QueryWrapper<>();
-                likeWrapper.eq("target_id", music.getId())
-                        .eq("target_type", 1)
-                        .eq("user_id", SecurityUtil.getCurrentUserId());
-                LikeRecord likeRecord = likeRecordMapper.selectOne(likeWrapper);
-                vo.setIsLiked(likeRecord != null ? 1 : 0);
-
-            } else {
-                vo.setIsLiked(0); // 未登录默认未点赞
-            }
-
-            // 5.4 关联音乐人名字（通过musicianId查musician表）
-            Musician musician = musicianMapper.selectById(music.getMusicianId());
-            if (musician != null) {
-                vo.setMusicianName(musician.getStageName());
-            }
-
+            MusicVO vo = getMusicVO(music.getId());
             voList.add(vo);
         }
 
@@ -1137,6 +1090,28 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
         LikeRecord likeRecord = likeRecordMapper.selectOne(wrapper);
         musicVO.setIsLiked(likeRecord != null ? 1 : 0);
 
+        // 关联音频类型列表（通过musicId查music_audio表）
+        QueryWrapper<MusicAudio> audioWrapper = new QueryWrapper<>();
+        audioWrapper.eq("music_id", music.getId());
+        List<MusicAudio> audioList = musicAudioMapper.selectList(audioWrapper);
+        List<String> audioTypeList = new ArrayList<>();
+        if (!audioList.isEmpty()) {
+            for (MusicAudio musicAudio : audioList) {
+                if (musicAudio.getQualityType() == 1) {
+                    audioTypeList.add("标准");
+                } else if (musicAudio.getQualityType() == 2) {
+                    audioTypeList.add("高清");
+                } else if (musicAudio.getQualityType() == 3) {
+                    audioTypeList.add("无损");
+                } else if (musicAudio.getQualityType() == 4) {
+                    audioTypeList.add("空间音频");
+                }
+            }
+        } else {
+            musicVO.setAudioList(Collections.emptyList());
+        }
+        musicVO.setAudioList(audioTypeList);
+
         return musicVO;
     }
 
@@ -1258,16 +1233,23 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
         }
     }
 
+    /**
+     * 按标签查询歌曲（分页查询）
+     * @param tagIds 标签ID列表
+     * @param pageNum 页码（默认1）
+     * @param pageSize 每页数量（默认10）
+     * @return 分页歌曲VO列表
+     */
     @Override
-    public Result<PageResp<MusicVO>> filterMusicByTags(MusicFilterDTO musicFilterDTO){
+    public Result<PageResp<MusicVO>> filterMusicByTags(List<Long> tagIds, int pageNum, int pageSize){
         // 1. 参数校验
-        if (CollectionUtils.isEmpty(musicFilterDTO.getTagIds())) {
+        if (CollectionUtils.isEmpty(tagIds)) {
             return Result.fail("标签不能为空");
         }
 
         // 2. 分页查询
-        Page<Music> page = new Page<>(musicFilterDTO.getPageNum(), musicFilterDTO.getPageSize());
-        IPage<Music> musicIPage = musicMapper.selectMusicsByTagIds(page, musicFilterDTO.getTagIds(), musicFilterDTO.getTagIds().size());
+        Page<Music> page = new Page<>(pageNum, pageSize);
+        IPage<Music> musicIPage = musicMapper.selectMusicsByTagIds(page, tagIds, tagIds.size());
 
         // 3. 转换VO
         List<MusicVO> voList = new ArrayList<>();

@@ -32,14 +32,4 @@ public class MusicFilterTagVO {
      * 乐器标签列表 (tagType=4)
      */
     private List<MusicTagVO> instrumentTags;
-
-    /**
-     * 标签基础VO（复用MusicTag核心字段）
-     */
-    @Data
-    public static class MusicTagVO {
-        private Long id;
-        private String tagName;
-        private Integer tagType;
-    }
 }

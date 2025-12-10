@@ -1,9 +1,7 @@
 package com.future.music.controller;
 
-import com.future.music.domain.vo.MusicFilterTagVO;
-import com.future.music.domain.vo.MusicVO;
-import com.future.music.domain.vo.PlaylistDetailVO;
-import com.future.music.domain.vo.PlaylistVO;
+import com.future.music.domain.vo.*;
+import com.future.music.mapper.PlaylistMapper;
 import com.future.music.service.IPlaylistService;
 import com.future.music.service.IUserService;
 import entity.dto.PlayListDTO;
@@ -15,6 +13,7 @@ import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import jakarta.annotation.Resource;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
@@ -29,7 +28,8 @@ public class PlaylistController {
 
     @Resource
     private IPlaylistService playlistService;
-
+    @Autowired
+    private PlaylistMapper playlistMapper;
 
 
     @ApiOperation(value = "创建歌单", notes = "不需要传id")
@@ -66,6 +66,17 @@ public class PlaylistController {
                                               @RequestParam(defaultValue = "10") int pageSize,
                                               @PathVariable Long playlistId) {
         return playlistService.getPlaylistDetail(playlistId, pageNum, pageSize);
+    }
+
+    @ApiOperation(value = "查询歌单收藏用户")
+    @GetMapping("/getPlaylistCollections/{playlistId}")
+    public Result<List<SearchUserVO>> getPlaylistCollections(@PathVariable Long playlistId) {
+        try {
+            List<SearchUserVO> userList = playlistMapper.selectUserByCollection(playlistId);
+            return Result.ok(userList);
+        } catch (Exception e) {
+            return Result.fail("查询歌单收藏用户失败");
+        }
     }
 
     /**
