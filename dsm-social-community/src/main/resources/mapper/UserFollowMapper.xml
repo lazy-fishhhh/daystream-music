@@ -62,7 +62,7 @@
             #{id}
         </foreach>
         <if test="lastId!=null">
-            and u.id &lt; lastId
+            and u.id &lt; #{lastId}
         </if>
         and ur.role_id in(1)
         and f.user_id=#{currentId}
@@ -80,7 +80,7 @@
             #{id}
         </foreach>
         <if test="lastId!=null and lastId!=''">
-            and u.id &lt; lastId
+            and u.id &lt; #{lastId}
         </if>
         and ur.role_id in (3)
         and f.user_id= #{currentId}

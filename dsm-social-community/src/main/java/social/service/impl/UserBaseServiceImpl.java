@@ -1136,7 +1136,7 @@ public class UserBaseServiceImpl implements UserBaseService {
                     String s = objectMapper.writeValueAsString(user);
                     Long rank = zSetOperations.rank(followKey, s);
                     if (rank == null) {
-                        return Result.fail("未找到相关记录");
+                        return Result.ok("未找到相关记录");
                     }
                     Long Rank = totalSize - rank-1;
                     if(Rank<0)
