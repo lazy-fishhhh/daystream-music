@@ -46,6 +46,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -323,39 +324,52 @@ public class UserHomeServiceImpl implements IUserHomeService {
     }
 
     @Override
-    public Result<PageResp<List<AlbumVO>>> getMyCollectAlbums(PageReq pageReq) {
+    public Result<PageResp<AlbumVO>> getMyCollectAlbums(PageReq pageReq) {
         try {
             Long userId = SecurityUtil.getCurrentUserId();
             if (userId == null) {
                 return Result.fail("用户未登录");
             }
 
-            // 构建查询条件
+            // 1. 构建收藏表查询条件
             LambdaQueryWrapper<UserCollection> queryWrapper = new LambdaQueryWrapper<>();
             queryWrapper.eq(UserCollection::getUserId, userId)
                     .eq(UserCollection::getTargetType, 2)
                     .eq(UserCollection::getIsCanceled, 0)
                     .orderByDesc(UserCollection::getCollectedTime);
 
-            // 分页查询收藏记录
+            // 2. 分页查询收藏记录
             Page<UserCollection> page = new Page<>(pageReq.getPageNum(), pageReq.getPageSize());
             Page<UserCollection> collectionPage = userCollectionMapper.selectPage(page, queryWrapper);
 
-            // 获取专辑ID列表
+            // 3. 提取当前页的专辑ID
             List<Long> albumIds = collectionPage.getRecords().stream()
                     .map(UserCollection::getTargetId)
                     .toList();
 
-            // 查询专辑详情
+            // 4. 查询专辑详情
             List<AlbumVO> albumVOList = new ArrayList<>();
             if (!albumIds.isEmpty()) {
                 albumVOList = regularAlbumMapper.selectAlbumVOsWithMusicByIds(albumIds);
+                albumVOList = albumVOList.stream()
+                        .collect(Collectors.groupingBy(AlbumVO::getId))  // 按专辑ID分组
+                        .values().stream()
+                        .map(group -> group.get(0))  // 取每组第一条（去重）
+                        .collect(Collectors.toList());
             }
 
-            // 封装分页结果
-            PageResp<List<AlbumVO>> pageResp = new PageResp<>();
-            pageResp.setRecords(List.of(albumVOList));
+            // 5. 封装分页结果（严格对齐收藏表分页，兜底：当前页>总页数时强制返回空）
+            PageResp<AlbumVO> pageResp = new PageResp<>();
+            // 核心兜底：如果当前页超过总页数，直接返回空列表
+            if (pageReq.getPageNum() > collectionPage.getPages()) {
+                pageResp.setRecords(Collections.emptyList());
+            } else {
+                pageResp.setRecords(albumVOList);
+            }
+            // 分页元数据严格复用收藏表的（保证分页逻辑统一）
             pageResp.setTotal(collectionPage.getTotal());
+            pageResp.setSize(collectionPage.getSize());
+            pageResp.setCurrent(collectionPage.getCurrent());
             pageResp.setPages(collectionPage.getPages());
 
             return Result.ok(pageResp);

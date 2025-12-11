@@ -56,7 +56,7 @@ public class UserHomeController {
 
     @ApiOperation("查询我收藏的专辑")
     @PostMapping("/getMyCollectAlbums")
-    public Result<PageResp<List<AlbumVO>>> getMyCollectAlbums(@RequestBody PageReq pageReq) {
+    public Result<PageResp<AlbumVO>> getMyCollectAlbums(@RequestBody PageReq pageReq) {
         return userHomeService.getMyCollectAlbums(pageReq);
     }
 
