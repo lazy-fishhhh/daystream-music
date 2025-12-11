@@ -3,6 +3,8 @@ package com.future.music.controller;
 
 import com.future.music.domain.dto.UserDetailDTO;
 import com.future.music.domain.vo.MusicVO;
+import com.future.music.domain.vo.MusicTagRatioVO;
+import com.future.music.domain.vo.DailyListenDataVO;
 import com.future.music.domain.vo.PlaylistVO;
 import com.future.music.service.IUserHomeService;
 import entity.pojo.music.Album;
@@ -57,10 +59,16 @@ public class UserHomeController {
     }
 
 
-    @ApiOperation("查询本周的每日听歌次数")
-    @GetMapping("/getDailyListenCount")
-    public Result<List<Integer>> getDailyListenCount() {
-        return userHomeService.getDailyListenCount();
+    @ApiOperation("查询本周的每日听歌数据")
+    @GetMapping("/getDailyListenData")
+    public Result<List<DailyListenDataVO>> getDailyListenData() {
+        return userHomeService.getDailyListenData();
+    }
+
+    @ApiOperation("查询本周不同标签音乐的占比")
+    @GetMapping("/getWeeklyTagRatio")
+    public Result<List<MusicTagRatioVO>> getWeeklyTagRatio() {
+        return userHomeService.getWeeklyTagRatio();
     }
 
 

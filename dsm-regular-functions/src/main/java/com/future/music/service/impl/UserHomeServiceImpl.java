@@ -10,6 +10,8 @@ import com.future.login.mapper.UserMapper;
 import com.future.login.util.SecurityUtil;
 import com.future.music.domain.dto.UserDetailDTO;
 import com.future.music.domain.dto.DailyListenCountDTO;
+import com.future.music.domain.vo.DailyListenDataVO;
+import com.future.music.domain.vo.MusicTagRatioVO;
 import com.future.music.domain.vo.MusicVO;
 import com.future.music.domain.vo.PlaylistVO;
 
@@ -22,6 +24,8 @@ import com.future.music.service.IMusicService;
 import com.future.music.service.IUserHomeService;
 import com.future.music.websocket.ChatEndPoint;
 import com.future.player.mapper.AlbumMapper;
+import constants.MusicConstants;
+import constants.SystemConstants;
 import entity.pojo.info.User;
 import entity.pojo.music.Album;
 import entity.pojo.music.Playlist;
@@ -30,11 +34,14 @@ import entity.pojo.social.UserCollection;
 import entity.pojo.util.PageReq;
 import entity.pojo.util.PageResp;
 import entity.pojo.util.Result;
+import io.swagger.models.auth.In;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import social.domain.RoleEnum;
 import social.domain.vo.UserInfoVO;
+
 
 import java.time.DayOfWeek;
 import java.time.LocalDate;
@@ -43,6 +50,7 @@ import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static code.BusinessErrorCode.USER_INFO_ERROR;
@@ -61,6 +69,7 @@ public class UserHomeServiceImpl implements IUserHomeService {
     private final IMusicService musicService;
     private final MinIoServiceImpl minIoService;
     private final UserListenHistoryMapper userListenHistoryMapper;
+    private final StringRedisTemplate stringRedisTemplate;
 
     @Override
     public Result<String> updateUserInfo(UserDetailDTO dto) {
@@ -359,7 +368,81 @@ public class UserHomeServiceImpl implements IUserHomeService {
     }
 
     @Override
-    public Result<List<Integer>> getDailyListenCount() {
+    public Result<List<MusicTagRatioVO>> getWeeklyTagRatio() {
+        try {
+            // 1. 获取当前登录用户ID
+            Long userId = SecurityUtil.getCurrentUserId();
+            if (userId == null) {
+                log.warn("获取本周标签占比失败，用户未登录");
+                return Result.fail("用户未登录，获取失败");
+            }
+
+            // 2. 生成本周的周标识
+            String weekId = generateWeekId(LocalDate.now());
+            String cacheKey = MusicConstants.USER_LISTEN_TAG_WEEK + userId + ":" + weekId;
+
+            // 3. 从Redis中获取本周的所有标签数据
+            Map<Object, Object> tagCountMap = stringRedisTemplate.opsForHash().entries(cacheKey);
+            if (tagCountMap.isEmpty()) {
+                log.info("本周无标签数据，用户ID：{}", userId);
+
+                return Result.ok(new ArrayList<>());
+            }
+
+            // 4. 计算总播放次数
+            long totalCount = 0;
+            for (Object value : tagCountMap.values()) {
+                try {
+                    totalCount += Long.parseLong(value.toString());
+                } catch (NumberFormatException e) {
+                    // 跳过无效数据
+                    log.warn("标签数据格式错误：{}", value);
+                }
+            }
+
+            // 5. 计算每个标签的占比
+            List<MusicTagRatioVO> tagRatioList = new ArrayList<>();
+            for (Map.Entry<Object, Object> entry : tagCountMap.entrySet()) {
+                String tagName = entry.getKey().toString();
+                long count;
+                try {
+                    count = Long.parseLong(entry.getValue().toString());
+                } catch (NumberFormatException e) {
+                    // 跳过无效数据
+                    log.info("跳过无效数据");
+                    continue;
+                }
+                double ratio = totalCount > 0 ? (double) count / totalCount : 0;
+                tagRatioList.add(new MusicTagRatioVO(tagName, count, ratio));
+            }
+
+            // 6. 按占比降序排序
+            tagRatioList.sort((a, b) -> Double.compare(b.getRatio(), a.getRatio()));
+
+            // 7. 返回结果
+            log.info("获取用户本周标签占比成功，用户ID：{}", userId);
+            return Result.ok(tagRatioList);
+        } catch (Exception e) {
+            log.error("获取用户本周标签占比失败：", e);
+            return Result.fail("获取失败，请稍后重试");
+        }
+
+
+    }
+
+    /**
+     * 生成指定日期的周标识（周一为周初，周日为周末）
+     * @param date 播放日期（null 则取当前日期）
+     * @return 周标识，如 2025-49
+     */
+    public String generateWeekId(LocalDate date) {
+        LocalDate targetDate = date == null ? LocalDate.now() : date;
+        // 调整为本周一（确保整周统一标识）
+        LocalDate mondayOfWeek = targetDate.with(DayOfWeek.MONDAY);
+        return mondayOfWeek.format(SystemConstants.WEEK_FORMATTER);
+    }
+    @Override
+    public Result<List<DailyListenDataVO>> getDailyListenData() {
         try {
             // 1. 获取当前登录用户ID
             Long userId = SecurityUtil.getCurrentUserId();
@@ -374,29 +457,34 @@ public class UserHomeServiceImpl implements IUserHomeService {
             LocalDate endOfWeek = today.with(TemporalAdjusters.nextOrSame(DayOfWeek.SUNDAY));
 
             // 3. 查询数据库获取本周的听歌记录
-            List<DailyListenCountDTO> listenCounts =
+            List<DailyListenCountDTO> listenData =
                     userListenHistoryMapper.getWeeklyDailyListenCount(userId, startOfWeek, endOfWeek);
 
-            // 4. 将查询结果转换为Map，方便查找每日的听歌次数
-            Map<LocalDate, Integer> countMap = listenCounts.stream()
+            // 4. 将查询结果转换为Map，方便查找每日的听歌数据
+            Map<LocalDate, DailyListenCountDTO> listenDataMap = listenData.stream()
                     .collect(Collectors.toMap(
                             DailyListenCountDTO::getDay,
-                            DailyListenCountDTO::getCount
+                            Function.identity()
                     ));
 
-            // 5. 生成本周每天的日期列表，并填充对应日期的听歌次数
-            List<Integer> dailyCounts = new ArrayList<>();
+            // 5. 生成本周每天的日期列表，并填充对应日期的听歌次数和时长
+            List<DailyListenDataVO> dailyData = new ArrayList<>();
             LocalDate currentDate = startOfWeek;
             while (!currentDate.isAfter(endOfWeek)) {
-                dailyCounts.add(countMap.getOrDefault(currentDate, 0));
+                DailyListenCountDTO dto = listenDataMap.getOrDefault(currentDate, null);
+                if (dto != null) {
+                    dailyData.add(new DailyListenDataVO(dto.getCount(), dto.getSeconds()));
+                } else {
+                    dailyData.add(new DailyListenDataVO(0, 0L));
+                }
                 currentDate = currentDate.plusDays(1);
             }
 
             // 6. 返回结果
-            log.info("获取用户本周每日听歌次数成功，用户ID：{}，次数：{}", userId, dailyCounts);
-            return Result.ok(dailyCounts);
+            log.info("获取用户本周每日听歌数据成功，用户ID：{}，数据：{}", userId, dailyData);
+            return Result.ok(dailyData);
         } catch (Exception e) {
-            log.error("获取用户本周每日听歌次数失败：", e);
+            log.error("获取用户本周每日听歌数据失败：", e);
             return Result.fail("获取失败，请稍后重试");
         }
     }
