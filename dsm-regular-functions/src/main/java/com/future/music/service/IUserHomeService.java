@@ -1,5 +1,7 @@
 package com.future.music.service;
 
+import com.future.music.domain.vo.DailyListenDataVO;
+import com.future.music.domain.vo.MusicTagRatioVO;
 import com.future.music.domain.vo.MusicVO;
 import com.future.music.domain.vo.PlaylistVO;
 import com.future.music.domain.dto.UserDetailDTO;
@@ -22,5 +24,11 @@ public interface IUserHomeService {
 
     Result<PageResp<List<Album>>> getMyCollectAlbums(PageReq pageReq);
 
-    Result<List<Integer>> getDailyListenCount();
+    Result<List<DailyListenDataVO>> getDailyListenData();
+
+    /**
+     * 获取本周不同标签音乐的占比
+     * @return 标签占比数据列表
+     */
+    Result<List<MusicTagRatioVO>> getWeeklyTagRatio();
 }

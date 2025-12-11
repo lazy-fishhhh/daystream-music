@@ -30,13 +30,13 @@ public interface UserListenHistoryMapper extends BaseMapper<UserListenHistory> {
         );
 
     /**
-     * 查询用户本周每日的听歌次数
+     * 查询用户本周每日的听歌次数和时长
      * @param userId 用户ID
      * @param startDate 本周开始日期
      * @param endDate 本周结束日期
-     * @return 每日听歌次数的集合
+     * @return 每日听歌次数和时长的集合
      */
-    @Select("SELECT DATE(listen_time) as day, COALESCE(SUM(listen_count), 0) as count FROM user_listen_history WHERE user_id = #{userId} AND listen_time BETWEEN #{startDate} AND #{endDate} GROUP BY DATE(listen_time) ORDER BY day")
+    @Select("SELECT DATE(listen_time) as day, COALESCE(SUM(listen_count), 0) as count, COALESCE(SUM(total_listen_seconds), 0) as seconds FROM user_listen_history WHERE user_id = #{userId} AND listen_time BETWEEN #{startDate} AND #{endDate} GROUP BY DATE(listen_time) ORDER BY day")
     List<DailyListenCountDTO> getWeeklyDailyListenCount(@Param("userId") Long userId,
                                                         @Param("startDate") LocalDate startDate,
                                                         @Param("endDate") LocalDate endDate);

@@ -16,6 +16,7 @@ import com.future.player.mapper.MPlayerMapper;
 
 import com.future.player.mapper.PlayerMusicianMapper;
 import com.future.player.service.IAlbumService;
+import com.future.player.service.IMinIoPlayerService;
 import entity.pojo.music.Album;
 import entity.pojo.music.Music;
 import entity.pojo.music.Musician;
@@ -49,12 +50,13 @@ public class AlbumServiceImpl implements IAlbumService {
     @Resource
     private PlayerMusicianMapper playerMusicianMapper;
 
-
+    private final IMinIoPlayerService  minIoPlayerService;
     private final MPlayerMapper mPlayerMapper;
 
     @Autowired
     private BaseMapper<Musician> musicianMapper;
 
+    @Transactional
     @Override
     public Result<AlbumVO> createAlbum(AlbumDTO albumDTO) {
         try {
@@ -71,13 +73,14 @@ public class AlbumServiceImpl implements IAlbumService {
             if (album.getReleaseDate() == null) {
                 album.setReleaseDate(LocalDateTime.now()); // 默认当前时间
             }
-
+            String coverUrl= minIoPlayerService.uploadFile(albumDTO.getCoverFile());
+            album.setCoverUrl(coverUrl);
             albumMapper.insert(album);
             AlbumVO albumVO = new AlbumVO();
             BeanUtils.copyProperties(album, albumVO);
             return Result.ok(albumVO);
         } catch (Exception e) {
-            return Result.fail("创建专辑失败：" + e.getMessage());
+            throw new BusinessException("专辑创建失败10001", "创建专辑失败：" + e.getMessage());
         }
     }
 
@@ -87,16 +90,18 @@ public class AlbumServiceImpl implements IAlbumService {
             // 验证专辑是否存在
             Album existingAlbum = albumMapper.selectById(albumDTO.getId());
             if (existingAlbum == null) {
-                return Result.fail("专辑不存在");
+                throw new BusinessException("专辑不存在10002", "专辑不存在");
             }
 
             boolean isAuthor = existingAlbum.getMusicianId().equals(SecurityUtil.getCurrentUserId());
             if(!isAuthor){
-                return Result.fail("您没有权限修改此专辑");
+                throw new BusinessException("权限不足10003", "您没有权限修改此专辑");
             }
             Album album = new Album();
             BeanUtils.copyProperties(albumDTO, album);
 
+            String coverUrl = minIoPlayerService.uploadFile(albumDTO.getCoverFile());
+            album.setCoverUrl(coverUrl);
             albumMapper.updateById(album);
             return Result.ok();
         } catch (Exception e) {

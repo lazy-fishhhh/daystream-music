@@ -12,7 +12,7 @@ import entity.pojo.util.Result;
 import java.util.List;
 
 public interface IUserService {
-    void createPlayList(PlayListDTO playListDTO);
+    Result<PlaylistVO> createPlayList(PlayListDTO playListDTO);
 
     void updatePlayList(PlayListDTO playList);
 

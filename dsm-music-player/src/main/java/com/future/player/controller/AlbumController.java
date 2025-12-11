@@ -23,14 +23,14 @@ public class AlbumController {
 
     @ApiOperation(value = "创建专辑")
     @PostMapping("/api/album/create-album")
-    public Result<AlbumVO> createAlbum(@Validated @RequestBody AlbumDTO albumDTO) {
+    public Result<AlbumVO> createAlbum(@Validated  AlbumDTO albumDTO) {
         return albumService.createAlbum(albumDTO);
     }
 
 
     @ApiOperation(value = "修改专辑")
     @PostMapping("/api/album/update-album")
-    public Result<Void> updateAlbum(@Validated @RequestBody AlbumDTO albumDTO) {
+    public Result<Void> updateAlbum(@Validated  AlbumDTO albumDTO) {
         return albumService.updateAlbum(albumDTO);
     }
 
