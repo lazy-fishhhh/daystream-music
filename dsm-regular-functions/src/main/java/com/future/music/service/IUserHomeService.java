@@ -4,6 +4,7 @@ import com.future.music.domain.vo.DailyListenDataVO;
 import com.future.music.domain.vo.MusicTagRatioVO;
 import com.future.music.domain.vo.MusicVO;
 import com.future.music.domain.vo.PlaylistVO;
+import com.future.music.domain.vo.AlbumVO;
 import com.future.music.domain.dto.UserDetailDTO;
 import entity.pojo.music.Album;
 import entity.pojo.util.PageReq;
@@ -22,7 +23,7 @@ public interface IUserHomeService {
 
     Result<PageResp<List<PlaylistVO>>> getMyCollectSongLists(PageReq pageReq);
 
-    Result<PageResp<List<Album>>> getMyCollectAlbums(PageReq pageReq);
+    Result<PageResp<List<AlbumVO>>> getMyCollectAlbums(PageReq pageReq);
 
     Result<List<DailyListenDataVO>> getDailyListenData();
 

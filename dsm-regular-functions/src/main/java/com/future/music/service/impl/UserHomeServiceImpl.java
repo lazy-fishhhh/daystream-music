@@ -10,16 +10,14 @@ import com.future.login.mapper.UserMapper;
 import com.future.login.util.SecurityUtil;
 import com.future.music.domain.dto.UserDetailDTO;
 import com.future.music.domain.dto.DailyListenCountDTO;
-import com.future.music.domain.vo.DailyListenDataVO;
-import com.future.music.domain.vo.MusicTagRatioVO;
-import com.future.music.domain.vo.MusicVO;
-import com.future.music.domain.vo.PlaylistVO;
+import com.future.music.domain.vo.*;
 
 import com.future.music.mapper.LikeRecordMapper;
 import com.future.music.mapper.MusicMapper;
 import com.future.music.mapper.PlaylistMapper;
 import com.future.music.mapper.UserCollectionMapper;
 import com.future.music.mapper.UserListenHistoryMapper;
+import com.future.music.mapper.RegularAlbumMapper;
 import com.future.music.service.IMusicService;
 import com.future.music.service.IUserHomeService;
 import com.future.music.websocket.ChatEndPoint;
@@ -65,7 +63,7 @@ public class UserHomeServiceImpl implements IUserHomeService {
     private final UserCollectionMapper userCollectionMapper;
     private final MusicMapper musicMapper;
     private final PlaylistMapper playlistMapper;
-    private final AlbumMapper albumMapper;
+    private final RegularAlbumMapper regularAlbumMapper;
     private final IMusicService musicService;
     private final MinIoServiceImpl minIoService;
     private final UserListenHistoryMapper userListenHistoryMapper;
@@ -325,7 +323,7 @@ public class UserHomeServiceImpl implements IUserHomeService {
     }
 
     @Override
-    public Result<PageResp<List<Album>>> getMyCollectAlbums(PageReq pageReq) {
+    public Result<PageResp<List<AlbumVO>>> getMyCollectAlbums(PageReq pageReq) {
         try {
             Long userId = SecurityUtil.getCurrentUserId();
             if (userId == null) {
@@ -349,14 +347,14 @@ public class UserHomeServiceImpl implements IUserHomeService {
                     .toList();
 
             // 查询专辑详情
-            List<Album> albumList = albumIds.stream()
-                    .map(albumMapper::selectById)
-                    .filter(album -> album != null)
-                    .toList();
+            List<AlbumVO> albumVOList = new ArrayList<>();
+            if (!albumIds.isEmpty()) {
+                albumVOList = regularAlbumMapper.selectAlbumVOsWithMusicByIds(albumIds);
+            }
 
             // 封装分页结果
-            PageResp<List<Album>> pageResp = new PageResp<>();
-            pageResp.setRecords(List.of(albumList));
+            PageResp<List<AlbumVO>> pageResp = new PageResp<>();
+            pageResp.setRecords(List.of(albumVOList));
             pageResp.setTotal(collectionPage.getTotal());
             pageResp.setPages(collectionPage.getPages());
 
@@ -396,7 +394,7 @@ public class UserHomeServiceImpl implements IUserHomeService {
                     totalCount += Long.parseLong(value.toString());
                 } catch (NumberFormatException e) {
                     // 跳过无效数据
-                    log.warn("标签数据格式错误：{}", value);
+                    log.warn("标签数据错误：{}", value);
                 }
             }
 
@@ -426,8 +424,6 @@ public class UserHomeServiceImpl implements IUserHomeService {
             log.error("获取用户本周标签占比失败：", e);
             return Result.fail("获取失败，请稍后重试");
         }
-
-
     }
 
     /**

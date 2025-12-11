@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<!-- 确保 namespace 和 Mapper 接口全类名一致 -->
+<mapper namespace="com.future.music.mapper.RegularAlbumMapper">
+
+    <!-- 定义AlbumVO的resultMap -->
+    <resultMap id="AlbumVOMap" type="com.future.music.domain.vo.AlbumVO">
+        <id property="id" column="id"/>
+        <result property="albumName" column="album_name"/>
+        <result property="musicianName" column="stage_name"/>
+        <result property="coverUrl" column="cover_url"/>
+        <result property="releaseDate" column="release_date"/>
+        <result property="introduction" column="introduction"/>
+        <result property="status" column="status"/>
+        <result property="collectCount" column="collect_count"/>
+        <result property="commentCount" column="comment_count"/>
+        <result property="musicCount" column="music_count"/>
+        <!-- 定义一对多关系：一个专辑包含多个歌曲 -->
+        <collection property="musicList" ofType="com.future.music.domain.vo.MusicVO">
+            <id property="id" column="music_id"/>
+            <result property="musicName" column="music_name"/>
+            <result property="musicianId" column="music_musician_id"/>
+            <result property="duration" column="duration"/>
+            <result property="coverUrl" column="music_cover_url"/>
+            <result property="albumId" column="music_album_id"/>
+            <result property="playCount" column="play_count"/>
+            <result property="status" column="music_status"/>
+        </collection>
+    </resultMap>
+
+    <!-- 根据专辑ID列表查询专辑详情列表，包含歌曲列表 -->
+    <select id="selectAlbumVOsWithMusicByIds" resultMap="AlbumVOMap">
+        SELECT 
+            a.id, 
+            a.album_name,
+            a.cover_url, 
+            a.release_date, 
+            a.introduction, 
+            a.status, 
+            a.collect_count, 
+            a.comment_count, 
+            a.music_count,
+            m.stage_name
+
+        FROM album a
+        JOIN musician m ON a.musician_id = m.id
+        LEFT JOIN music mu ON a.id = mu.album_id AND mu.status = 1
+        WHERE a.id IN 
+        <foreach item='item' index='index' collection='albumIds' open='(' separator=',' close=')'>
+            #{item}
+        </foreach>
+        ORDER BY a.id ASC, mu.id ASC
+    </select>
+</mapper>

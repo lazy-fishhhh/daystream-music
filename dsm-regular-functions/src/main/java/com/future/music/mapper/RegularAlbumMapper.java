@@ -28,4 +28,12 @@ public interface RegularAlbumMapper extends BaseMapper<Album> {
      */
     @Select("SELECT m.id, m.music_name as musicName, m.musician_id as musicianId, m.duration, m.cover_url as coverUrl, m.album_id as albumId, m.play_count as playCount, m.status FROM music m WHERE m.album_id = #{albumId} AND m.status = 1 ORDER BY m.id ASC")
     List<MusicVO> selectMusicsByAlbumId(@Param("albumId") Long albumId);
+
+
+    /**
+     * 根据专辑ID列表查询专辑详情列表，包含歌曲列表
+     * @param albumIds 专辑ID列表
+     * @return 专辑详情VO列表
+     */
+    List<AlbumVO> selectAlbumVOsWithMusicByIds(@Param("albumIds") List<Long> albumIds);
 }
