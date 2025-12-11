@@ -148,7 +148,7 @@ public class LoginServiceImpl implements LoginService {
         // 基础信息
         newUser.setQqOpenId(userInfo.get("openid"));
         newUser.setUsername(userInfo.get("nickname"));
-        newUser.setAvatar(userInfo.get("figureurl_qq_2"));
+        newUser.setAvatar(userInfo.get("figureurl_2"));
         newUser.setGender(changeSex(userInfo.get("gender")));
         //设置唯一标识
         newUser.setQqOpenId(openId);
@@ -178,7 +178,7 @@ public class LoginServiceImpl implements LoginService {
         UpdateWrapper<User> wrapper = new UpdateWrapper<>();
         wrapper.eq("qq_open_id", user.getQqOpenId())
                 .set("last_login_time", LocalDateTime.now())
-                .set("avatar", userInfo.get("figureurl_qq_2"));
+                .set("avatar", userInfo.get("figureurl_2"));
         userMapper.update(null, wrapper);
         user.setLastLoginTime(LocalDateTime.now());
         user.setAvatar(userInfo.get("figureurl_qq_2"));

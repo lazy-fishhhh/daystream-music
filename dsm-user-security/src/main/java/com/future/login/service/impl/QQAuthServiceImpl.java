@@ -4,6 +4,8 @@ import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.JSONObject;
 import com.future.login.service.LoginService;
 import entity.pojo.util.Result;
+import jakarta.servlet.http.HttpServletResponse;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -16,7 +18,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
-
+@Slf4j
 @Service
 public class QQAuthServiceImpl {
 
@@ -76,14 +78,14 @@ public class QQAuthServiceImpl {
     /**
      * 第二步：处理QQ回调，获取用户信息
      */
-    public Result<Map<String, Object>> handleCallback(String code, String state) {
+    public void handleCallback(String code, String state, HttpServletResponse response) {
         try {
             // 1. 验证state参数（防CSRF攻击）
             String stateKey = "qq:state:" + state;
             String cachedState = stringRedisTemplate.opsForValue().get(stateKey);
 
             if (cachedState == null || !cachedState.equals("valid")) {
-                return Result.fail(403, "无效的state参数，可能已过期或被篡改");
+               log.warn("无效的state参数，可能已过期或被篡改");
             }
 
             // 2. 验证通过后删除state
@@ -102,16 +104,11 @@ public class QQAuthServiceImpl {
             String token = loginService.loginByQQ(openid,userInfo);
 
             // 7. 组装返回数据
-            Map<String, Object> resultData = new HashMap<>();
-            resultData.put("token", token);
-            resultData.put("qq_openid", openid);
-            resultData.put("qq_info", userInfo);
             String frontendRedirectUrl = "https://www.histweilai.top/?token=" + token + "&openid=" + openid;
-            resultData.put("redirect_url", frontendRedirectUrl);
-            return Result.ok(resultData);
+            response.sendRedirect(frontendRedirectUrl); // 跳转到首页
         } catch (Exception e) {
             // 捕获所有异常，返回失败结果
-            return Result.fail("QQ登录回调处理失败：" + e.getMessage());
+            log.error("QQ登录回调处理失败：" + e.getMessage());
         }
     }
 
