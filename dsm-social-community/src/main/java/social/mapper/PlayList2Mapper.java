@@ -19,7 +19,7 @@ public interface PlayList2Mapper extends BaseMapper<Playlist> {
     @Update("update playlist set collect_count=collect_count-1 where id=#{targetId} and collect_count>0")
     void playlistCollectCountLow(Long targetId);
     @Select("SELECT collect_count FROM playlist WHERE id = #{targetId} FOR UPDATE")
-    Long selectCount(Long targetId);
+    Long selectcollectCount(Long targetId);
 
     CollectonLIstVO selectPlayListVO(@Param("targetId") Long targetId,
                                       @Param("userId")Long userId);

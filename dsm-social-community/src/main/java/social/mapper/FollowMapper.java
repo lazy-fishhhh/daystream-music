@@ -42,11 +42,11 @@ public interface FollowMapper extends BaseMapper<UserFollow> {
   Long followCount(Long userId);
   @Update("update user set follow_count = follow_count + 1 where id = #{userId}")
   void updateFollowCountUp(@Param("userId") Long userId);
-  @Update("update user set follow_count = follow_count - 1 where id = #{userId}")
+  @Update("update user set follow_count = follow_count - 1 where id = #{userId} and follow_count > 0")
   void updateFollowCountDown(@Param("userId") Long userId);
   @Update("update user set fans_count = fans_count + 1 where id = #{userId}")
   void updateFansCountUp(@Param("userId") Long userId);
-  @Update("update user set fans_count = fans_count - 1 where id = #{userId}")
+  @Update("update user set fans_count = fans_count - 1 where id = #{userId} and fans_count > 0")
   void updateFansCountDown(@Param("userId") Long userId);
 
 }

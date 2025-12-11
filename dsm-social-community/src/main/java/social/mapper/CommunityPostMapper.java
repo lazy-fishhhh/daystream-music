@@ -32,7 +32,7 @@ public interface CommunityPostMapper extends BaseMapper<CommunityPost> {
     @Update("update community_post set like_count=like_count-1 where id=#{targetId} and like_count>0")
     void updateLikeCountLow(Long targetId);
     @Select("SELECT like_count FROM community_post WHERE id = #{targetId} FOR UPDATE")
-    Long selectCount(Long targetId);
+    Long selectlikeCount(Long targetId);
     List<CommunityVO> selectCommunityPost(@Param("userId")Long userId,
                                           @Param("pageSize")Integer pageSize,
                                           @Param("lastId")Long lastId,
