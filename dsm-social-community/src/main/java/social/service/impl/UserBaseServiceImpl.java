@@ -1,8 +1,7 @@
 package social.service.impl;
 
-import cn.hutool.Hutool;
-import cn.hutool.core.bean.BeanUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.future.login.exception.BusinessException;
@@ -276,7 +275,7 @@ public class UserBaseServiceImpl implements UserBaseService {
             }
         }else if(targetType==LikeEnum.COMMUNITY.getValue())
             {
-                count=communityPostMapper.selectCount(targetId);
+                count=communityPostMapper.selectlikeCount(targetId);
                 if(isCancle)
                 {
                     if (count>0)
@@ -442,7 +441,7 @@ public class UserBaseServiceImpl implements UserBaseService {
         //变更对应目标的收藏量
         long count=0;
         if(targetType==CollectionEnum.PLAYLIST.getValue()) {
-            count= playList2Mapper.selectCount(targetId);
+            count= playList2Mapper.selectcollectCount(targetId);
             if(isCancle) {
                 if(count>0) {
                     playList2Mapper.playlistCollectCountLow(targetId);
@@ -955,15 +954,20 @@ public class UserBaseServiceImpl implements UserBaseService {
             throw new RuntimeException(e);
         }
         //取消关注
-        followMapper.delete(lambdaQueryWrapper1);
+        int delete = followMapper.delete(lambdaQueryWrapper1);
         FollowerVO followerVO=new FollowerVO();
         followerVO.setIsfollow(false);
         followerVO.setMsg("取消关注成功");
-        //更新关注数
-        followMapper.updateFollowCountDown(currentUserId);
-        //更新关注数
-        followMapper.updateFansCountDown(userId);
-        return Result.ok(followerVO);
+        if(delete>0) {
+            //更新关注数
+            followMapper.updateFollowCountDown(currentUserId);
+            //更新关注数
+            followMapper.updateFansCountDown(userId);
+            return Result.ok(followerVO);
+        }
+        else{
+            return Result.fail("取消关注失败");
+        }
     }
 
     /**
@@ -1329,9 +1333,21 @@ public class UserBaseServiceImpl implements UserBaseService {
             currentLastId=userFollowerVOS.get(userFollowerVOS.size()-1).getId();
             hasmore= userFollowerVOS.size()<userFollowerVOList.size();
         }
+        //设置动态数和歌单数
+        List<UserFollowerVO> result = userFollowerVOS.stream()
+                .map(userFollowerVO -> {
+                    Long postCount = communityPostMapper.selectCount(new QueryWrapper<CommunityPost>().eq("user_id", userFollowerVO.getId())
+                            .eq("is_deleted", 0)
+                            .eq("status", 1));
+                    userFollowerVO.setDynamicCount(postCount == null ? 0 : postCount);
+                    Long playcount = playList2Mapper.selectCount(new QueryWrapper<Playlist>().eq("user_id", userFollowerVO.getId())
+                            .eq("is_public", 1));
+                    userFollowerVO.setPlayListCount(playcount == null ? 0 : playcount);
+                    return userFollowerVO;
+                }).collect(Collectors.toList());
         //封装数据
         PageLikeVO<UserFollowerVO> pageLikeVO=new PageLikeVO<>();
-        pageLikeVO.setDateList(userFollowerVOS);
+        pageLikeVO.setDateList(result);
         pageLikeVO.setHasMore(hasmore);
         pageLikeVO.setLastId(currentLastId.toString());
         return Result.ok(pageLikeVO);

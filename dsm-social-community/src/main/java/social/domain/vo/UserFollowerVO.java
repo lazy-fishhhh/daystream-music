@@ -30,4 +30,16 @@ public class UserFollowerVO {
      * 关注时间
      */
     private LocalDateTime followTime;
+    /**
+     * 动态数量
+     */
+    private Long dynamicCount;
+    /**
+     * 歌单数量
+     */
+    private Long playListCount;
+    /**
+     * 粉丝数量
+     */
+    private Long fansCount;
 }

@@ -5,7 +5,7 @@
 <mapper namespace="social.mapper.FollowMapper">
     <!--获取关注列表-->
     <select id="selectFollowUser" resultType="social.domain.vo.UserFollowerVO">
-        select u.id,u.username,u.avatar,u.introduction,u.user_status,f.follow_time
+        select u.id,u.username,u.avatar,u.introduction,u.user_status,f.follow_time,u.fans_count
         from
         user as u
         left join user_follow as f on u.id=f.followed_user_id
@@ -15,7 +15,7 @@
     </select>
     <!--获取粉丝列表-->
     <select id="selectFollowedUser" resultType="social.domain.vo.UserFollowerVO">
-        select u.id,u.username,u.avatar,u.introduction,u.user_status,f.follow_time
+        select u.id,u.username,u.avatar,u.introduction,u.user_status,f.follow_time,u.fans_count
         from
         user as u
         left join user_follow as f on u.id=f.user_id
@@ -24,7 +24,7 @@
         and f.followed_user_id=#{currentId}
     </select>
     <select id="selectFollowUserBatch" resultType="social.domain.vo.UserFollowerVO">
-        select u.id, u.username, u.avatar, u.introduction, u.user_status,f.follow_time
+        select u.id, u.username, u.avatar, u.introduction, u.user_status,f.follow_time,u.fans_count
         from
         user as u
         left join user_follow as f on u.id=f.user_id
@@ -40,7 +40,7 @@
         limit #{pageSize}
     </select>
     <select id="selectFollowAll" resultType="social.domain.vo.UserFollowerVO">
-        select u.id, u.username, u.avatar, u.introduction, u.user_status,f.follow_time
+        select u.id, u.username, u.avatar, u.introduction, u.user_status,f.follow_time,u.fans_count
         from
         user as u
         left join user_follow as f on u.id=f.user_id
@@ -52,7 +52,7 @@
         order by f.follow_time desc
     </select>
     <select id="selectFollowedUserBatchNormal" resultType="social.domain.vo.UserFollowerVO">
-        select u.id, u.username, u.avatar, u.introduction, u.user_status,f.follow_time
+        select u.id, u.username, u.avatar, u.introduction, u.user_status,f.follow_time,u.fans_count
         from
         user as u
         left join user_follow as f on u.id=f.followed_user_id
@@ -70,7 +70,7 @@
         limit #{pageSize}
     </select>
     <select id="selectFollowedUserBatchMuscian" resultType="social.domain.vo.UserFollowerVO">
-        select u.id, u.username, u.avatar, u.introduction, u.user_status,f.follow_time
+        select u.id, u.username, u.avatar, u.introduction, u.user_status,f.follow_time,u.fans_count
         from
         user as u
         left join user_follow as f on u.id=f.followed_user_id
@@ -88,7 +88,7 @@
         limit #{pageSize}
     </select>
     <select id="selectFollowedAllNormal" resultType="social.domain.vo.UserFollowerVO">
-        select distinct u.id, u.username, u.avatar, u.introduction, u.user_status,f.follow_time
+        select distinct u.id, u.username, u.avatar, u.introduction, u.user_status,f.follow_time,u.fans_count
         from
         user as u
         left join user_follow as f on u.id=f.followed_user_id
@@ -101,7 +101,8 @@
         order by f.follow_time desc
     </select>
     <select id="selectFollowedAllMuscian" resultType="social.domain.vo.UserFollowerVO">
-        select u.id, u.username, u.avatar, u.introduction, u.user_status,f.follow_time
+        select u.id, u.username, u.avatar, u.introduction, u.user_status,f.follow_time,
+        u.fans_count
         from
         user as u
         left join user_follow as f on u.id=f.followed_user_id

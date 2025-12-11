@@ -10,6 +10,7 @@ import com.future.login.service.impl.QQAuthServiceImpl;
 import entity.pojo.util.Result;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
@@ -59,8 +60,9 @@ public class LoginController {
     }
     @ApiOperation("QQ登录回调接口")
     @GetMapping("/callback")
-    public Result<Map<String, Object>> qqCallback(@RequestParam("code") String code,
-                                                  @RequestParam(value = "state", required = false) String state) {
-        return qqAuthService.handleCallback(code, state);
+    public void qqCallback(@RequestParam("code") String code,
+                                     @RequestParam(value = "state", required = false) String state,
+                                HttpServletResponse response) {
+        qqAuthService.handleCallback(code, state,response);
     }
 }
