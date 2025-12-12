@@ -74,4 +74,10 @@ public class UserHomeController {
     }
 
 
+    @ApiOperation("查询歌单我的喜欢")
+    @PostMapping("/getMyLikeSongsPlaylist")
+    public Result<PageResp<List<PlaylistVO>>> getMyLikeSongsPlaylist(@RequestBody PageReq pageReq) {
+        return userHomeService.getMyLikeSongsPlaylist(pageReq);
+    }
+
 }

@@ -4,6 +4,7 @@ package com.future.music.service.impl;
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.future.login.exception.BusinessException;
 import com.future.login.mapper.UserMapper;
@@ -54,6 +55,7 @@ import java.util.stream.Collectors;
 
 import static code.BusinessErrorCode.USER_INFO_ERROR;
 import static code.BusinessErrorCode.USER_NOT_FOUND;
+import static com.future.music.service.impl.PlaylistServiceImpl.convertToPageResp;
 
 @Slf4j
 @Service
@@ -497,5 +499,31 @@ public class UserHomeServiceImpl implements IUserHomeService {
             log.error("获取用户本周每日听歌数据失败：", e);
             return Result.fail("获取失败，请稍后重试");
         }
+    }
+
+    @Override
+    public Result<PageResp<List<PlaylistVO>>> getMyLikeSongsPlaylist(PageReq pageReq) {
+
+        Long userId = SecurityUtil.getCurrentUserId();
+
+        if (userId == null) {
+            return Result.fail("用户未登录");
+        }
+
+        // 构建分页参数
+        Page<Playlist> page = new Page<>(pageReq.getPageNum(), pageReq.getPageSize());
+
+        // 构建查询条件：按创建时间降序
+        LambdaQueryWrapper<Playlist> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.eq(Playlist::getUserId, userId)
+                .eq(Playlist::getName, "我的喜欢");
+
+        // 执行查询
+        IPage<Playlist> playlistPage = playlistMapper.selectPage(page, queryWrapper);
+
+        // 转换为VO
+        PageResp<List<PlaylistVO>> pageResult = convertToPageResp(playlistPage);
+
+        return Result.ok(pageResult);
     }
 }

@@ -394,7 +394,7 @@ public class PlaylistServiceImpl implements IPlaylistService {
     }
 
     @NotNull
-    private static PageResp<List<PlaylistVO>> convertToPageResp(IPage<Playlist> playlistPage) {
+    public static PageResp<List<PlaylistVO>> convertToPageResp(IPage<Playlist> playlistPage) {
         // 转换为VO
         List<PlaylistVO> voList = new ArrayList<>();
         for (Playlist playlist : playlistPage.getRecords()) {

@@ -32,4 +32,6 @@ public interface IUserHomeService {
      * @return 标签占比数据列表
      */
     Result<List<MusicTagRatioVO>> getWeeklyTagRatio();
+
+    Result<PageResp<List<PlaylistVO>>> getMyLikeSongsPlaylist(PageReq pageReq);
 }
