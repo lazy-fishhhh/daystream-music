@@ -5,7 +5,7 @@ import lombok.Data;
 @Data
 public class MusicianVO {
     /**
-     * 音乐人id
+     * 审批记录Id
      */
     private String id;
     /**
@@ -21,9 +21,13 @@ public class MusicianVO {
      */
     private String email;
     /**
-     * 状态 0-待审核 1-审核通过 2-审核驳回 3-注销
+     * 状态 0-待审核 1-审核通过 2-审核驳回
      */
     private Integer status;
+    /**
+     * 音乐人简介
+     */
+    private String introduction;
     /**
      * 创建时间
      */

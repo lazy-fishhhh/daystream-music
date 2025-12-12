@@ -12,6 +12,7 @@
         left join user u on p.user_id=u.id
         <where>
            p.is_deleted=0
+            and p.status=1
             <if test="userId!=null">
                and  p.user_id=#{userId}
             </if>
