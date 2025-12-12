@@ -2,6 +2,7 @@ package com.future.music.service;
 
 import org.springframework.web.multipart.MultipartFile;
 
+import entity.dto.FileUploadDTO;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
@@ -52,4 +53,11 @@ public interface IFileService {
      * @throws IOException IO异常
      */
     void download(String fileName, HttpServletResponse response) throws IOException;
+
+    /**
+     * 大文件上传（封装了检查、上传分片、合并的完整流程）
+     * @param fileUploadDTO 文件上传DTO
+     * @return 上传结果
+     */
+    String uploadLargeFile(FileUploadDTO fileUploadDTO);
 }

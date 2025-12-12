@@ -1,0 +1,264 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="social.mapper.MusicMvPlayerMapper">
+
+    <!-- 定义MusicMvVO的resultMap -->
+    <resultMap id="MusicMvVOMap" type="entity.vo.MusicMvVO">
+        <id property="id" column="id"/>
+        <result property="mvName" column="mv_name"/>
+        <result property="musicId" column="music_id"/>
+        <result property="musicName" column="music_name"/>
+        <result property="duration" column="duration"/>
+        <result property="coverUrl" column="cover_url"/>
+        <result property="releaseTime" column="release_time"/>
+        <result property="playCount" column="play_count"/>
+        <result property="likeCount" column="like_count"/>
+        <result property="commentCount" column="comment_count"/>
+        <result property="shareCount" column="share_count"/>
+        <result property="isVip" column="is_vip"/>
+        <result property="status" column="status"/>
+        <!-- 定义一对多关系：一个MV包含多个画质 -->
+        <collection property="qualityList" ofType="entity.vo.MusicMvVO$MvQualityVO">
+            <result property="qualityType" column="quality_type"/>
+            <result property="mvUrl" column="quality_mv_url"/>
+            <result property="fileSize" column="file_size"/>
+            <result property="isVipLimit" column="is_vip_limit"/>
+        </collection>
+    </resultMap>
+
+    <!-- 根据MV ID查询MV详情 -->
+    <select id="selectMvDetailById" resultMap="MusicMvVOMap">
+        SELECT 
+            mm.id, 
+            mm.mv_name, 
+            mm.music_id, 
+            m.music_name, 
+            mm.duration, 
+            mm.cover_url, 
+            mm.release_time, 
+            mm.play_count, 
+            mm.like_count, 
+            mm.comment_count, 
+            mm.share_count, 
+            mm.is_vip, 
+            mm.status,
+            mvr.quality_type,
+            mvr.mv_url as quality_mv_url,
+            mvr.file_size,
+            mvr.is_vip_limit
+        FROM music_mv mm
+        LEFT JOIN music m ON mm.music_id = m.id
+        LEFT JOIN mv_quality_relation mvr ON mm.id = mvr.mv_id
+        WHERE mm.id = #{mvId}
+        AND mm.status = 1
+    </select>
+
+    <!-- 批量查询MV详情 -->
+    <select id="selectMvDetailByIds" resultMap="MusicMvVOMap">
+        SELECT 
+            mm.id, 
+            mm.mv_name, 
+            mm.music_id, 
+            m.music_name, 
+            mm.musician_id, 
+            mu.stage_name, 
+            mm.duration, 
+            mm.cover_url, 
+            mm.mv_url, 
+            mm.release_time, 
+            mm.play_count, 
+            mm.like_count, 
+            mm.comment_count, 
+            mm.share_count, 
+            mm.is_vip, 
+            mm.status,
+            mvr.quality_type,
+            mvr.mv_url as quality_mv_url,
+            mvr.file_size,
+            mvr.is_vip_limit
+        FROM music_mv mm
+        LEFT JOIN music m ON mm.music_id = m.id
+        LEFT JOIN musician mu ON mm.musician_id = mu.id
+        LEFT JOIN mv_quality_relation mvr ON mm.id = mvr.mv_id
+        WHERE mm.id IN
+        <foreach collection="mvIds" item="mvId" open="(" separator="," close=")">
+            #{mvId}
+        </foreach>
+        AND mm.status = 1
+    </select>
+
+
+
+    <!-- 根据音乐ID查询对应的MV -->
+    <select id="selectMvByMusicId" resultMap="MusicMvVOMap">
+        SELECT 
+            mm.id, 
+            mm.mv_name, 
+            mm.music_id, 
+            m.music_name, 
+            mm.musician_id, 
+            mu.stage_name, 
+            mm.duration, 
+            mm.cover_url, 
+            mm.mv_url, 
+            mm.release_time, 
+            mm.play_count, 
+            mm.like_count, 
+            mm.comment_count, 
+            mm.share_count, 
+            mm.is_vip, 
+            mm.status,
+            mvr.quality_type,
+            mvr.mv_url as quality_mv_url,
+            mvr.file_size,
+            mvr.is_vip_limit
+        FROM music_mv mm
+        LEFT JOIN music m ON mm.music_id = m.id
+        LEFT JOIN musician mu ON mm.musician_id = mu.id
+        LEFT JOIN mv_quality_relation mvr ON mm.id = mvr.mv_id
+        WHERE mm.music_id = #{musicId}
+        AND mm.status = 1
+    </select>
+
+    <!-- 更新MV播放量 -->
+    <update id="updatePlayCount">
+        UPDATE music_mv
+        SET play_count = play_count + #{increment}
+        WHERE id = #{mvId}
+    </update>
+
+    <!-- 分页查询热门MV -->
+    <select id="selectHotMvsPage" resultMap="MusicMvVOMap">
+        SELECT 
+            mm.id, 
+            mm.mv_name, 
+            mm.music_id, 
+            m.music_name, 
+            mm.musician_id, 
+            mu.stage_name, 
+            mm.duration, 
+            mm.cover_url, 
+            mm.mv_url, 
+            mm.release_time, 
+            mm.play_count, 
+            mm.like_count, 
+            mm.comment_count, 
+            mm.share_count, 
+            mm.is_vip, 
+            mm.status,
+            mvr.quality_type,
+            mvr.mv_url as quality_mv_url,
+            mvr.file_size,
+            mvr.is_vip_limit
+        FROM music_mv mm
+        LEFT JOIN music m ON mm.music_id = m.id
+        LEFT JOIN musician mu ON mm.musician_id = mu.id
+        LEFT JOIN mv_quality_relation mvr ON mm.id = mvr.mv_id
+        WHERE mm.status = 1
+        ORDER BY mm.play_count DESC
+    </select>
+
+    <!-- 分页查询最新MV -->
+    <select id="selectNewMvsPage" resultMap="MusicMvVOMap">
+        SELECT 
+            mm.id, 
+            mm.mv_name, 
+            mm.music_id, 
+            m.music_name, 
+            mm.musician_id, 
+            mu.stage_name, 
+            mm.duration, 
+            mm.cover_url, 
+            mm.mv_url, 
+            mm.release_time, 
+            mm.play_count, 
+            mm.like_count, 
+            mm.comment_count, 
+            mm.share_count, 
+            mm.is_vip, 
+            mm.status,
+            mvr.quality_type,
+            mvr.mv_url as quality_mv_url,
+            mvr.file_size,
+            mvr.is_vip_limit
+        FROM music_mv mm
+        LEFT JOIN music m ON mm.music_id = m.id
+        LEFT JOIN musician mu ON mm.musician_id = mu.id
+        LEFT JOIN mv_quality_relation mvr ON mm.id = mvr.mv_id
+        WHERE mm.status = 1
+        ORDER BY mm.release_time DESC
+    </select>
+
+    <!-- 分页查询VIP专属MV -->
+    <select id="selectVipMvsPage" resultMap="MusicMvVOMap">
+        SELECT 
+            mm.id, 
+            mm.mv_name, 
+            mm.music_id, 
+            m.music_name, 
+            mm.musician_id, 
+            mu.stage_name, 
+            mm.duration, 
+            mm.cover_url, 
+            mm.mv_url, 
+            mm.release_time, 
+            mm.play_count, 
+            mm.like_count, 
+            mm.comment_count, 
+            mm.share_count, 
+            mm.is_vip, 
+            mm.status,
+            mvr.quality_type,
+            mvr.mv_url as quality_mv_url,
+            mvr.file_size,
+            mvr.is_vip_limit
+        FROM music_mv mm
+        LEFT JOIN music m ON mm.music_id = m.id
+        LEFT JOIN musician mu ON mm.musician_id = mu.id
+        LEFT JOIN mv_quality_relation mvr ON mm.id = mvr.mv_id
+        WHERE mm.status = 1
+        AND mm.is_vip = 1
+        ORDER BY mm.release_time DESC
+    </select>
+
+    <!-- 增加MV点赞数 -->
+    <update id="likeCountUp">
+        UPDATE music_mv
+        SET like_count = like_count + 1
+        WHERE id = #{mvId}
+    </update>
+
+    <!-- 减少MV点赞数 -->
+    <update id="likeCountLow">
+        UPDATE music_mv
+        SET like_count = like_count - 1
+        WHERE id = #{mvId} AND like_count > 0
+    </update>
+
+    <!-- 增加MV收藏数 -->
+    <update id="collectCountUp">
+        UPDATE music_mv
+        SET collection_count = collection_count + 1
+        WHERE id = #{mvId}
+    </update>
+
+    <!-- 减少MV收藏数 -->
+    <update id="collectCountLow">
+        UPDATE music_mv
+        SET collection_count = collection_count - 1
+        WHERE id = #{mvId} AND collection_count > 0
+    </update>
+
+    <!-- 查询MV点赞数 -->
+    <select id="selectLikeCount" resultType="java.lang.Long">
+        SELECT like_count FROM music_mv
+        WHERE id = #{mvId}
+    </select>
+
+    <!-- 查询MV收藏数 -->
+    <select id="selectCollectCount" resultType="java.lang.Long">
+        SELECT collection_count FROM music_mv
+        WHERE id = #{mvId}
+    </select>
+</mapper>

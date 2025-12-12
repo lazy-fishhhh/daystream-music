@@ -6,7 +6,8 @@ import lombok.AllArgsConstructor;
 @AllArgsConstructor
 public enum CollectionEnum {
     PLAYLIST(1,"歌单"),
-    AlBUM(2,"专辑");
+    AlBUM(2,"专辑"),
+    MV(3,"MV");
     private Integer value;
     private String des;
     public Integer getValue()

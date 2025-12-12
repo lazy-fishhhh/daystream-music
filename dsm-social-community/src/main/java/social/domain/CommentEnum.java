@@ -7,7 +7,8 @@ public enum CommentEnum {
     MUSIC(1,"音乐"),
     PLAYLIST(2,"歌单"),
     ALBUM(3,"专辑"),
-    COMMUNITY(4,"社区");
+    MV(4,"MV"),
+    COMMUNITY(5,"社区");
     private Integer value;
     private String des;
     public Integer getValue()

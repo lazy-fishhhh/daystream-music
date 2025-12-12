@@ -18,6 +18,7 @@ import entity.pojo.util.Result;
 import io.lettuce.core.RedisClient;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import mapper.MusicMvMapper;
 import org.springframework.beans.BeanUtils;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -78,6 +79,8 @@ public class UserBaseServiceImpl implements UserBaseService {
     private UserRoleMapper userRoleMapper;
     @Autowired
     private CommunityPostMapper communityPostMapper;
+    @Autowired
+    private MusicMvPlayerMapper musicMvMapper;
     //点赞/取消点赞功能
     @Transactional(rollbackFor = Exception.class)
     @Override
@@ -287,6 +290,17 @@ public class UserBaseServiceImpl implements UserBaseService {
                     communityPostMapper.updateLikeCountup(targetId);
                     count++;
                 }
+        } else if (targetType == LikeEnum.MV.getValue()) {
+            count = musicMvMapper.selectLikeCount(targetId);
+            if (isCancle) {
+                if (count > 0) {
+                    musicMvMapper.likeCountLow(targetId);
+                    count--;
+                }
+            } else {
+                musicMvMapper.likeCountUp(targetId);
+                count++;
+            }
         }
         return  count;
     }
@@ -466,6 +480,18 @@ public class UserBaseServiceImpl implements UserBaseService {
             }
             else{
                 album2Mapper.albumCollectCountup(targetId);
+                count++;
+            }
+            return count;
+        } else if (targetType == CollectionEnum.MV.getValue()) {
+            count = musicMvMapper.selectCollectCount(targetId);
+            if (isCancle) {
+                if (count > 0) {
+                    musicMvMapper.collectCountLow(targetId);
+                    count--;
+                }
+            } else {
+                musicMvMapper.collectCountUp(targetId);
                 count++;
             }
             return count;

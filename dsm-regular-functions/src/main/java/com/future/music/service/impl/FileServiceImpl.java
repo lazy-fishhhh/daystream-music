@@ -1,5 +1,7 @@
 package com.future.music.service.impl;
 
+import com.future.login.exception.BusinessException;
+import entity.dto.FileUploadDTO;
 import com.future.music.service.IFileService;
 import com.future.music.service.IMinIoService;
 import lombok.extern.slf4j.Slf4j;
@@ -8,7 +10,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import jakarta.annotation.Resource;
-import jakarta.servlet.ServletOutputStream;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.*;
@@ -41,7 +42,10 @@ public class FileServiceImpl implements IFileService {
     private static final String TEMP_FILE_PREFIX = "merge";
     private static final String TEMP_FILE_SUFFIX = ".tmp";
     private static final String FILE_CONTENT_TYPE = "application/octet-stream";
-    
+
+    // Operation常量
+    private static final String OPERATION_UPLOAD = "upload";
+    private static final String OPERATION_MERGE = "merge";
     @Resource
     private RedisTemplate redisTemplate;
 
@@ -65,6 +69,14 @@ public class FileServiceImpl implements IFileService {
         String chunks = requestParam.get("chunks");//整体文件总共被分了多少片
         String fileSize = requestParam.get("size");//整体文件大小
         String chunkMd5 = requestParam.get("chunkMd5");//分片文件的md5值
+        return upload(md5Value, chunkIndex, start, end, chunks, fileSize, chunkMd5, multipartFile);
+    }
+
+    /**
+     * 分片上传实现方法（直接接受参数）
+     */
+    private String upload(String md5Value, String chunkIndex, String start, String end, 
+                         String chunks, String fileSize, String chunkMd5, MultipartFile multipartFile) throws IOException {
 
         // 使用MinIO存储分片文件
         String chunkPath = MINIO_CHUNKS_PREFIX + chunkMd5 + "_" + chunkIndex;
@@ -97,6 +109,13 @@ public class FileServiceImpl implements IFileService {
         Map<String, String> requestParam = this.doRequestParam(request);
         String md5Value = requestParam.get("md5Value");
         String originalFilename = requestParam.get("originalFilename");
+        return merge(md5Value, originalFilename);
+    }
+
+    /**
+     * 合并分片实现方法（直接接受参数）
+     */
+    private String merge(String md5Value, String originalFilename) throws IOException {
         // 校验所有切片是否己经上传完毕
         boolean flag = this.checkBeforeMerge(md5Value);
         if (!flag) {
@@ -177,6 +196,60 @@ public class FileServiceImpl implements IFileService {
 
         // 从MinIO下载文件
         minIoService.downloadFile(objectName, response);
+    }
+
+    @Override
+    public String uploadLargeFile(FileUploadDTO fileUploadDTO) {
+        try {
+            // 从FileUploadDTO中获取必要信息
+            String md5Value = fileUploadDTO.getMd5Value();
+            String chunk = fileUploadDTO.getChunk();
+            String chunks = fileUploadDTO.getChunks();
+            String chunkMd5 = fileUploadDTO.getChunkMd5();
+            String start = fileUploadDTO.getStart();
+            String end = fileUploadDTO.getEnd();
+            String fileSize = fileUploadDTO.getSize();
+            String originalFilename = fileUploadDTO.getOriginalFilename();
+            MultipartFile multipartFile = fileUploadDTO.getFile();
+            String operation = fileUploadDTO.getOperation();
+
+            // 验证必要参数
+            if (md5Value == null || chunk == null || chunks == null || chunkMd5 == null) {
+                return "参数不完整";
+            }
+
+            // 如果是上传分片操作
+            if (OPERATION_UPLOAD.equals(operation)) {
+                // 检查分片是否已存在
+                boolean isChunkExists = check(md5Value, chunk, chunkMd5);
+                // 如果分片已存在，直接返回成功
+                if (isChunkExists) {
+                    return "分片已存在";
+                }
+                // 上传新分片
+                String uploadResult = upload(md5Value, chunk, start, end, chunks, fileSize, chunkMd5, multipartFile);
+                // 检查是否上传成功
+                if (uploadResult.contains("失败")) {
+                    return uploadResult;
+                }
+            } else if (OPERATION_MERGE.equals(operation)) {
+                // 直接执行合并操作
+                return merge(md5Value, originalFilename);
+            }
+
+            // 如果是最后一个分片，则自动合并
+            int currentChunk = Integer.parseInt(chunk);
+            int totalChunks = Integer.parseInt(chunks);
+            if (currentChunk == totalChunks - 1) {
+                // 最后一个分片上传完成，执行合并操作
+                return merge(md5Value, originalFilename);
+            }
+
+            return "操作成功";
+        } catch (Exception e) {
+            log.error("大文件上传失败: {}", e.getMessage());
+            throw new BusinessException("文件上传异常10001", "大文件上传失败");
+        }
     }
 
     /**
