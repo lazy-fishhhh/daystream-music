@@ -11,6 +11,9 @@
         left join user_role as ur on u.id=ur.user_id
         left join role as r on ur.role_id=r.id
         <where>
+            <if test="status==null">
+                u.status in (0,1)
+            </if>
             <if test="status != null">
                 u.status = #{status}
             </if>
@@ -18,5 +21,41 @@
                 u.username like concat('%',#{key},'%')
             </if>
         </where>
+        order by u.created_time desc
     </select>
+    <select id="getDetailUser" resultType="admin.domain.vo.DetailUserVO">
+        select u.id,u.username,u.email,u.status,u.created_time,
+        u.avatar,r.name as role,u.introduction,u.gender,u.vip_expire_time,u.wallet_balance
+        from
+        user as u
+        left join user_role as ur on u.id=ur.user_id
+        left join role as r on ur.role_id=r.id
+        where
+        u.id=#{id}
+        and u.status in (0,1)
+    </select>
+    <update id="updateUser">
+        update user
+        <set>
+            <if test="username!=null">
+                username=#{username},
+            </if>
+            <if test="avatar!=null">
+                avatar=#{avatar},
+            </if>
+            <if test="introduction!=null">
+                introduction=#{introduction},
+            </if>
+            <if test="gender!=null">
+                gender=#{gender},
+            </if>
+            <if test="walletBalance!=null">
+                wallet_balance=#{walletBalance},
+            </if>
+            <if test="vipExpireTime!=null">
+                    vip_expire_time=#{vipExpireTime},
+            </if>
+        </set>
+        where id=#{id}
+    </update>
 </mapper>

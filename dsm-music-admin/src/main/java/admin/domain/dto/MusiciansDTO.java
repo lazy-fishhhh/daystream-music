@@ -3,6 +3,7 @@ package admin.domain.dto;
 
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
 @Data
@@ -12,8 +13,9 @@ public class MusiciansDTO {
      */
     private String key;
     /**
-     * 状态查找 1-审核通过 2-审核驳回
+     * 状态查找 0-待审核 1-审核通过 2-审核驳回
      */
+    @NotNull(message = "请选择状态")
     private Integer status;
     /**
      * 页码

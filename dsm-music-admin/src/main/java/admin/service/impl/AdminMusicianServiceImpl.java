@@ -1,8 +1,11 @@
 package admin.service.impl;
 
 import admin.domain.MusicianAdminEnum;
+import admin.domain.dto.AdminMusicianApplyDTO;
 import admin.domain.dto.MusicianDTO;
+import admin.domain.dto.MusicianListDTO;
 import admin.domain.dto.MusiciansDTO;
+import admin.domain.vo.MusicianListVO;
 import admin.domain.vo.MusicianVO;
 import admin.mapper.AdminMusicianMapper;
 import admin.mapper.UserRole3Mapper;
@@ -18,10 +21,13 @@ import entity.pojo.music.Musician;
 import entity.pojo.util.PageResp;
 import entity.pojo.util.Result;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.ibatis.annotations.Lang;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
 
 
 @Service
@@ -73,22 +79,13 @@ public class AdminMusicianServiceImpl implements AdminMusicianService {
             //变更用户身份
             if(status==MusicianAdminEnum.APPROVED.getCode())
             {
-                LambdaQueryWrapper<UserRole> queryWrapper = new LambdaQueryWrapper<>();
-                queryWrapper.eq(UserRole::getUserId, musicianDTO.getId())
-                        .eq(UserRole::getRoleId, 2);
-                UserRole userRole = userRole3Mapper.selectOne(queryWrapper);
-                //判断用户是不是vip用户，如果不是，直接把普通用户变成vip
-                if(userRole==null) {
-                    UpdateWrapper<UserRole> queryWrapper1 = new UpdateWrapper<>();
-                    queryWrapper1.eq("user_id", musician.getUserId())
-                            .set("role_id", 3);
-                    userRole3Mapper.update(queryWrapper1);
-                }
-                //如果是，创建一个新的音乐人身份
-                UserRole userRole1 = new UserRole();
-                userRole1.setUserId(musician.getUserId());
-                userRole1.setRoleId(3L);
-                userRole3Mapper.insert(userRole1);
+                //把普通用户变成一个音乐人
+                LambdaQueryWrapper<UserRole> lambdaQueryWrapper=new LambdaQueryWrapper<>();
+                lambdaQueryWrapper.eq(UserRole::getId,musician.getUserId())
+                                .eq(UserRole::getRoleId,1);
+                UserRole userRole1 = userRole3Mapper.selectOne(lambdaQueryWrapper);
+                userRole1.setRoleId(2L);
+                userRole3Mapper.updateById(userRole1);
                 //变更redis中的权限
                 updateUserInfoService.updateUserInfo(musician.getUserId());
             }
@@ -99,4 +96,50 @@ public class AdminMusicianServiceImpl implements AdminMusicianService {
         }
         }
 
+    @Override
+    public Result<String> batchPass(AdminMusicianApplyDTO musiciansDTO) {
+        //批量通过
+        List<Long> ids = musiciansDTO.getApplyId();
+        adminMusicianMapper.batchPass(ids);
+        return Result.ok("批量通过成功");
+    }
+
+    @Override
+    public Result<String> batchRefuse(AdminMusicianApplyDTO musiciansDTO) {
+        //批量驳回
+        List<Long> ids = musiciansDTO.getApplyId();
+        adminMusicianMapper.batchRefuse(ids);
+        return Result.ok("批量驳回成功");
+    }
+
+    @Override
+    public Result<String> deleteMusicianApply(AdminMusicianApplyDTO adminMusicianApplyDTO) {
+        List<Long> applyId = adminMusicianApplyDTO.getApplyId();
+        //查询一个
+        LambdaQueryWrapper<Musician> lambdaQueryWrapper=new LambdaQueryWrapper<>();
+        lambdaQueryWrapper.eq(Musician::getId,applyId.get(0))
+                        .in(Musician::getStatus,1,2);
+        Musician musician = adminMusicianMapper.selectOne(lambdaQueryWrapper);
+        if(musician!=null) {
+            return Result.fail("操作失败，仅限未处理的审核");
+        }
+        applyId.stream()
+                .forEach(id-> {
+                   adminMusicianMapper.deleteById(id);
+                });
+        return Result.ok("删除成功");
+    }
+    //获取音乐人列表
+    @Override
+    public Result<PageResp<MusicianListVO>> getMusician(MusicianListDTO musicianListDTO) {
+        Page<MusicianListVO> page = new Page<>(musicianListDTO.getPageNum(), musicianListDTO.getPageSize());
+        IPage<MusicianListVO> musicianList = adminMusicianMapper.getMusician(page, musicianListDTO.getNameKey(), musicianListDTO.getStatus());
+        PageResp<MusicianListVO> pageResp = new PageResp<>();
+        pageResp.setRecords(musicianList.getRecords());
+        pageResp.setTotal(musicianList.getTotal());
+        pageResp.setPages(musicianList.getPages());
+        pageResp.setCurrent(musicianList.getCurrent());
+        pageResp.setSize(musicianList.getSize());
+        return Result.ok(pageResp);
+    }
 }
