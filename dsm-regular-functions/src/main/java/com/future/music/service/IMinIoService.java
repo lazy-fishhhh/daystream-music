@@ -64,4 +64,19 @@ public interface IMinIoService {
      */
     public BufferedImage downloadImage(String objectName);
 
+    /**
+     * 上传分片文件到MinIO
+     * @param file 分片文件
+     * @param chunkPath 分片存储路径
+     * @return 存储路径
+     */
+    String uploadChunkFile(MultipartFile file, String chunkPath);
+
+    /**
+     * 获取对象输入流
+     * @param objectName 对象名称
+     * @return 输入流
+     */
+    InputStream getObjectStream(String objectName);
+
 }

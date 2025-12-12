@@ -4,22 +4,21 @@ package com.future.music.service.impl;
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.future.login.exception.BusinessException;
 import com.future.login.mapper.UserMapper;
 import com.future.login.util.SecurityUtil;
 import com.future.music.domain.dto.UserDetailDTO;
 import com.future.music.domain.dto.DailyListenCountDTO;
-import com.future.music.domain.vo.DailyListenDataVO;
-import com.future.music.domain.vo.MusicTagRatioVO;
-import com.future.music.domain.vo.MusicVO;
-import com.future.music.domain.vo.PlaylistVO;
+import com.future.music.domain.vo.*;
 
 import com.future.music.mapper.LikeRecordMapper;
 import com.future.music.mapper.MusicMapper;
 import com.future.music.mapper.PlaylistMapper;
 import com.future.music.mapper.UserCollectionMapper;
 import com.future.music.mapper.UserListenHistoryMapper;
+import com.future.music.mapper.RegularAlbumMapper;
 import com.future.music.service.IMusicService;
 import com.future.music.service.IUserHomeService;
 import com.future.music.websocket.ChatEndPoint;
@@ -48,6 +47,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -55,6 +55,7 @@ import java.util.stream.Collectors;
 
 import static code.BusinessErrorCode.USER_INFO_ERROR;
 import static code.BusinessErrorCode.USER_NOT_FOUND;
+import static com.future.music.service.impl.PlaylistServiceImpl.convertToPageResp;
 
 @Slf4j
 @Service
@@ -65,7 +66,7 @@ public class UserHomeServiceImpl implements IUserHomeService {
     private final UserCollectionMapper userCollectionMapper;
     private final MusicMapper musicMapper;
     private final PlaylistMapper playlistMapper;
-    private final AlbumMapper albumMapper;
+    private final RegularAlbumMapper regularAlbumMapper;
     private final IMusicService musicService;
     private final MinIoServiceImpl minIoService;
     private final UserListenHistoryMapper userListenHistoryMapper;
@@ -325,39 +326,52 @@ public class UserHomeServiceImpl implements IUserHomeService {
     }
 
     @Override
-    public Result<PageResp<List<Album>>> getMyCollectAlbums(PageReq pageReq) {
+    public Result<PageResp<AlbumVO>> getMyCollectAlbums(PageReq pageReq) {
         try {
             Long userId = SecurityUtil.getCurrentUserId();
             if (userId == null) {
                 return Result.fail("用户未登录");
             }
 
-            // 构建查询条件
+            // 1. 构建收藏表查询条件
             LambdaQueryWrapper<UserCollection> queryWrapper = new LambdaQueryWrapper<>();
             queryWrapper.eq(UserCollection::getUserId, userId)
                     .eq(UserCollection::getTargetType, 2)
                     .eq(UserCollection::getIsCanceled, 0)
                     .orderByDesc(UserCollection::getCollectedTime);
 
-            // 分页查询收藏记录
+            // 2. 分页查询收藏记录
             Page<UserCollection> page = new Page<>(pageReq.getPageNum(), pageReq.getPageSize());
             Page<UserCollection> collectionPage = userCollectionMapper.selectPage(page, queryWrapper);
 
-            // 获取专辑ID列表
+            // 3. 提取当前页的专辑ID
             List<Long> albumIds = collectionPage.getRecords().stream()
                     .map(UserCollection::getTargetId)
                     .toList();
 
-            // 查询专辑详情
-            List<Album> albumList = albumIds.stream()
-                    .map(albumMapper::selectById)
-                    .filter(album -> album != null)
-                    .toList();
+            // 4. 查询专辑详情
+            List<AlbumVO> albumVOList = new ArrayList<>();
+            if (!albumIds.isEmpty()) {
+                albumVOList = regularAlbumMapper.selectAlbumVOsWithMusicByIds(albumIds);
+                albumVOList = albumVOList.stream()
+                        .collect(Collectors.groupingBy(AlbumVO::getId))  // 按专辑ID分组
+                        .values().stream()
+                        .map(group -> group.get(0))  // 取每组第一条（去重）
+                        .collect(Collectors.toList());
+            }
 
-            // 封装分页结果
-            PageResp<List<Album>> pageResp = new PageResp<>();
-            pageResp.setRecords(List.of(albumList));
+            // 5. 封装分页结果（严格对齐收藏表分页，兜底：当前页>总页数时强制返回空）
+            PageResp<AlbumVO> pageResp = new PageResp<>();
+            // 核心兜底：如果当前页超过总页数，直接返回空列表
+            if (pageReq.getPageNum() > collectionPage.getPages()) {
+                pageResp.setRecords(Collections.emptyList());
+            } else {
+                pageResp.setRecords(albumVOList);
+            }
+            // 分页元数据严格复用收藏表的（保证分页逻辑统一）
             pageResp.setTotal(collectionPage.getTotal());
+            pageResp.setSize(collectionPage.getSize());
+            pageResp.setCurrent(collectionPage.getCurrent());
             pageResp.setPages(collectionPage.getPages());
 
             return Result.ok(pageResp);
@@ -396,7 +410,7 @@ public class UserHomeServiceImpl implements IUserHomeService {
                     totalCount += Long.parseLong(value.toString());
                 } catch (NumberFormatException e) {
                     // 跳过无效数据
-                    log.warn("标签数据格式错误：{}", value);
+                    log.warn("标签数据错误：{}", value);
                 }
             }
 
@@ -426,8 +440,6 @@ public class UserHomeServiceImpl implements IUserHomeService {
             log.error("获取用户本周标签占比失败：", e);
             return Result.fail("获取失败，请稍后重试");
         }
-
-
     }
 
     /**
@@ -487,5 +499,31 @@ public class UserHomeServiceImpl implements IUserHomeService {
             log.error("获取用户本周每日听歌数据失败：", e);
             return Result.fail("获取失败，请稍后重试");
         }
+    }
+
+    @Override
+    public Result<PageResp<List<PlaylistVO>>> getMyLikeSongsPlaylist(PageReq pageReq) {
+
+        Long userId = SecurityUtil.getCurrentUserId();
+
+        if (userId == null) {
+            return Result.fail("用户未登录");
+        }
+
+        // 构建分页参数
+        Page<Playlist> page = new Page<>(pageReq.getPageNum(), pageReq.getPageSize());
+
+        // 构建查询条件：按创建时间降序
+        LambdaQueryWrapper<Playlist> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.eq(Playlist::getUserId, userId)
+                .eq(Playlist::getName, "我的喜欢");
+
+        // 执行查询
+        IPage<Playlist> playlistPage = playlistMapper.selectPage(page, queryWrapper);
+
+        // 转换为VO
+        PageResp<List<PlaylistVO>> pageResult = convertToPageResp(playlistPage);
+
+        return Result.ok(pageResult);
     }
 }

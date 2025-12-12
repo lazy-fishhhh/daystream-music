@@ -141,7 +141,7 @@ class MinIoServiceImpl implements IMinIoService {
             return minioClient.getObject(
                     GetObjectArgs.builder()
                             .bucket(bucketName)
-                            .object(objectName.substring(objectName.lastIndexOf("/") + 1))
+                            .object(objectName)
                             .build()
             );
         } catch (Exception e) {
@@ -157,7 +157,7 @@ class MinIoServiceImpl implements IMinIoService {
             minioClient.statObject(
                     StatObjectArgs.builder()
                             .bucket(bucketName)
-                            .object(objectName.substring(objectName.lastIndexOf("/") + 1))
+                            .object(objectName)
                             .build()
             );
             // 没有抛出异常，说明文件存在
@@ -232,7 +232,7 @@ class MinIoServiceImpl implements IMinIoService {
                     GetPresignedObjectUrlArgs.builder()
                             .method(Method.GET)
                             .bucket(bucketName) // 你的MinIO桶名
-                            .object(objectName.substring(objectName.lastIndexOf("/") + 1))
+                            .object(objectName)
                             .expiry(expireSeconds)
                             .build()
             );
@@ -250,7 +250,7 @@ class MinIoServiceImpl implements IMinIoService {
         try (InputStream is = minioClient.getObject(
                 GetObjectArgs.builder()
                         .bucket(bucketName)
-                        .object(objectName.substring(objectName.lastIndexOf("/") + 1))
+                        .object(objectName)
                         .build()
         )) {
             return ImageIO.read(is);
@@ -277,6 +277,38 @@ class MinIoServiceImpl implements IMinIoService {
         } catch (Exception e) {
             return null;
         }
+    }
+
+    @Override
+    public String uploadChunkFile(MultipartFile file, String chunkPath) {
+        try {
+            // 检查桶是否存在，不存在则创建
+            boolean bucketExists = minioClient.bucketExists(BucketExistsArgs.builder().bucket(bucketName).build());
+            if (!bucketExists) {
+                minioClient.makeBucket(MakeBucketArgs.builder().bucket(bucketName).build());
+            }
+
+            // 上传分片文件
+            minioClient.putObject(
+                    PutObjectArgs.builder()
+                            .bucket(bucketName)
+                            .object(chunkPath)
+                            .stream(file.getInputStream(), file.getSize(), -1)
+                            .contentType(file.getContentType())
+                            .build()
+            );
+
+            // 返回文件存储路径
+            return proxyHost + "/" + bucketName + "/" + chunkPath;
+        } catch (Exception e) {
+            throw new RuntimeException("分片文件上传失败：" + e.getMessage());
+        }
+    }
+
+    @Override
+    public InputStream getObjectStream(String objectName) {
+        // 直接复用现有的getFileInputStream方法
+        return getFileInputStream(objectName);
     }
 
 }

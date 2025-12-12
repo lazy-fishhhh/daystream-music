@@ -6,6 +6,7 @@ import com.future.music.domain.vo.MusicVO;
 import com.future.music.domain.vo.MusicTagRatioVO;
 import com.future.music.domain.vo.DailyListenDataVO;
 import com.future.music.domain.vo.PlaylistVO;
+import com.future.music.domain.vo.AlbumVO;
 import com.future.music.service.IUserHomeService;
 import entity.pojo.music.Album;
 import entity.pojo.util.PageReq;
@@ -52,9 +53,10 @@ public class UserHomeController {
         return userHomeService.getMyCollectSongLists(pageReq);
     }
 
+
     @ApiOperation("查询我收藏的专辑")
     @PostMapping("/getMyCollectAlbums")
-    public Result<PageResp<List<Album>>> getMyCollectAlbums(@RequestBody PageReq pageReq) {
+    public Result<PageResp<AlbumVO>> getMyCollectAlbums(@RequestBody PageReq pageReq) {
         return userHomeService.getMyCollectAlbums(pageReq);
     }
 
@@ -71,5 +73,11 @@ public class UserHomeController {
         return userHomeService.getWeeklyTagRatio();
     }
 
+
+    @ApiOperation("查询歌单我的喜欢")
+    @PostMapping("/getMyLikeSongsPlaylist")
+    public Result<PageResp<List<PlaylistVO>>> getMyLikeSongsPlaylist(@RequestBody PageReq pageReq) {
+        return userHomeService.getMyLikeSongsPlaylist(pageReq);
+    }
 
 }
