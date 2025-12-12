@@ -89,6 +89,7 @@ public class ReportServiceImpl implements ReportService {
                 UpdateWrapper<Music> updateWrapper=new UpdateWrapper<>();
                 updateWrapper.eq("id",targetId)
                         .set("status",2);
+                adminMusicMapper.update(updateWrapper);
                 reportMapper.updatehandle(reportId,currentUserId,handleResult);
                 return Result.ok("音乐下架成功");
             }
@@ -104,6 +105,7 @@ public class ReportServiceImpl implements ReportService {
                 UpdateWrapper<Comment> commentUpdateWrapper = new UpdateWrapper<>();
                 commentUpdateWrapper.eq("id", targetId)
                         .set("status", 0);
+                commentMapper.update(commentUpdateWrapper);
                 reportMapper.updatehandle(reportId,currentUserId,handleResult);
                 return Result.ok("评论删除成功");
             }else if (targetType == 3)
@@ -126,6 +128,7 @@ public class ReportServiceImpl implements ReportService {
                 UpdateWrapper<User> userUpdateWrapper=new UpdateWrapper<>();
                 userUpdateWrapper.eq("id",targetId)
                         .set("status",0);
+                userMapper.update(userUpdateWrapper);
                 reportMapper.updatehandle(reportId,currentUserId,handleResult);
                 return Result.ok("用户封禁成功");
             }else if(targetType==4)
@@ -156,25 +159,12 @@ public class ReportServiceImpl implements ReportService {
                 musicianUpdateWrapper.eq("user_id",targetId)
                         .set("is_deleted",1);
                 adminMusicianMapper.update(musicianUpdateWrapper);
-                //判断是不是vip用户，如果是，直接把音乐人的身份删除了
-                LambdaQueryWrapper<UserRole> userRoleWrapper=new LambdaQueryWrapper<>();
-                userRoleWrapper.eq(UserRole::getUserId,targetId)
-                        .eq(UserRole::getRoleId,2);
-                UserRole userRole = userRole3Mapper.selectOne(userRoleWrapper);
-                if(userRole!=null)
-                {
-                    LambdaQueryWrapper<UserRole> queryWrapper=new LambdaQueryWrapper<>();
-                    queryWrapper.eq(UserRole::getUserId,targetId)
-                            .eq(UserRole::getRoleId,3);
-                    userRole3Mapper.delete(queryWrapper);
-                }
-                //如果不是vip用户，把音乐人身份更新成普通人
-                else {
+                //把音乐人身份更新成普通人
                     UpdateWrapper<UserRole> userRoleUpdateWrapper = new UpdateWrapper<>();
                     userRoleUpdateWrapper.eq("user_id", targetId)
                             .set("role_id", 1);
                     userRole3Mapper.update(userRoleUpdateWrapper);
-                }
+                    //变更redis中的权限
                 updateUserInfoService.updateUserInfo(targetId);
                 reportMapper.updatehandle(reportId,currentUserId,handleResult);
                 return Result.ok("音乐人封禁成功");

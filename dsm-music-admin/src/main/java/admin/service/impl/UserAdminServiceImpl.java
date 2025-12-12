@@ -82,6 +82,7 @@ public class UserAdminServiceImpl implements UserAdminService {
                 adminUserMapper.updateById(user);
                 banUserStatusVO.setBan(true);
                 banUserStatusVO.setMsg("已封禁");
+                return Result.ok(banUserStatusVO);
             }
         }
         return Result.fail("操作失败");

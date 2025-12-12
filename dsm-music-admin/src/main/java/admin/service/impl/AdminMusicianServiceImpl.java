@@ -81,17 +81,20 @@ public class AdminMusicianServiceImpl implements AdminMusicianService {
             {
                 //把普通用户变成一个音乐人
                 LambdaQueryWrapper<UserRole> lambdaQueryWrapper=new LambdaQueryWrapper<>();
-                lambdaQueryWrapper.eq(UserRole::getId,musician.getUserId())
+                lambdaQueryWrapper.eq(UserRole::getUserId,musician.getUserId())
                                 .eq(UserRole::getRoleId,1);
                 UserRole userRole1 = userRole3Mapper.selectOne(lambdaQueryWrapper);
-                userRole1.setRoleId(2L);
-                userRole3Mapper.updateById(userRole1);
-                //变更redis中的权限
-                updateUserInfoService.updateUserInfo(musician.getUserId());
+                if(userRole1!=null) {
+                    userRole1.setRoleId(3L);
+                    userRole3Mapper.updateById(userRole1);
+                    //变更redis中的权限
+                    updateUserInfoService.updateUserInfo(musician.getUserId());
+                }
             }
             return Result.ok("审批成功");
         }catch (Exception e)
         {
+            log.error("审批失败",e);
             return Result.fail("审批失败");
         }
         }
@@ -100,7 +103,24 @@ public class AdminMusicianServiceImpl implements AdminMusicianService {
     public Result<String> batchPass(AdminMusicianApplyDTO musiciansDTO) {
         //批量通过
         List<Long> ids = musiciansDTO.getApplyId();
+        //变更审批状态
         adminMusicianMapper.batchPass(ids);
+        //变更用户身份
+        //把普通用户变成一个音乐人
+        adminMusicianMapper.getListMusicianUserIds(ids).stream()
+                .forEach(userId-> {
+                    //把普通用户变成一个音乐人
+                    LambdaQueryWrapper<UserRole> lambdaQueryWrapper=new LambdaQueryWrapper<>();
+                    lambdaQueryWrapper.eq(UserRole::getUserId,userId)
+                            .eq(UserRole::getRoleId,1);
+                    UserRole userRole1 = userRole3Mapper.selectOne(lambdaQueryWrapper);
+                    if(userRole1!=null) {
+                        userRole1.setRoleId(3L);
+                        userRole3Mapper.updateById(userRole1);
+                        //变更redis中的权限
+                        updateUserInfoService.updateUserInfo(userId);
+                    }
+                });
         return Result.ok("批量通过成功");
     }
 

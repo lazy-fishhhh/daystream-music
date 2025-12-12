@@ -4,18 +4,18 @@
         "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="admin.mapper.AdminUserMapper">
     <select id="getUserList" resultType="admin.domain.vo.AdminUserVO">
-        select u.id,u.username,u.email,u.status,u.created_time,
-       u.avatar,r.name as role
+        select u.id,u.username,u.email,u.user_status as status,u.created_time,
+       u.avatar,r.role_name as role
         from
         user as u
         left join user_role as ur on u.id=ur.user_id
         left join role as r on ur.role_id=r.id
         <where>
             <if test="status==null">
-                u.status in (0,1)
+                u.user_status in (0,1)
             </if>
             <if test="status != null">
-                u.status = #{status}
+                u.user_status = #{status}
             </if>
             <if test="key!=null and key!=''">
                 u.username like concat('%',#{key},'%')
@@ -24,15 +24,15 @@
         order by u.created_time desc
     </select>
     <select id="getDetailUser" resultType="admin.domain.vo.DetailUserVO">
-        select u.id,u.username,u.email,u.status,u.created_time,
-        u.avatar,r.name as role,u.introduction,u.gender,u.vip_expire_time,u.wallet_balance
+        select u.id,u.username,u.email,u.user_status as status,u.created_time,
+        u.avatar,r.role_name as role,u.introduction,u.gender,u.vip_expire_time,u.wallet_balance
         from
         user as u
         left join user_role as ur on u.id=ur.user_id
         left join role as r on ur.role_id=r.id
         where
         u.id=#{id}
-        and u.status in (0,1)
+        and u.user_status in (0,1)
     </select>
     <update id="updateUser">
         update user

@@ -17,9 +17,11 @@ public interface AdminMusicianMapper extends BaseMapper<Musician> {
                                       @Param("status")Integer status,
                                      @Param("key")String key);
     void batchPass(@Param("ids") List<Long> ids);
+    List<Long> getListMusicianUserIds(@Param("ids") List<Long> ids);
     void batchRefuse(@Param("ids") List<Long> ids);
     IPage<MusicianListVO> getMusician(@Param("page") Page<MusicianListVO> page,
                                       @Param("key")String key,
                                       @Param("status")Integer status);
+
 
 }
