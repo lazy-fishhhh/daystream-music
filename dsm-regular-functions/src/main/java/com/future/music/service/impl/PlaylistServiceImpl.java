@@ -84,97 +84,48 @@ public class PlaylistServiceImpl implements IPlaylistService {
             if (pageNum <= 0) pageNum = 1;
             if (pageSize <= 0 || pageSize > 50) pageSize = 20; // 限制每页最大条数，避免缓存过大
 
-            // 2. 构建缓存 Key（包含歌单ID + 分页参数，确保唯一）
-            String cacheKey = RedisCacheConstants.CACHE_KEY_PLAYLIST_DETAIL + playlistId + ":" + pageNum + ":" + pageSize;
-
-            // 3. 先查 Redis 缓存（手动序列化/反序列化）
-            String cacheJson = stringRedisTemplate.opsForValue().get(cacheKey);
-            if (cacheJson != null) {
-                // 缓存命中，直接反序列化返回
-                if (cacheJson.isEmpty()) { // 空值缓存（防止缓存穿透）
-                    return Result.fail("歌单不存在");
-                }
-                // 缓存命中：刷新过期时间（续命）
-                stringRedisTemplate.expire(cacheKey, RedisCacheConstants.CACHE_SHORT_TTL, TimeUnit.SECONDS);
-                PlaylistDetailVO cacheVO = JSON.parseObject(cacheJson, PlaylistDetailVO.class);
-                return Result.ok(cacheVO);
+            // 查询歌单基本信息
+            Playlist playlist = playlistMapper.selectById(playlistId);
+            // 校验歌单是否存在
+            if (playlist == null) {
+                return Result.fail("歌单不存在");
             }
 
-            // 4. 高并发场景：加分布式锁（可选，防止缓存击穿）
-            boolean isLockAcquired = false;
-            RLock lock = redissonClient.getLock(RedisCacheConstants.LOCK_KEY_PLAYLIST_DETAIL + playlistId + ":" + pageNum + ":" + pageSize);
-            try {
-                // 尝试获取锁（3秒等待，30秒自动释放）
-                 isLockAcquired = lock.tryLock(3, 30, TimeUnit.SECONDS);
-                 if (!isLockAcquired) {
-                     return Result.fail("当前查询人数较多，请稍后重试");
-                 }
+            // 2. 查询歌单包含的歌曲ID列表（关联表查询）
+            Page<Music> page = new Page<>(pageNum,pageSize);
+            IPage<Music> musicPage = playlistMusicMapper.selectMusicsByPlaylistId(page, playlistId);
+            //  查询歌单创建者
+            String creator = playlistMapper.selectPlaylistCreator(playlistId);
+            String avatar = playlistMapper.selectPlaylistCreatorAvator(playlistId);
 
-                // 双重检查缓存（防止其他线程已重建缓存）
-                cacheJson = stringRedisTemplate.opsForValue().get(cacheKey);
-                if (cacheJson != null) {
-                    if (cacheJson.isEmpty()) {
-                        return Result.fail("歌单不存在");
-                    }
-                    PlaylistDetailVO cacheVO = JSON.parseObject(cacheJson, PlaylistDetailVO.class);
-                    return Result.ok(cacheVO);
+            // 3. 封装成VO（视图对象，用于返回给前端）
+            PlaylistDetailVO detailVO = new PlaylistDetailVO();
+            detailVO.setAvatar(avatar);
+            detailVO.setCreator(creator);
+            // 复制基本属性（使用BeanUtils简化代码）
+            BeanUtils.copyProperties(playlist, detailVO);
+            // 设置idStr字段
+            detailVO.setIdStr(String.valueOf(playlist.getId()));
+
+            // 5.4 批量获取音乐详情（依赖 musicService.getOneMusic 的缓存，性能最优）
+            List<MusicVO> voList = new ArrayList<>();
+            for (Music music : musicPage.getRecords()) {
+                MusicVO musicVO = musicService.getMusicVO(music.getId());
+                if (musicVO == null) {
+                    // 若单首音乐查询失败，可跳过或返回失败（根据业务选择）
+                    continue;
                 }
-
-                // 5. 缓存未命中，查 DB 聚合数据
-                // 5.1 查询歌单基本信息
-                Playlist playlist = playlistMapper.selectById(playlistId);
-                if (playlist == null) {
-                    // 缓存空值（5分钟过期，防止穿透）
-                    stringRedisTemplate.opsForValue().set(cacheKey, "", RedisCacheConstants.CACHE_EXPIRE_SECONDS, TimeUnit.SECONDS);
-                    return Result.fail("歌单不存在");
-                }
-
-                // 2. 查询歌单包含的歌曲ID列表（关联表查询）
-                Page<Music> page = new Page<>(pageNum,pageSize);
-                IPage<Music> musicPage = playlistMusicMapper.selectMusicsByPlaylistId(page, playlistId);
-                //  查询歌单创建者
-                String creator = playlistMapper.selectPlaylistCreator(playlistId);
-                String avatar = playlistMapper.selectPlaylistCreatorAvator(playlistId);
-
-                // 3. 封装成VO（视图对象，用于返回给前端）
-                PlaylistDetailVO detailVO = new PlaylistDetailVO();
-                detailVO.setAvatar(avatar);
-                detailVO.setCreator(creator);
-                // 复制基本属性（使用BeanUtils简化代码）
-                BeanUtils.copyProperties(playlist, detailVO);
-                // 设置idStr字段
-                detailVO.setIdStr(String.valueOf(playlist.getId()));
-
-                // 5.4 批量获取音乐详情（依赖 musicService.getOneMusic 的缓存，性能最优）
-                List<MusicVO> voList = new ArrayList<>();
-                for (Music music : musicPage.getRecords()) {
-                    MusicVO musicVO = musicService.getMusicVO(music.getId());
-                    if (musicVO == null) {
-                        // 若单首音乐查询失败，可跳过或返回失败（根据业务选择）
-                        // 方案2：返回失败（严格保证数据完整性）
-                        return Result.fail("音乐ID " + music.getId() + " 不存在");
-                    }
-                    voList.add(musicVO);
-                }
-
-                // 5.5 封装分页结果
-                PageResp<MusicVO> pageResult = new PageResp<>();
-                pageResult.setRecords(voList);
-                pageResult.setTotal(musicPage.getTotal());
-                pageResult.setPages(musicPage.getPages());
-                detailVO.setMusicDetailVOList(pageResult);
-
-                // 6. 写入 Redis 缓存（手动序列化）
-                String jsonStr = JSON.toJSONString(detailVO);
-                stringRedisTemplate.opsForValue().set(cacheKey, jsonStr, RedisCacheConstants.CACHE_SHORT_TTL, TimeUnit.SECONDS);
-
-                return Result.ok(detailVO);
-            } finally {
-                // 释放分布式锁（若使用）
-                 if (isLockAcquired && lock.isHeldByCurrentThread()) {
-                     lock.unlock();
-                 }
+                voList.add(musicVO);
             }
+
+            // 5.5 封装分页结果
+            PageResp<MusicVO> pageResult = new PageResp<>();
+            pageResult.setRecords(voList);
+            pageResult.setTotal(musicPage.getTotal());
+            pageResult.setPages(musicPage.getPages());
+            detailVO.setMusicDetailVOList(pageResult);
+
+            return Result.ok(detailVO);
         } catch (Exception e) {
             return Result.fail("查询歌单详情失败：" + e.getMessage());
         }
