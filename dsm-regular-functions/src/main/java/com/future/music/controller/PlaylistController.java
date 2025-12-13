@@ -65,8 +65,9 @@ public class PlaylistController {
     @GetMapping("/detail/{playlistId}")
     public Result<PlaylistDetailVO> getDetail(@RequestParam(defaultValue = "1") int pageNum,
                                               @RequestParam(defaultValue = "10") int pageSize,
-                                              @PathVariable Long playlistId) {
-        return playlistService.getPlaylistDetail(playlistId, pageNum, pageSize);
+                                              @PathVariable String playlistId) {
+        Long id = Long.valueOf(playlistId);
+        return playlistService.getPlaylistDetail(id, pageNum, pageSize);
     }
 
     /**

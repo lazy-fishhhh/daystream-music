@@ -142,6 +142,8 @@ public class PlaylistServiceImpl implements IPlaylistService {
                 detailVO.setCreator(creator);
                 // 复制基本属性（使用BeanUtils简化代码）
                 BeanUtils.copyProperties(playlist, detailVO);
+                // 设置idStr字段
+                detailVO.setIdStr(String.valueOf(playlist.getId()));
 
                 // 5.4 批量获取音乐详情（依赖 musicService.getOneMusic 的缓存，性能最优）
                 List<MusicVO> voList = new ArrayList<>();
@@ -207,6 +209,8 @@ public class PlaylistServiceImpl implements IPlaylistService {
         for (Playlist playlist : playlistPage.getRecords()) {
             PlaylistVO vo = new PlaylistVO();
             BeanUtils.copyProperties(playlist, vo);
+            // 设置idStr字段
+            vo.setIdStr(String.valueOf(playlist.getId()));
             voList.add(vo);
         }
 
@@ -331,6 +335,8 @@ public class PlaylistServiceImpl implements IPlaylistService {
                 vo.setUserName(user.getUsername());
             }
 
+            // 设置idStr字段
+            vo.setIdStr(String.valueOf(playlist.getId()));
             voList.add(vo);
         }
 
@@ -400,6 +406,8 @@ public class PlaylistServiceImpl implements IPlaylistService {
         for (Playlist playlist : playlistPage.getRecords()) {
             PlaylistVO vo = new PlaylistVO();
             BeanUtils.copyProperties(playlist, vo);
+            // 设置idStr字段
+            vo.setIdStr(String.valueOf(playlist.getId()));
             voList.add(vo);
         }
 
