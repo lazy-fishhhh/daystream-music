@@ -47,8 +47,12 @@
         musician as m
         left join user as u on m.user_id=u.id
         <where>
+            m.status = 1
+            <if test="status == null">
+                m.is_deleted in (0,1)
+            </if>
             <if test="status != null">
-                m.status = #{status}
+                and m.is_deleted = #{status}
             </if>
             <if test="key != null and key != ''">
                 AND (m.stage_name LIKE CONCAT('%', #{key}, '%')
@@ -58,4 +62,35 @@
         </where>
         ORDER BY m.created_time DESC
     </select>
+    <select id="getDteailMusica" resultType="admin.domain.vo.DetailMusicianVO">
+        select m.id,m.user_id,m.stage_name as nickname,u.email,m.is_deleted as status,m.introduction,m.created_time ,u.avatar
+        ,u.vip_expire_time,u.wallet_balance,u.fans_count
+        from
+        musician as m
+        left join user as u on m.user_id=u.id
+        <where>
+            m.status = 1
+            and m.is_deleted in (0,1)
+        </where>
+    </select>
+    <update id="updateDetail">
+        update musician
+        <set>
+            <if test="stageName!=null and stageName!=''">
+                    stage_name=#{stageName},
+            </if>
+            <if test="introduction!=null and introduction!=''">
+                    introduction=#{introduction},
+            </if>
+            <if test="avatar!=null and avatar!=''">
+                    avatar=#{avatar},
+            </if>
+            <if test="walletBalance!=null">
+                    wallet_balance=#{walletBalance},
+            </if>
+            <if test="vipExpireTime!=null">
+                    vip_expire_time=#{vipExpireTime},
+            </if>
+        </set>
+    </update>
 </mapper>

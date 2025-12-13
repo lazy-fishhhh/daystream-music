@@ -1,11 +1,7 @@
 package admin.service;
 
-import admin.domain.dto.AdminMusicianApplyDTO;
-import admin.domain.dto.MusicianDTO;
-import admin.domain.dto.MusicianListDTO;
-import admin.domain.dto.MusiciansDTO;
-import admin.domain.vo.MusicianListVO;
-import admin.domain.vo.MusicianVO;
+import admin.domain.dto.*;
+import admin.domain.vo.*;
 import entity.pojo.util.PageResp;
 import entity.pojo.util.Result;
 import org.springframework.stereotype.Service;
@@ -22,4 +18,14 @@ public interface AdminMusicianService {
 
     Result<String> deleteMusicianApply(AdminMusicianApplyDTO adminMusicianApplyDTO);
     Result<PageResp<MusicianListVO>> getMusician(MusicianListDTO musicianListDTO);
+
+    Result<BanUserStatusVO> banMusician(String musicianId);
+
+    Result<String> deleteMusician(String musicianId);
+
+    Result<String> deleteBatch(DeletedMusicianDTO deletedMusicianDTO);
+
+    Result<DetailMusicianVO> getDteailMusica(String id);
+
+    Result<String> updateMusicianInfo(UpdateMusicianDTO updateMusicianDTO);
 }

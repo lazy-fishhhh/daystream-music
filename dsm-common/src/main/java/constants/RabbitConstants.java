@@ -33,9 +33,23 @@ public final class RabbitConstants {
      */
     public static final String SECKILL_ORDER_EXCHANGE = "seckill.order.exchange";
 
+    /**
+     * 音乐业务交换机
+     */
+    public static final String MUSIC_EXCHANGE = "music.exchange";
 
 
     // ==================== 队列 (Queues) ====================
+
+     /**
+     * 音乐下载量更新队列
+     */
+    public static final String MUSIC_DOWNLOAD_QUEUE = "music.download.queue";
+
+    /**
+     * 音乐播放量更新队列
+     */
+    public static final String MUSIC_PLAY_QUEUE = "music.play.queue";
 
     /**
      * 签到队列
@@ -78,6 +92,17 @@ public final class RabbitConstants {
     public static final String SECKILL_ORDER_QUEUE = "seckill.order.queue";
 
     // ==================== 路由键 (Routing Keys) ====================
+
+     /**
+     * 音乐下载量更新路由键
+     */
+    public static final String ROUTING_KEY_MUSIC_DOWNLOAD = "music.download";
+
+    /**
+     * 音乐播放量更新路由键
+     */
+    public static final String ROUTING_KEY_MUSIC_PLAY = "music.play";
+
     /**
      * 签到路由键
      */

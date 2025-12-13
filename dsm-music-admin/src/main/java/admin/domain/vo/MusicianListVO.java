@@ -21,7 +21,7 @@ public class MusicianListVO {
      */
     private String email;
     /**
-     * 状态 0-正常 2-封禁
+     * 状态 0-正常 1-封禁
      */
     private Integer status;
     /**
