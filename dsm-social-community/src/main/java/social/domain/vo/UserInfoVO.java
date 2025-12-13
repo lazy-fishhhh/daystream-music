@@ -100,5 +100,9 @@ public class UserInfoVO {
     private Integer likeCount;
 
 
+    /**
+     * 歌单：我的喜欢
+     */
+    private Long likePlaylistId;
 }
 

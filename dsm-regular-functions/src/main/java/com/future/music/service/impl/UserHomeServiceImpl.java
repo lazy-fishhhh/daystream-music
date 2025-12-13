@@ -4,6 +4,7 @@ package com.future.music.service.impl;
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.future.login.exception.BusinessException;
@@ -34,8 +35,10 @@ import entity.pojo.util.PageReq;
 import entity.pojo.util.PageResp;
 import entity.pojo.util.Result;
 import io.swagger.models.auth.In;
+import kotlin.jvm.internal.Lambda;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.ibatis.exceptions.TooManyResultsException;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import social.domain.RoleEnum;
@@ -225,7 +228,23 @@ public class UserHomeServiceImpl implements IUserHomeService {
             Long l = likeRecordMapper.selectLikeCountByUserId(userId);
 
             userInfoVO.setLikeCount(Math.toIntExact(l));
+            // 获取歌单我的喜欢id
+            LambdaQueryWrapper<Playlist> queryWrapper = new LambdaQueryWrapper<>();
+            queryWrapper.eq(Playlist::getUserId, userId)
+                    .eq(Playlist::getName, "我的喜欢")
+                    .eq(Playlist::getDescription, "我的喜欢");
+
+            Playlist likePlaylist = playlistMapper.selectOne(queryWrapper);
+            userInfoVO.setLikePlaylistId(likePlaylist.getId());
+
             return Result.ok(userInfoVO);
+        } catch (TooManyResultsException e) {
+            log.error("用户{}存在多个「我的喜欢」歌单", SecurityUtil.getCurrentUserId(), e);
+            // 方案1：抛业务异常
+            throw new BusinessException(USER_INFO_ERROR.getCode(), "用户存在多个「我的喜欢」歌单，无法获取唯一ID");
+            // 方案2：兼容处理（取第一条结果）
+            // List<Playlist> list = playlistMapper.selectList(queryWrapper);
+            // likePlaylistId = list.get(0).getId();
         } catch (BusinessException e) {
             throw new BusinessException(e.getCode(), e.getMessage());
         } catch (Exception e){
