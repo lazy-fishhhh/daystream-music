@@ -7,6 +7,7 @@ import admin.domain.dto.UserAdminDTO;
 import admin.domain.vo.AdminUserVO;
 import admin.domain.vo.BanUserStatusVO;
 import admin.domain.vo.DetailUserVO;
+import admin.mapper.AdminMusicianMapper;
 import admin.mapper.AdminUserMapper;
 import admin.service.UserAdminService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
@@ -14,12 +15,14 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import constants.RegexPatterns;
 import entity.pojo.info.User;
+import entity.pojo.music.Musician;
 import entity.pojo.util.PageResp;
 import entity.pojo.util.Result;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Objects;
@@ -35,6 +38,8 @@ public class UserAdminServiceImpl implements UserAdminService {
     private StringRedisTemplate redisTemplate;
     @Autowired
     private BCryptPasswordEncoder bCryptPasswordEncoder;
+    @Autowired
+    private AdminMusicianMapper adminMusicianMapper;
     @Override
     public Result<PageResp<AdminUserVO>> Userlist(UserAdminDTO userAdminDTO) {
         //构建分页
@@ -52,6 +57,7 @@ public class UserAdminServiceImpl implements UserAdminService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public Result<BanUserStatusVO> BanUser(Long userId) {
         //查询用户是否存在
         LambdaQueryWrapper<User> queryWrapper = new LambdaQueryWrapper<>();
@@ -82,6 +88,18 @@ public class UserAdminServiceImpl implements UserAdminService {
                 adminUserMapper.updateById(user);
                 banUserStatusVO.setBan(true);
                 banUserStatusVO.setMsg("已封禁");
+                //同时封禁音乐人身份
+                LambdaQueryWrapper<Musician> queryWrapper1 = new LambdaQueryWrapper<>();
+                queryWrapper1.eq(Musician::getUserId, userId)
+                        .eq(Musician::getStatus,1)
+                        .eq(Musician::getIsDeleted,0);
+                Musician musician = adminMusicianMapper.selectOne(queryWrapper1);
+                if(musician!=null)
+                {
+                    //封禁音乐人
+                    musician.setIsDeleted(1);
+                    adminMusicianMapper.updateById(musician);
+                }
                 return Result.ok(banUserStatusVO);
             }
         }
@@ -89,7 +107,7 @@ public class UserAdminServiceImpl implements UserAdminService {
     }
 
     @Override
-    public Result<DetailUserVO> getDetailUser(Integer id) {
+    public Result<DetailUserVO> getDetailUser(Long id) {
         DetailUserVO detailUser = adminUserMapper.getDetailUser(id);
         if(detailUser==null)
         {

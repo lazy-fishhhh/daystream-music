@@ -14,7 +14,7 @@ public interface UserAdminService {
 
     Result<BanUserStatusVO> BanUser(Long userId);
 
-    Result<DetailUserVO> getDetailUser(Integer id);
+    Result<DetailUserVO> getDetailUser(Long id);
 
     Result<String> UpdateUser(UpdateUserDTO updateUserDTO);
 

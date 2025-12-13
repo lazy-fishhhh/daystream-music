@@ -83,7 +83,7 @@
 
     <update id="deleteMusician">
         update musician
-        set is_deleted = 1
+        set is_deleted = 2
         where id = #{id}
     </update>
 
