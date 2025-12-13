@@ -171,6 +171,7 @@ public class UserServiceImpl  implements IUserService {
             // 返回结果
             PlaylistVO playlistVO = new PlaylistVO();
             playlistVO.setId(playList.getId());
+            playlistVO.setIdStr(String.valueOf(playList.getId()));
             playlistVO.setName(playList.getName());
             playlistVO.setCover(playList.getCover());
             playlistVO.setDescription(playList.getDescription());

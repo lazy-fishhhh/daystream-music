@@ -12,6 +12,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 public class SearchPlaylistVO {
     private Long id;
+    private String idStr;
     private Long userId;
     private String name;
     private String coverUrl;

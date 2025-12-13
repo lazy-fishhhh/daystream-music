@@ -13,6 +13,7 @@ import java.util.List;
 @NoArgsConstructor
 public class PlaylistVO {
     private Long id;
+    private String idStr;
     private String name;
     private String cover;
     /** 描述信息 */

@@ -10,6 +10,8 @@ import com.future.login.util.SecurityUtil;
 import com.future.music.domain.dto.LyricLineDTO;
 import com.future.music.domain.dto.MusicPlayReportDTO;
 import com.future.music.domain.vo.*;
+import com.future.music.entity.message.MusicDownloadCountMsg;
+import com.future.music.entity.message.MusicPlayReportMqMessage;
 import com.future.music.mapper.*;
 import com.future.music.service.IMinIoService;
 
@@ -20,10 +22,7 @@ import com.future.player.entity.vo.AlbumVO;
 import com.future.player.mapper.AlbumMapper;
 import com.future.trade.entity.Vip;
 import com.future.trade.mapper.VipMapper;
-import constants.MusicConstants;
-import constants.ProjectAudioQualitySpec;
-import constants.RedisCacheConstants;
-import constants.SystemConstants;
+import constants.*;
 import entity.dto.MusicDTO;
 import entity.dto.SearchDTO;
 import entity.pojo.music.*;
@@ -35,10 +34,10 @@ import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletResponse;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.data.redis.serializer.StringRedisSerializer;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.interceptor.TransactionAspectSupport;
@@ -50,7 +49,6 @@ import util.AudioDurationUtil;
 import java.nio.charset.StandardCharsets;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
@@ -114,6 +112,9 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
 
     @Autowired
     private AudioMetadataParser metadataParser;
+
+    @Resource
+    private RabbitTemplate rabbitTemplate; // 注入 RabbitMQ 模板
 
 
     /**
@@ -521,11 +522,14 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
             // 6. 从MinIO下载文件并写入响应流（前端触发下载）
             minIoService.downloadFile(musicAudio.getAudioUrl(), response);
 
-            // 7. 更新音乐下载量（自增1）
-            music.setDownloadCount(music.getDownloadCount() + 1);
-            if (!this.updateById(music)) {
-                throw new RuntimeException("更新音乐下载数失败"); // 抛出异常，触发后续异常处理
-            }
+            // 7. 异步更新下载量
+            MusicDownloadCountMsg msg = new MusicDownloadCountMsg();
+            msg.setMusicId(musicId);
+            rabbitTemplate.convertAndSend(
+                    RabbitConstants.MUSIC_EXCHANGE,  // 交换机名称
+                    RabbitConstants.ROUTING_KEY_MUSIC_DOWNLOAD,  // 路由键
+                    musicId  // 消息体
+            );
 
         } catch (Exception e) {
             // 8. 异常处理：返回服务器错误状态和异常信息
@@ -1154,44 +1158,32 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
                 if (!locked) {
                     return Result.fail("系统繁忙，请稍后重试");
                 }
+
+                // 执行insertOrUpdate
+                userListenHistoryMapper.insertOrUpdateListenHistory(
+                        dto.getUserId(), dto.getMusicId(), dto.getPlayedDuration(),
+                        listenCount, LocalDate.now()
+                );
+
                 // 存储歌曲标签听歌记录
                 if (listenCount > 0) {
                     // 查询歌曲标签
                     List<MusicTagVO> tagNames = musicTagMapper.getTagNamesByMusicId(dto.getMusicId());
 
                     if (!tagNames.isEmpty()) {
-                        String weekId = generateWeekId(LocalDate.now());
-                        String cacheKey = MusicConstants.USER_LISTEN_TAG_WEEK + dto.getUserId() + ":" + weekId;
+                        List<MusicTagVO> tagList = musicTagMapper.getTagNamesByMusicId(dto.getMusicId());
+                        // 构建MQ消息
+                        MusicPlayReportMqMessage mqMessage = new MusicPlayReportMqMessage();
+                        mqMessage.setUserId(dto.getUserId());
+                        mqMessage.setMusicId(dto.getMusicId());
+                        mqMessage.setListenCount(listenCount);
+                        mqMessage.setTagList(tagList);
+                        mqMessage.setCurrentDate(LocalDate.now());
 
-                        // 存储标签听歌记录
-                        for (MusicTagVO tag : tagNames) {
-
-                            // 读取Redis Hash值
-                            String currentCountStr = (String) stringRedisTemplate.opsForHash().get(cacheKey, tag.getTagName());
-                            long currentCount = 0;
-                            // 安全转换：避免空值或非数字字符串导致的异常
-                            if (StringUtils.hasText(currentCountStr)) {
-                                try {
-                                    currentCount = Long.parseLong(currentCountStr);
-                                } catch (NumberFormatException e) {
-                                    // 异常时重置为0，避免数据污染
-                                    currentCount = 0;
-                                }
-                            }
-                            // 累加后存入（统一转为字符串类型）
-                            stringRedisTemplate.opsForHash().put(cacheKey, tag.getTagName(), String.valueOf(currentCount + 1));
-                            // 设置过期时间（仅首次存入时设置，避免重复覆盖）
-                            if (currentCount == 0) {
-                                stringRedisTemplate.expire(cacheKey, RedisCacheConstants.CACHE_QUESTIONNAIRE_TTL, TimeUnit.SECONDS);
-                            }
-                        }
+                        // 发送MQ消息（异步执行标签Redis写入）
+                        rabbitTemplate.convertAndSend(RabbitConstants.MUSIC_EXCHANGE, RabbitConstants.ROUTING_KEY_MUSIC_PLAY, mqMessage);
                     }
                 }
-                // 执行insertOrUpdate
-                userListenHistoryMapper.insertOrUpdateListenHistory(
-                        dto.getUserId(), dto.getMusicId(), dto.getPlayedDuration(),
-                        listenCount, LocalDate.now()
-                );
             } finally {
                 // 释放锁
                 if (lock != null && lock.isHeldByCurrentThread()) {
@@ -1268,17 +1260,6 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
                 lock.unlock();
             }
         }
-    }
-    /**
-     * 生成指定日期的周标识（周一为周初，周日为周末）
-     * @param date 播放日期（null 则取当前日期）
-     * @return 周标识，如 2025-49
-     */
-    public String generateWeekId(LocalDate date) {
-        LocalDate targetDate = date == null ? LocalDate.now() : date;
-        // 调整为本周一（确保整周统一标识）
-        LocalDate mondayOfWeek = targetDate.with(DayOfWeek.MONDAY);
-        return mondayOfWeek.format(SystemConstants.WEEK_FORMATTER);
     }
 
     /**
