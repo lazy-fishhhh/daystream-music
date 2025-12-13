@@ -12,6 +12,8 @@ import java.util.List;
 @AllArgsConstructor
 @NoArgsConstructor
 public class PlaylistDetailVO {
+    private Long id;
+    private String idStr;
     private String name;                // 歌单名字
     private String creator;             // 创建者
     private String avatar ;             // 创建者头像
