@@ -52,6 +52,8 @@
             mm.share_count, 
             mm.is_vip, 
             mm.status,
+            mm.create_time,
+            mm.update_time,
             mvr.quality_type,
             mvr.mv_url as quality_mv_url,
             mvr.file_size,
@@ -79,6 +81,8 @@
             mm.share_count, 
             mm.is_vip, 
             mm.status,
+            mm.create_time,
+            mm.update_time,
             mvr.quality_type,
             mvr.mv_url as quality_mv_url,
             mvr.file_size,
@@ -93,60 +97,7 @@
         AND mm.status = 1
     </select>
 
-    <!-- 根据音乐人ID查询其所有MV作品 -->
-    <select id="selectMvVOsByMusicianId" resultMap="MusicMvVOMap">
-        SELECT 
-            mm.id, 
-            mm.mv_name, 
-            mm.music_id, 
-            mm.duration, 
-            mm.cover_url, 
-            mm.release_time, 
-            mm.play_count, 
-            mm.like_count, 
-            mm.comment_count, 
-            mm.share_count, 
-            mm.is_vip, 
-            mm.status,
-            mvr.quality_type,
-            mvr.mv_url as quality_mv_url,
-            mvr.file_size,
-            mvr.is_vip_limit
-        FROM music_mv mm
-        LEFT JOIN music m ON mm.music_id = m.id
-        LEFT JOIN mv_quality_relation mvr ON mm.id = mvr.mv_id
-        WHERE mm.musician_id = #{musicianId}
-        AND mm.status = 1
-        ORDER BY mm.release_time DESC
-    </select>
 
-    <!-- 根据音乐人ID分页查询其所有MV作品 -->
-    <select id="selectMvVOsByMusicianIdPage" resultMap="MusicMvVOMap">
-        SELECT 
-            mm.id, 
-            mm.mv_name, 
-            mm.music_id, 
-            m.music_name, 
-            mm.duration, 
-            mm.cover_url, 
-            mm.release_time, 
-            mm.play_count, 
-            mm.like_count, 
-            mm.comment_count, 
-            mm.share_count, 
-            mm.is_vip, 
-            mm.status,
-            mvr.quality_type,
-            mvr.mv_url as quality_mv_url,
-            mvr.file_size,
-            mvr.is_vip_limit
-        FROM music_mv mm
-        LEFT JOIN music m ON mm.music_id = m.id
-        LEFT JOIN mv_quality_relation mvr ON mm.id = mvr.mv_id
-        WHERE mm.musician_id = #{musicianId}
-        AND mm.status = 1
-        ORDER BY mm.release_time DESC
-    </select>
 
     <!-- 根据音乐ID查询对应的MV -->
     <select id="selectMvByMusicId" resultMap="MusicMvVOMap">
@@ -164,6 +115,8 @@
             mm.share_count, 
             mm.is_vip, 
             mm.status,
+            mm.create_time,
+            mm.update_time,
             mvr.quality_type,
             mvr.mv_url as quality_mv_url,
             mvr.file_size,
@@ -198,6 +151,8 @@
             mm.share_count, 
             mm.is_vip, 
             mm.status,
+            mm.create_time,
+            mm.update_time,
             mvr.quality_type,
             mvr.mv_url as quality_mv_url,
             mvr.file_size,
@@ -225,6 +180,8 @@
             mm.share_count, 
             mm.is_vip, 
             mm.status,
+            mm.create_time,
+            mm.update_time,
             mvr.quality_type,
             mvr.mv_url as quality_mv_url,
             mvr.file_size,
@@ -252,6 +209,8 @@
             mm.share_count, 
             mm.is_vip, 
             mm.status,
+            mm.create_time,
+            mm.update_time,
             mvr.quality_type,
             mvr.mv_url as quality_mv_url,
             mvr.file_size,

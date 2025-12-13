@@ -133,14 +133,4 @@ public class MusicMvController {
         return musicMvService.getVipMvs(pageNum, pageSize);
     }
 
-    /**
-     * 更新MV播放量
-     * @param mvId MV ID
-     * @return 更新结果
-     */
-    @ApiOperation(value = "更新MV播放量")
-    @PostMapping("/play/{mvId}")
-    public Result<Boolean> updatePlayCount(@PathVariable Long mvId) {
-        return musicMvService.updatePlayCount(mvId);
-    }
 }

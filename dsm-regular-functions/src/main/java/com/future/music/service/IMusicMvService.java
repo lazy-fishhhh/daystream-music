@@ -94,10 +94,5 @@ public interface IMusicMvService extends IService<MusicMv> {
      */
     Result<PageResp<MusicMvVO>> getVipMvs(Integer pageNum, Integer pageSize);
 
-    /**
-     * 更新MV播放量
-     * @param mvId MV ID
-     * @return 更新结果
-     */
-    Result<Boolean> updatePlayCount(Long mvId);
+
 }

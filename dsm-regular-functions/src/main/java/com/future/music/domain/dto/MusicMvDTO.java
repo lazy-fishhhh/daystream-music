@@ -1,6 +1,7 @@
 package com.future.music.domain.dto;
 
 import annotation.IsZeroOrOne;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import lombok.Data;
@@ -61,6 +62,9 @@ public class MusicMvDTO {
     /**
      * MV多画质列表
      */
+    @Valid
+    // JSR-380 校验框架默认不会递归校验嵌套对象，
+    // 必须给qualityList字段显式添加@Valid注解，才能触发其内部字段的校验
     private List<MvQualityDTO> qualityList;
 
     /**

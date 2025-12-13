@@ -6,6 +6,7 @@ import cn.hutool.core.lang.Assert;
 import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.toolkit.CollectionUtils;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
@@ -13,9 +14,12 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.future.login.exception.BusinessException;
+import com.future.login.util.SecurityUtil;
 import com.future.music.domain.dto.MusicMvDTO;
+import com.future.music.mapper.LikeRecordMapper;
 import com.future.music.mapper.MusicMapper;
 import com.future.music.mapper.MusicMvMapper;
+import com.future.music.mapper.UserCollectionMapper;
 import com.future.music.service.IFileService;
 import com.future.music.service.IMinIoService;
 import com.future.music.service.IMusicMvService;
@@ -23,6 +27,8 @@ import com.future.music.service.IMvQualityRelationService;
 import entity.pojo.music.Music;
 import entity.pojo.music.MusicMv;
 import entity.pojo.music.MvQualityRelation;
+import entity.pojo.social.LikeRecord;
+import entity.pojo.social.UserCollection;
 import entity.pojo.util.PageResp;
 import entity.pojo.util.Result;
 import entity.dto.FileUploadDTO;
@@ -60,8 +66,11 @@ public class MusicMvServiceImpl extends ServiceImpl<MusicMvMapper, MusicMv> impl
 
     private final IMinIoService minIoService;
 
-
     private final IFileService fileService;
+
+    private final LikeRecordMapper likeRecordMapper;
+
+    private final UserCollectionMapper userCollectionMapper;
 
     /**
      * 上传MV文件
@@ -162,16 +171,16 @@ public class MusicMvServiceImpl extends ServiceImpl<MusicMvMapper, MusicMv> impl
                         continue; // 跳过空数据，或抛出异常
                     }
                     if (qualityDTO.getQualityType() == null || !List.of(1, 2, 3, 4).contains(qualityDTO.getQualityType())) {
-                        throw new RuntimeException("画质类型非法：仅支持1(480P)/2(720P)/3(1080P)/4(4K)");
+                        throw new BusinessException("画质类型非法10007","画质类型非法：仅支持1(480P)/2(720P)/3(1080P)/4(4K)");
                     }
                     if (!StringUtils.hasText(qualityDTO.getMvUrl())) {
-                        throw new RuntimeException("画质类型" + qualityDTO.getQualityType() + "的播放地址不能为空");
+                        throw new BusinessException("画质类型10008" ,"画质类型" + qualityDTO.getQualityType() + "的播放地址不能为空");
                     }
                     if (qualityDTO.getFileSize() == null || qualityDTO.getFileSize() <= 0) {
-                        throw new RuntimeException("画质类型" + qualityDTO.getQualityType() + "的文件大小必须为正整数");
+                        throw new BusinessException("画质类型10009" ,"画质类型" + qualityDTO.getQualityType() + "的文件大小必须为正整数");
                     }
                     if (qualityDTO.getIsVipLimit() == null || !List.of(0, 1).contains(qualityDTO.getIsVipLimit())) {
-                        throw new RuntimeException("画质类型" + qualityDTO.getQualityType() + "的VIP限制标识非法：仅支持0/1");
+                        throw new BusinessException("画质类型10010" ,"画质类型" + qualityDTO.getQualityType() + "的VIP限制标识非法：仅支持0/1");
                     }
 
                     // 构建画质关联表数据
@@ -373,6 +382,13 @@ public class MusicMvServiceImpl extends ServiceImpl<MusicMvMapper, MusicMv> impl
             if (mvDetail == null) {
                 return Result.fail("MV不存在");
             }
+            setLikeAndCollectStatus(mvDetail);
+
+            LambdaUpdateWrapper<MusicMv> updateWrapper = new LambdaUpdateWrapper<>();
+            updateWrapper.eq(MusicMv::getId, mvId)
+                    .setSql("play_count = play_count + 1");
+            this.update(null, updateWrapper);
+
             return Result.ok(mvDetail);
         } catch (Exception e) {
             return Result.fail("查询MV详情失败: " + e.getMessage());
@@ -391,6 +407,9 @@ public class MusicMvServiceImpl extends ServiceImpl<MusicMvMapper, MusicMv> impl
         try {
             Page<MusicMvVO> page = new Page<>(pageNum, pageSize);
             IPage<MusicMvVO> mvPage = musicMvMapper.selectMvVOsByMusicianIdPage(page, musicianId);
+            if (mvPage != null && !mvPage.getRecords().isEmpty()) {
+                mvPage.getRecords().forEach(this::setLikeAndCollectStatus);
+            }
             return Result.ok(mvPage);
         } catch (Exception e) {
             return Result.fail("查询音乐人MV列表失败: " + e.getMessage());
@@ -409,6 +428,7 @@ public class MusicMvServiceImpl extends ServiceImpl<MusicMvMapper, MusicMv> impl
             if (mvDetail == null) {
                 return Result.fail("该音乐没有对应的MV");
             }
+            setLikeAndCollectStatus(mvDetail);
             return Result.ok(mvDetail);
         } catch (Exception e) {
             return Result.fail("查询音乐对应的MV失败: " + e.getMessage());
@@ -429,6 +449,9 @@ public class MusicMvServiceImpl extends ServiceImpl<MusicMvMapper, MusicMv> impl
             IPage<MusicMvVO> mvPage = musicMvMapper.selectHotMvsPage(page);
 
             PageResp<MusicMvVO> musicMvVOPageResp = convertToPageResp(mvPage);
+            if (musicMvVOPageResp != null && !musicMvVOPageResp.getRecords().isEmpty()) {
+                musicMvVOPageResp.getRecords().forEach(this::setLikeAndCollectStatus);
+            }
             return Result.ok(musicMvVOPageResp);
         } catch (Exception e) {
             return Result.fail("查询热门MV列表失败: " + e.getMessage());
@@ -448,6 +471,9 @@ public class MusicMvServiceImpl extends ServiceImpl<MusicMvMapper, MusicMv> impl
             Page<MusicMvVO> page = new Page<>(pageNum, pageSize);
             IPage<MusicMvVO> mvPage = musicMvMapper.selectNewMvsPage(page);
             PageResp<MusicMvVO> musicMvVOPageResp = convertToPageResp(mvPage);
+            if (musicMvVOPageResp != null && !musicMvVOPageResp.getRecords().isEmpty()) {
+                musicMvVOPageResp.getRecords().forEach(this::setLikeAndCollectStatus);
+            }
             return Result.ok(musicMvVOPageResp);
         } catch (Exception e) {
             return Result.fail("查询最新MV列表失败: " + e.getMessage());
@@ -467,24 +493,52 @@ public class MusicMvServiceImpl extends ServiceImpl<MusicMvMapper, MusicMv> impl
             Page<MusicMvVO> page = new Page<>(pageNum, pageSize);
             IPage<MusicMvVO> mvPage = musicMvMapper.selectVipMvsPage(page);
             PageResp<MusicMvVO> musicMvVOPageResp = convertToPageResp(mvPage);
+            if (musicMvVOPageResp != null && !musicMvVOPageResp.getRecords().isEmpty()) {
+                musicMvVOPageResp.getRecords().forEach(this::setLikeAndCollectStatus);
+            }
             return Result.ok(musicMvVOPageResp);
         } catch (Exception e) {
             return Result.fail("查询VIP专属MV列表失败: " + e.getMessage());
         }
     }
 
+
+
     /**
-     * 更新MV播放量
-     * @param mvId MV ID
-     * @return 更新结果
+     * 设置MV的点赞和收藏状态
      */
-    @Override
-    public Result<Boolean> updatePlayCount(Long mvId) {
+    private void setLikeAndCollectStatus(MusicMvVO musicMvVO) {
         try {
-            int updateCount = musicMvMapper.updatePlayCount(mvId, 1L);
-            return Result.ok(updateCount > 0);
+            Long userId = SecurityUtil.getCurrentUserId();
+            if (userId != null) {
+                // 查询点赞状态
+                LikeRecord likeRecord = likeRecordMapper.selectOne(
+                        Wrappers.<LikeRecord>lambdaQuery()
+                                .eq(LikeRecord::getUserId, userId)
+                                .eq(LikeRecord::getTargetType, 3) // 3表示MV
+                                .eq(LikeRecord::getTargetId, musicMvVO.getId())
+                                .eq(LikeRecord::getIsCanceled, 0)
+                );
+                musicMvVO.setIsLiked(likeRecord != null ? 1 : 0);
+
+                // 查询收藏状态
+                UserCollection userCollection = userCollectionMapper.selectOne(
+                        Wrappers.<UserCollection>lambdaQuery()
+                                .eq(UserCollection::getUserId, userId)
+                                .eq(UserCollection::getTargetType, 3) // 3表示MV
+                                .eq(UserCollection::getTargetId, musicMvVO.getId())
+                                .eq(UserCollection::getIsCanceled, 0)
+                );
+                musicMvVO.setIsCollected(userCollection != null ? 1 : 0);
+            } else {
+                // 用户未登录，默认未点赞和未收藏
+                musicMvVO.setIsLiked(0);
+                musicMvVO.setIsCollected(0);
+            }
         } catch (Exception e) {
-            return Result.fail("更新MV播放量失败: " + e.getMessage());
+            // 如果获取用户信息失败，默认未点赞和未收藏
+            musicMvVO.setIsLiked(0);
+            musicMvVO.setIsCollected(0);
         }
     }
 
