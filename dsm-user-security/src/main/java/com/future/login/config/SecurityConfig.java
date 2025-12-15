@@ -45,7 +45,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
 
                         .requestMatchers( "/ai/chat",
-                                "ai/music/create",
+                                "/ai/music/create",
                                 "/resources/**",
                                 "/login/*",
                                 "/rejester/**").permitAll()
