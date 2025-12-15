@@ -25,6 +25,7 @@ import entity.pojo.social.LikeRecord;
 import entity.pojo.util.PageResp;
 import entity.pojo.util.Result;
 import jakarta.annotation.Resource;
+import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
@@ -39,6 +40,8 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+
+@Slf4j
 @Service
 public class PlaylistServiceImpl implements IPlaylistService {
 
@@ -652,6 +655,7 @@ public class PlaylistServiceImpl implements IPlaylistService {
                             .eq("target_type", 1) // 目标类型：1=音乐
                             .eq("target_id", musicVO.getId());
                     LikeRecord likeRecord = likeRecordMapper.selectOne(likeWrapper);
+                    log.info("isLiked: {}", likeRecord != null ? 1 : 0);
                     musicVO.setIsLiked(likeRecord != null ? 1 : 0);
                 }
             } else {

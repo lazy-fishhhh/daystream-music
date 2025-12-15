@@ -136,12 +136,7 @@ public class ReportServiceImpl implements ReportService {
                 //判断音乐人
                 LambdaQueryWrapper<Musician> musicianWrapper=new LambdaQueryWrapper<>();
                 musicianWrapper.eq(Musician::getUserId,targetId)
-                        .in(Musician::getStatus,0,1,2);
-                if(adminMusicianMapper.selectOne(musicianWrapper)==null)
-                {
-                    return Result.fail("音乐人不存在");
-                }
-                musicianWrapper.in(Musician::getStatus,0,2);
+               .in(Musician::getStatus,0,2);
                 if(adminMusicianMapper.selectOne(musicianWrapper)!=null)
                 {
                     return Result.fail("音乐人不存在");
@@ -149,7 +144,7 @@ public class ReportServiceImpl implements ReportService {
                 LambdaQueryWrapper<Musician> musicianWrapper1=new LambdaQueryWrapper<>();
                 musicianWrapper1.eq(Musician::getUserId,targetId)
                         .eq(Musician::getStatus,1)
-                        .eq(Musician::getIsDeleted,1);
+                        .eq(Musician::getIsDeleted,2);
                 if(adminMusicianMapper.selectOne(musicianWrapper1)!=null)
                 {
                     return Result.fail("该音乐人已注销，无法操作");

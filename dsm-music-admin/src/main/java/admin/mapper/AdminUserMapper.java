@@ -16,7 +16,7 @@ public interface AdminUserMapper extends BaseMapper<User> {
     IPage<AdminUserVO> getUserList(@Param("page") Page<AdminUserVO> page,
                                    @Param("status")Integer status,
                                    @Param("key")String key);
-    DetailUserVO getDetailUser(@Param("id")Integer id);
+    DetailUserVO getDetailUser(@Param("id")Long id);
 
     void updateUser(UpdateUserDTO updateUserDTO);
 }

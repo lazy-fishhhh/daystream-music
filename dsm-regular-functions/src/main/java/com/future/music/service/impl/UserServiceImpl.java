@@ -34,8 +34,8 @@ import io.swagger.models.auth.In;
 import jakarta.annotation.Resource;
 
 import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
+
 import lombok.RequiredArgsConstructor;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
@@ -194,8 +194,11 @@ public class UserServiceImpl  implements IUserService {
         if (playlist1 == null){
             throw new BusinessException("10002","歌单不存在");
         }
-        if (playlist1.getName().equals("我的喜欢")){
-            throw new BusinessException("10001","歌单'我的喜欢'信息不允许修改");
+        if (!Objects.equals(dto.getName(), "我的喜欢")){
+            throw new BusinessException("10001","此歌单名称不允许修改");
+        }
+        if (!Objects.equals(dto.getDescription(), "我的喜欢")){
+            throw new BusinessException("10001","此歌单描述不允许修改");
         }
 
         LoginUserDetails loginUser = (LoginUserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal();

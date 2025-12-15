@@ -15,10 +15,10 @@
                 u.user_status in (0,1)
             </if>
             <if test="status != null">
-                u.user_status = #{status}
+                and u.user_status = #{status}
             </if>
             <if test="key!=null and key!=''">
-                u.username like concat('%',#{key},'%')
+                and u.username like concat('%',#{key},'%')
             </if>
         </where>
         order by u.created_time desc

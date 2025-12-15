@@ -10,6 +10,8 @@ import entity.pojo.util.Result;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -29,15 +31,15 @@ public class AdminUserController {
     }
     @ApiOperation(value = "封禁/解禁用户")
     @GetMapping("/banUser")
-    public Result<BanUserStatusVO> BanUser(@RequestParam(value = "userId",required = true)Long userId)
+    public Result<BanUserStatusVO> BanUser(@NotNull(message = "用户ID不能为空") @RequestParam(value = "userId",required = true)Long userId)
     {
         return userAdminService.BanUser(userId);
     }
     @ApiOperation(value = "查看用户详情")
     @GetMapping("detailUser")
-    public Result<DetailUserVO> DetailUser(@RequestParam Integer id)
+    public Result<DetailUserVO> DetailUser(@NotNull(message = "用户ID不能为空") @RequestParam(value = "userId",required = true) Long userId)
     {
-        return userAdminService.getDetailUser(id);
+        return userAdminService.getDetailUser(userId);
     }
     @ApiOperation(value = "修改用户信息")
     @PostMapping("/updateUser")
@@ -53,7 +55,7 @@ public class AdminUserController {
     }
     @ApiOperation(value = "删除用户")
     @GetMapping("/deleteUser")
-    public Result<String> DeleteUser(@RequestParam(value = "userId",required = true)Long userId)
+    public Result<String> DeleteUser(@NotNull(message = "用户ID不能为空")@RequestParam(value = "userId",required = true)Long userId)
     {
         return userAdminService.DeleteUser(userId);
     }
