@@ -1,11 +1,5 @@
 langchain4j:
   open-ai:
-    chat-model:
-      api-key: ${API-KEY:sk-576746ec85384deea25770688e439042}
-      base-url: https://dashscope.aliyuncs.com/compatible-mode/v1
-      model-name: qwen-flash
-      log-responses: true
-      log-requests: true
     # 流式输出
     streaming-chat-model:
       api-key: ${API-KEY:sk-576746ec85384deea25770688e439042}
@@ -33,6 +27,35 @@ spring:
       host: 39.96.214.163
       port: 6379
       password: AL1234@
+  rabbitmq:
+    host: 39.96.214.163
+    port: 5672
+    username: DayStreamMusic
+    password: 123456
+    virtual-host: /DayStreamMusic
+    listener:
+      simple:
+        prefetch: 1
+        acknowledge-mode: auto # 消费者确认机制
+        retry:
+          enabled: true  # 开启消费者失败重试
+          initial-interval: 1000ms # 初始的失败等待时长为1秒
+          max-attempts: 3 # 最大失败重试次数
+          stateless: true # true无状态 false有状态。如果业务中包含事务，这里改为false
+
+    # 生产者重连配置
+    connection-timeout: 200ms # 连接超时时间
+    template:
+      retry:
+        enabled: true # 开启超时重试机制
+        initial-interval: 1000ms # 失败后的重连间隔时间
+        max-attempts: 3 # 最大重试次数
+        multiplier: 1 # 重试间隔时间 multiplier 倍增长
+    #生成者确认机制
+    # 开启RabbitMQ的发布者确认（Publisher Confirm）机制。
+    # 该机制确保生产者发送的消息已成功被RabbitMQ交换机接收。
+    publisher-confirm-type: correlated # 开启确认模式
+    publisher-returns: true # 开启返回模式
 
 mybatis-plus:
   configuration:

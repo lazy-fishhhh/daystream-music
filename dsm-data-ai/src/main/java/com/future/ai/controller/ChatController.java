@@ -54,7 +54,7 @@ public class ChatController {
     }
 
     @ApiOperation("创作歌曲")
-    @RequestMapping(value = "music/create", produces = "text/html;charset=utf-8")
+    @RequestMapping(value = "/music/create", produces = "text/html;charset=utf-8")
     public Flux<String> createSong(String memoryId, String request) {
         // 检查用户是否已登录
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();

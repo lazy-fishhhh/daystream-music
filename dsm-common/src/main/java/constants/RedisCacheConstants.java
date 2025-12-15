@@ -175,4 +175,11 @@ public class RedisCacheConstants {
 
     /** 音乐存在性缓存 Key 前缀（音乐ID） */
     public static final String MUSIC_EXIST_KEY_PREFIX = "music:exist:";
+
+    /** 咨询聊天缓存 Key 前缀（会话ID） */
+    public static final String AI_CHAT = "ai:chat:";
+
+    /** 音乐创作缓存 Key 前缀（会话ID） */
+    public static final String AI_CREATE = "ai:create:";
+
 }

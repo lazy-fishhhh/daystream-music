@@ -7,7 +7,12 @@ import dev.langchain4j.service.UserMessage;
 import dev.langchain4j.service.spring.AiService;
 import reactor.core.publisher.Flux;
 
-@AiService
+import static dev.langchain4j.service.spring.AiServiceWiringMode.EXPLICIT;
+
+@AiService(
+        wiringMode = EXPLICIT,
+        streamingChatModel = "openAiStreamingChatModel",
+        chatMemoryProvider = "createChatMemoryProvider")
 public interface MusicCreationService {
 
     // 系统提示：强约束回答格式+功能边界

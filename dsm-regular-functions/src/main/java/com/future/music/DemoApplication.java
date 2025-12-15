@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.*;
 @MapperScan({
         "com.future.login.mapper",
         "com.future.music.mapper",
+        "com.future.ai.mapper",
             "social.mapper",
             "com.future.trade.mapper",
             "com.future.player.mapper",

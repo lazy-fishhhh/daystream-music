@@ -1,5 +1,7 @@
 package com.future.ai.config;
 
+import com.future.ai.repository.ConsultantChatMemoryStore;
+import com.future.ai.repository.CreateChatMemoryStore;
 import dev.langchain4j.data.document.Document;
 import dev.langchain4j.data.document.DocumentSplitter;
 import dev.langchain4j.data.document.loader.ClassPathDocumentLoader;
@@ -26,20 +28,45 @@ import java.util.List;
 public class CommonConfig {
 
     @Resource
-    private ChatMemoryStore redisChatMemoryStore;
-
-    @Resource
     private EmbeddingModel embeddingModel;
 
+    @Resource
+    private CreateChatMemoryStore createChatMemoryStore;
+
+    @Resource
+    private ConsultantChatMemoryStore consultantChatMemoryStore;
+
+//    @Bean
+//    public ChatMemoryStore createChatMemoryStore() {
+//        return new CreateChatMemoryStore();
+//    }
     @Bean
-    public ChatMemoryProvider chatMemoryProvider(){
+    public ChatMemoryProvider createChatMemoryProvider(){
         return new ChatMemoryProvider() {
             @Override
             public ChatMemory get(Object memoryId) {
                 return MessageWindowChatMemory.builder()
                         .id(memoryId)
                         .maxMessages(20)
-                        .chatMemoryStore(redisChatMemoryStore)
+                        .chatMemoryStore(createChatMemoryStore)
+                        .build();
+            }
+        };
+    }
+
+//    @Bean
+//    public ChatMemoryStore consultantChatMemoryStore() {
+//        return new ConsultantChatMemoryStore();
+//    }
+    @Bean
+    public ChatMemoryProvider consultantChatMemoryProvider(){
+        return new ChatMemoryProvider() {
+            @Override
+            public ChatMemory get(Object memoryId) {
+                return MessageWindowChatMemory.builder()
+                        .id(memoryId)
+                        .maxMessages(20)
+                        .chatMemoryStore(consultantChatMemoryStore)
                         .build();
             }
         };
