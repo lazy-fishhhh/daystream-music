@@ -105,6 +105,7 @@ public class PlaylistServiceImpl implements IPlaylistService {
             PlaylistDetailVO detailVO = new PlaylistDetailVO();
             detailVO.setAvatar(avatar);
             detailVO.setCreator(creator);
+            detailVO.setCollectionCount(playlist.getCollectCount());
             // 复制基本属性（使用BeanUtils简化代码）
             BeanUtils.copyProperties(playlist, detailVO);
             // 设置idStr字段
