@@ -14,7 +14,8 @@ public interface Report2Mapper extends BaseMapper<UserReport> {
     IPage<ReportVO> reportList(@Param("page") Page<ReportVO> page,
                                @Param("type")Integer type,
                                @Param("reason")Integer  reason,
-                               @Param("key")String key);
+                               @Param("key")String key,
+                               @Param("status")Integer status);
 
     @Update("update user_report set handler_id=#{userId},updated_time=now(),handle_status=#{status} where id=#{reportId}")
     void updatehandle(@Param("reportId")Long reportId,@Param("userId")Long userId,@Param("status")Integer status);

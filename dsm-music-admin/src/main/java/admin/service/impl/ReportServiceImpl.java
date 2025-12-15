@@ -52,7 +52,7 @@ public class ReportServiceImpl implements ReportService {
     public Result<PageResp<ReportVO>> getReportList(ReportDTO reportDTO) {
         //构建分页
         Page<ReportVO> page =new Page<>(reportDTO.getPageNum(),reportDTO.getPageSize());
-        IPage<ReportVO> reportVOIPage = reportMapper.reportList(page, reportDTO.getStatus(), reportDTO.getType(), reportDTO.getKey());
+        IPage<ReportVO> reportVOIPage = reportMapper.reportList(page, reportDTO.getType(), reportDTO.getReason(), reportDTO.getKey(),reportDTO.getStatus());
         PageResp<ReportVO> pageResp = new PageResp<>();
         pageResp.setTotal(reportVOIPage.getTotal());
         pageResp.setPages(reportVOIPage.getPages());
