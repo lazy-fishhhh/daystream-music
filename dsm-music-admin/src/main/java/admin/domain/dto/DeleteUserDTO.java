@@ -10,6 +10,6 @@ public class DeleteUserDTO {
     /**
      * 用户id
      */
-    @NotNull(message = "用户id不能为空")
+    @NotNull(message = "id不能为空")
     private List<Long> userId;
 }

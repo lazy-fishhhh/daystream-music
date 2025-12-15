@@ -4,7 +4,6 @@ import entity.pojo.util.Result;
 import org.springframework.stereotype.Service;
 import social.domain.dto.*;
 
-@Service
 public interface CommentService {
     //发布评论
     Result releaseComment(CommentDTO commentDTO);

@@ -7,7 +7,6 @@ import social.domain.dto.CommunityVOListDTO;
 import social.domain.dto.MyPostDTO;
 import social.domain.dto.UpdatePostDTO;
 
-@Service
 public interface CommunityPostService {
     Result releasePost(CommunityDTO communityDTO);
 

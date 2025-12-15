@@ -57,4 +57,5 @@ public interface CommunityPostMapper extends BaseMapper<CommunityPost> {
                                  @Param("page") Page<CommunityPost> page,
                                  @Param("status")Integer status,
                                  @Param("key")String key);
+
 }

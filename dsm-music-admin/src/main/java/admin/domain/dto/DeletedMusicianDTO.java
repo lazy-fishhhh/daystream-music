@@ -10,6 +10,6 @@ public class DeletedMusicianDTO {
     /**
      * 音乐人id
      */
-    @NotNull(message = "音乐人id不能为空")
+    @NotNull(message = "id不能为空")
     private List<String> musicianIds;
 }

@@ -12,7 +12,6 @@ import org.apache.ibatis.annotations.Update;
 @Mapper
 public interface Report2Mapper extends BaseMapper<UserReport> {
     IPage<ReportVO> reportList(@Param("page") Page<ReportVO> page,
-                               @Param("status")Integer status,
                                @Param("type")Integer type,
                                @Param("reason")Integer  reason,
                                @Param("key")String key);

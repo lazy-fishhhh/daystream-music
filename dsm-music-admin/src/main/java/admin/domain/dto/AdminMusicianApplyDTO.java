@@ -10,5 +10,5 @@ public class AdminMusicianApplyDTO {
      * 批量操作的审批id
      */
     @NotNull(message = "批量操作的审批id不能为空")
-    private List<Long> applyId;
+    private List<String> applyId;
 }

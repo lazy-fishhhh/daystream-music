@@ -6,7 +6,6 @@ import entity.pojo.util.PageResp;
 import entity.pojo.util.Result;
 import org.springframework.stereotype.Service;
 
-@Service
 public interface AdminMusicianService {
     Result<PageResp<MusicianVO>> getMusicianList(MusiciansDTO musicianDTO);
 

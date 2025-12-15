@@ -5,7 +5,7 @@
 <mapper namespace="admin.mapper.AdminUserMapper">
     <select id="getUserList" resultType="admin.domain.vo.AdminUserVO">
         select u.id,u.username,u.email,u.user_status as status,u.created_time,
-       u.avatar,r.role_name as role
+       u.avatar,r.role_name as role,u.vip_expire_time
         from
         user as u
         left join user_role as ur on u.id=ur.user_id
