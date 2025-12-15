@@ -24,6 +24,7 @@ public class PlaylistDetailVO {
     private LocalDateTime createdTime;  // 创建时间
     private Long commentCount;          // 评论数
     private Long collectionCount;       // 收藏数
+    private Integer isPublic;
 
     private PageResp<MusicVO> musicDetailVOList;  // 音乐
 }
