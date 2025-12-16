@@ -2,6 +2,7 @@ package com.future.music.controller;
 
 
 import com.future.login.util.SecurityUtil;
+import com.future.music.domain.dto.MusicPlayDTO;
 import com.future.music.domain.dto.MusicPlayReportDTO;
 import com.future.music.domain.vo.*;
 import com.future.music.service.IMusicService;
@@ -100,9 +101,8 @@ public class MusicController {
 
     @ApiOperation(value = "播放音乐（获取播放链接）")
     @PostMapping("/play")
-    public Result<MusicPlayVO> playMusic(@RequestParam String musicId,
-                                         @RequestParam Integer quality) {
-        return iMusicService.playMusic(Long.parseLong(musicId), quality);
+    public Result<MusicPlayVO> playMusic(@RequestBody MusicPlayDTO dto) {
+        return iMusicService.playMusic(Long.parseLong(dto.getMusicId()), dto.getQuality());
     }
 
     @ApiOperation(value = "上报播放状态（统计播放量）")
