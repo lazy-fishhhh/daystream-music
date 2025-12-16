@@ -48,8 +48,6 @@ public interface IMinIoService {
     //判断文件是否存在
     boolean isObjectExists(String objectName);
 
-    Instant getObjectLastModified(String objectName) throws Exception;
-
     boolean isAllowedFile(MultipartFile file, String type);
 
     String generatePresignedUrl(String objectName, int expireSeconds);
@@ -58,11 +56,6 @@ public interface IMinIoService {
      * 上传图片输入流到MinIO
      */
     public String uploadFileStream(InputStream is, String fileName, String contentType);
-
-    /**
-     * 从MinIO下载图片为BufferedImage
-     */
-    public BufferedImage downloadImage(String objectName);
 
     /**
      * 上传分片文件到MinIO

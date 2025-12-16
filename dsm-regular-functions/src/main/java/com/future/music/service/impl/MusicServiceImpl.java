@@ -8,6 +8,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.future.login.util.SecurityUtil;
 import com.future.music.domain.dto.LyricLineDTO;
+import com.future.music.domain.dto.MusicPlayDTO;
 import com.future.music.domain.dto.MusicPlayReportDTO;
 import com.future.music.domain.vo.*;
 import com.future.music.entity.message.MusicDownloadCountMsg;
@@ -1004,15 +1005,18 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
     }
 
     @Override
-    public Result<MusicPlayVO> playMusic(Long musicId, Integer quality) {
+    public Result<MusicPlayVO> playMusic(MusicPlayDTO dto) {
         try {
+            // 从DTO中提取音乐ID和音质类型
+            Long musicId = Long.parseLong(dto.getMusicId());
+            Integer quality = dto.getQuality();
             // 1. 参数校验
             // 音乐ID非空且为正数
-            if (musicId == null || musicId <= 0) {
+            if (musicId <= 0) {
                 return Result.fail("音乐ID出错");
             }
             // 音质类型合法（1-4）
-            if (quality == null || !(quality == 1 || quality == 2 || quality == 3 || quality == 4)) {
+            if (!(quality == 1 || quality == 2 || quality == 3 || quality == 4)) {
                 return Result.fail("音质类型出错");
             }
 

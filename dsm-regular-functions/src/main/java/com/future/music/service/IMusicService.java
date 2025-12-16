@@ -2,6 +2,7 @@ package com.future.music.service;
 
 import com.baomidou.mybatisplus.extension.service.IService;
 
+import com.future.music.domain.dto.MusicPlayDTO;
 import com.future.music.domain.dto.MusicPlayReportDTO;
 import com.future.music.domain.vo.*;
 import entity.dto.MusicDTO;
@@ -34,7 +35,7 @@ public interface IMusicService extends IService<Music> {
     PageResp<MusicVO> searchMusic(SearchDTO dto);
     PageResp<SearchAlbumVO> searchAlbum(SearchDTO dto);
 
-    Result<MusicPlayVO> playMusic(Long musicId, Integer quality);
+    Result<MusicPlayVO> playMusic(MusicPlayDTO dto);
 
     Result<Void> reportPlayStatus(MusicPlayReportDTO dto);
 

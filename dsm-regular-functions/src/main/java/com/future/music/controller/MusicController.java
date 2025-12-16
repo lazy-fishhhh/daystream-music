@@ -102,7 +102,7 @@ public class MusicController {
     @ApiOperation(value = "播放音乐（获取播放链接）")
     @PostMapping("/play")
     public Result<MusicPlayVO> playMusic(@RequestBody MusicPlayDTO dto) {
-        return iMusicService.playMusic(Long.parseLong(dto.getMusicId()), dto.getQuality());
+        return iMusicService.playMusic(dto);
     }
 
     @ApiOperation(value = "上报播放状态（统计播放量）")
