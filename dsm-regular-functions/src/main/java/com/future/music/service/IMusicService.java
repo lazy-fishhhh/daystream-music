@@ -17,7 +17,12 @@ import java.util.List;
 import java.util.Map;
 
 public interface IMusicService extends IService<Music> {
-    Result<Void> saveMusic(MusicDTO musicDTO, MultipartFile lyric, MultipartFile cover, Map<Integer, MultipartFile> audioMap);
+    Result<Void> saveMusic(MusicDTO musicDTO, MultipartFile lyric, MultipartFile cover,
+                           MultipartFile standard,
+                           MultipartFile highDefinition,
+                           MultipartFile lossless,
+                           MultipartFile spatialAudio
+    );
 
     Result<Void> removeMusic(Long musicId);
 
@@ -26,7 +31,12 @@ public interface IMusicService extends IService<Music> {
     Result<EchoMusicVO> echoMusic(Long musicId);
 
     Result<Void> updateMusic(Long musicId, MusicDTO musicDTO,
-                       MultipartFile lyric, MultipartFile cover, Map<Integer, MultipartFile> audioMap);
+                             MultipartFile lyric, MultipartFile cover,
+                             MultipartFile standard,
+                             MultipartFile highDefinition,
+                             MultipartFile lossless,
+                             MultipartFile spatialAudio
+    );
 
     MusicVO getMusicVO(Long musicId);
 

@@ -125,17 +125,28 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
      * @param musicDTO 音乐基本信息DTO（包含歌名、歌手等非文件信息）
      * @param lyric    歌词文件
      * @param cover    封面图片文件
-     * @param audioMap    音频文件
+     * @param standard    标准音质音频文件
+     * @param highDefinition    高音质音频文件
+     * @param lossless    无损音质音频文件
+     * @param spatialAudio    空间音频文件
      * @return 处理结果（成功/失败信息）
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
     public Result<Void> saveMusic(MusicDTO musicDTO, MultipartFile lyric, MultipartFile cover,
-                                  Map<Integer, MultipartFile> audioMap
+                                  MultipartFile standard,
+                                  MultipartFile highDefinition,
+                                  MultipartFile lossless,
+                                  MultipartFile spatialAudio
                             ) {
         if (SecurityUtil.getCurrentUserId() ==  null){
             return Result.fail("请先登录再进行该操作");
         }
+        Map<Integer, MultipartFile> audioMap = new HashMap<>();
+        audioMap.put(1, standard);
+        audioMap.put(2, highDefinition);
+        audioMap.put(3, lossless);
+        audioMap.put(4, spatialAudio);
 
         List<String> uploadedFilePaths = new ArrayList<>(); // 用于回滚删除的文件路径
 
@@ -179,7 +190,7 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
 
 
             // 3. 校验音频文件集合（非空+格式+大小）+ 合并上传/时长校验/URL记录
-            if (audioMap == null || audioMap.isEmpty()) {
+            if (audioMap.isEmpty()) {
                 throw new RuntimeException("至少需上传一个音质的音频文件");
             }
 
@@ -622,18 +633,30 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
      * @param musicDTO 音乐更新参数DTO（含基础信息、音质等）
      * @param lyric 新上传的歌词文件（可选，为null则不更新）
      * @param cover 新上传的封面文件（可选，为null则不更新）
-     * @param audioMap 新上传的音频文件（可选，为null则不更新）
+     * @param standard 新上传的标准音质文件（可选，为null则不更新）
+     * @param highDefinition 新上传的高清音质文件（可选，为null则不更新）
+     * @param lossless 新上传的无损音质文件（可选，为null则不更新）
+     * @param spatialAudio 新上传的空间音频文件（可选，为null则不更新）
      * @return Result 操作结果（成功/失败提示）
      */
     @Override
     @Transactional(rollbackFor = Exception.class) // 事务注解：任何异常触发回滚
     public Result<Void> updateMusic(Long musicId, MusicDTO musicDTO,
                                     MultipartFile lyric, MultipartFile cover,
-                                    Map<Integer, MultipartFile> audioMap) {
+                                    MultipartFile standard,
+                                    MultipartFile highDefinition,
+                                    MultipartFile lossless,
+                                    MultipartFile spatialAudio
+                                    ) {
 
         if (SecurityUtil.getCurrentUserId() == null) {
             return Result.fail("请先登录再进行该操作");
         }
+        Map<Integer, MultipartFile> audioMap = new HashMap<>();
+        audioMap.put(1, standard);
+        audioMap.put(2, highDefinition);
+        audioMap.put(3, lossless);
+        audioMap.put(4, spatialAudio);
 
         // 存储新上传的文件路径（用于事务回滚时删除）
         List<String> newUploadedFiles = new ArrayList<>();

@@ -52,8 +52,12 @@ public class MusicController {
             @RequestPart("musicDTO") MusicDTO musicDTO,
             @RequestPart(value = "lyric", required = false) MultipartFile lyric,
             @RequestPart("cover") MultipartFile cover,
-            @RequestPart(value = "audioMap", required = false) Map<Integer, MultipartFile> audioMap) {
-        return iMusicService.saveMusic(musicDTO, lyric, cover, audioMap);
+            @RequestPart(value = "standard", required = false) MultipartFile standard,
+            @RequestPart(value = "highDefinition", required = false) MultipartFile highDefinition,
+            @RequestPart(value = "lossless", required = false) MultipartFile lossless,
+            @RequestPart(value = "spatialAudio", required = false) MultipartFile spatialAudio
+            ) {
+        return iMusicService.saveMusic(musicDTO, lyric, cover, standard, highDefinition, lossless, spatialAudio);
     }
 
     @ApiOperation(value = "删除音乐")
@@ -75,9 +79,13 @@ public class MusicController {
             @RequestPart("musicDTO") MusicDTO musicDTO, // JSON参数（需用@RequestPart接收混合参数）
             @RequestPart(value = "lyric", required = false) MultipartFile lyric, // 可选文件
             @RequestPart(value = "cover", required = false) MultipartFile cover,
-            @RequestPart(value = "audioMap", required = false) Map<Integer, MultipartFile> audioMap) {
+            @RequestPart(value = "standard", required = false) MultipartFile standard,
+            @RequestPart(value = "highDefinition", required = false) MultipartFile highDefinition,
+            @RequestPart(value = "lossless", required = false) MultipartFile lossless,
+            @RequestPart(value = "spatialAudio", required = false) MultipartFile spatialAudio
+            ) {
         // 直接调用业务层方法，返回结果（业务层已处理校验和异常）
-        return iMusicService.updateMusic(musicId, musicDTO, lyric, cover, audioMap);
+        return iMusicService.updateMusic(musicId, musicDTO, lyric, cover, standard, highDefinition, lossless, spatialAudio);
     }
 
     @ApiOperation(value = "查询单个音乐信息")

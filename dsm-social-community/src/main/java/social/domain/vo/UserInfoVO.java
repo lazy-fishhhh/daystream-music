@@ -104,5 +104,15 @@ public class UserInfoVO {
      * 歌单：我的喜欢
      */
     private Long likePlaylistId;
-}
 
+    /**
+     * 歌单数量
+     */
+    private Long playlistCount;
+    
+    /**
+     * 是否听过30分钟以上的音乐
+     */
+    private Boolean isListenDurationOver30Min;
+
+}
