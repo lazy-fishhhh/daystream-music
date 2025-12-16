@@ -209,6 +209,13 @@
             <version>6.1.1-1.5.10</version>
             <classifier>windows-x86_64</classifier> <!-- Windows 64位系统 -->
         </dependency>
+        <!-- Linux x86_64（64位）平台专用 FFmpeg 原生库 -->
+        <dependency>
+            <groupId>org.bytedeco</groupId>
+            <artifactId>ffmpeg</artifactId>
+            <version>6.1.1-1.5.10</version>
+            <classifier>linux-x86_64</classifier> <!-- Linux 64位x86架构 -->
+        </dependency>
 
         <!-- MinIO客户端 -->
         <dependency>

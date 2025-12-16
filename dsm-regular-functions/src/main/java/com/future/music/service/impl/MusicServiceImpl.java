@@ -50,6 +50,7 @@ import util.AudioDurationUtil;
 import java.nio.charset.StandardCharsets;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
@@ -274,6 +275,7 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
                 musicLyric.setLyricUrl(lyricUrl);
                 musicLyric.setLyricContent(lyricContent);
                 musicLyric.setLyricType(lyricType);
+                musicLyric.setCreateTime(LocalDateTime.now());
                 if (musicLyricMapper.insert(musicLyric) != 1) {
                     throw new RuntimeException("歌词信息保存失败");
                 }
