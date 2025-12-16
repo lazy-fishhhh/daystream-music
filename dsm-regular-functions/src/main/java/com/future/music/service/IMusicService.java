@@ -21,7 +21,7 @@ public interface IMusicService extends IService<Music> {
 
     Result<Void> removeMusic(Long musicId);
 
-    void downloadMusic(Long musicId, Integer quality, HttpServletResponse response);
+    void downloadMusic(MusicPlayDTO dto, HttpServletResponse response);
 
     Result<EchoMusicVO> echoMusic(Long musicId);
 

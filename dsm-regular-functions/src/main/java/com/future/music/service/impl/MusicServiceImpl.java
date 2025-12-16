@@ -146,29 +146,37 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
             }
 
             // 2. 校验歌词和封面文件
-            if (!minIoService.isAllowedFile(lyric, "lyric") || !minIoService.isAllowedFile(cover, "picture")) {
+            if (!minIoService.isAllowedFile(cover, "picture")) {
                 throw new RuntimeException("文件格式不正确");
             }
-            if (lyric.getSize() > SystemConstants.MAX_LYRIC_SIZE || cover.getSize() > SystemConstants.MAX_PICTURE_SIZE) {
+            if (cover.getSize() > SystemConstants.MAX_PICTURE_SIZE) {
                 throw new RuntimeException("文件大小超出限制");
             }
 
-            // 校验并处理歌词文件（核心改造：解析格式+读取原始内容）
             String lyricUrl = null;
             String lyricContent = null;
             String lyricType = null;
-            // 2.2 识别歌词格式（从文件名后缀提取）
-            lyricType = getLyricType(lyric.getOriginalFilename());
-            // 2.3 上传歌词文件到MinIO，获取地址
-            lyricUrl = minIoService.uploadFile(lyric);
-            if (lyricUrl == null) {
-                throw new RuntimeException("歌词上传失败");
+            if (lyric != null){
+                if (!minIoService.isAllowedFile(lyric, "lyric")) {
+                    throw new RuntimeException("文件格式不正确");
+                }
+                if (lyric.getSize() > SystemConstants.MAX_LYRIC_SIZE) {
+                    throw new RuntimeException("文件大小超出限制");
+                }
+                // 2.2 识别歌词格式（从文件名后缀提取）
+                lyricType = getLyricType(lyric.getOriginalFilename());
+                // 2.3 上传歌词文件到MinIO，获取地址
+                lyricUrl = minIoService.uploadFile(lyric);
+                if (lyricUrl == null) {
+                    throw new RuntimeException("歌词上传失败");
+                }
+                uploadedFilePaths.add(lyricUrl);
+                // 2.4 读取歌词原始内容（存入数据库，避免后续解析需下载文件）
+                lyricContent = new String(lyric.getBytes(), StandardCharsets.UTF_8);
+                // 清理歌词内容中的特殊字符（可选，避免解析异常）
+                lyricContent = cleanLyricContent(lyricContent);
             }
-            uploadedFilePaths.add(lyricUrl);
-            // 2.4 读取歌词原始内容（存入数据库，避免后续解析需下载文件）
-            lyricContent = new String(lyric.getBytes(), StandardCharsets.UTF_8);
-            // 清理歌词内容中的特殊字符（可选，避免解析异常）
-            lyricContent = cleanLyricContent(lyricContent);
+
 
             // 3. 校验音频文件集合（非空+格式+大小）+ 合并上传/时长校验/URL记录
             if (audioMap == null || audioMap.isEmpty()) {
@@ -241,13 +249,15 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
             }
 
             // 保存歌词信息
-            MusicLyric musicLyric = new MusicLyric();
-            musicLyric.setMusicId(music.getId());
-            musicLyric.setLyricUrl(lyricUrl);
-            musicLyric.setLyricContent(lyricContent);
-            musicLyric.setLyricType(lyricType);
-            if (musicLyricMapper.insert(musicLyric) != 1) {
-                throw new RuntimeException("歌词信息保存失败");
+            if (lyric != null){
+                MusicLyric musicLyric = new MusicLyric();
+                musicLyric.setMusicId(music.getId());
+                musicLyric.setLyricUrl(lyricUrl);
+                musicLyric.setLyricContent(lyricContent);
+                musicLyric.setLyricType(lyricType);
+                if (musicLyricMapper.insert(musicLyric) != 1) {
+                    throw new RuntimeException("歌词信息保存失败");
+                }
             }
 
             // 7. 保存所有音质的音频关联信息（使用提前记录的size，无需重复get(audio)）
@@ -476,17 +486,18 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
 
     /**
      * 根据音乐ID和音质类型，从MinIO下载音频文件并返回给前端，同时更新下载量
-     * @param musicId 音乐主键ID（必填）
-     * @param quality 音频音质类型（对应MusicAudio表的quality_type字段）
+     * @param dto 音乐播放DTO，包含音乐ID和音质参数（必填）
      * @param response HTTP响应对象，用于返回文件流和状态信息
      */
     @Override
-    public void downloadMusic(Long musicId, Integer quality, HttpServletResponse response) {
+    public void downloadMusic(MusicPlayDTO dto, HttpServletResponse response) {
         try {
-            // 1. 校验音乐ID有效性
-            if (musicId == null) {
+            Long musicId = Long.parseLong(dto.getMusicId());
+            Integer quality = dto.getQuality();
+            // 1. 校验参数有效性
+            if (quality == null) {
                 response.setStatus(400); // 参数错误状态码
-                response.setHeader("msg", "无效的ID");
+                response.setHeader("msg", "无效的音质参数");
                 return;
             }
 
@@ -591,10 +602,9 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
             QueryWrapper<MusicLyric> musicLyricWrapper = new QueryWrapper<>();
             musicLyricWrapper.eq("music_id", musicId);
             MusicLyric musicLyric = musicLyricMapper.selectOne(musicLyricWrapper);
-            if (musicLyric == null) {
-                return Result.fail("未查询到该音乐的歌词信息");
+            if (musicLyric != null) {
+                echoMusicVO.setLyricUrl(musicLyric.getLyricUrl());
             }
-            echoMusicVO.setLyricUrl(musicLyric.getLyricUrl());
 
             // 返回成功结果（基础详情VO）
             return Result.ok(echoMusicVO);
@@ -889,10 +899,7 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
                 QueryWrapper<MusicLyric> musicLyricWrapper = new QueryWrapper<>();
                 musicLyricWrapper.eq("music_id", musicId);
                 MusicLyric musicLyric = musicLyricMapper.selectOne(musicLyricWrapper);
-                if (musicLyric == null) {
-                    musicDetailVO.setRawLyricText("");
-                    musicDetailVO.setSyncLyric(new ArrayList<>());
-                } else {
+                if (musicLyric != null) {
                     musicDetailVO.setLyricUrl(musicLyric.getLyricUrl());
                     musicDetailVO.setLyricType(musicLyric.getLyricType());
 

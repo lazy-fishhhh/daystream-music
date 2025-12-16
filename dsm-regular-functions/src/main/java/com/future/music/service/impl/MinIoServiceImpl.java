@@ -76,7 +76,7 @@ class MinIoServiceImpl implements IMinIoService {
     public void downloadFile(String objectName, HttpServletResponse response) {
         String s=objectName.substring(objectName.lastIndexOf("/") + 1);
 
-        try (InputStream in = getFileInputStream(objectName);
+        try (InputStream in = getFileInputStream(s);
              OutputStream out = response.getOutputStream()) {
 
             // 设置响应头（支持浏览器下载）
@@ -141,7 +141,7 @@ class MinIoServiceImpl implements IMinIoService {
             return minioClient.getObject(
                     GetObjectArgs.builder()
                             .bucket(bucketName)
-                            .object(objectName.substring(objectName.lastIndexOf("/") + 1))
+                            .object(objectName)
                             .build()
             );
         } catch (Exception e) {

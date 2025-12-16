@@ -49,8 +49,8 @@ public class MusicController {
     @ApiOperation(value = "上传音乐")
     @PostMapping("/upload")
     public Result<Void> saveMusic(
-            @RequestPart() MusicDTO musicDTO,
-            @RequestPart("lyric") MultipartFile lyric,
+            @RequestPart("musicDTO") MusicDTO musicDTO,
+            @RequestPart(value = "lyric", required = false) MultipartFile lyric,
             @RequestPart("cover") MultipartFile cover,
             @RequestPart(value = "audioMap", required = false) Map<Integer, MultipartFile> audioMap) {
         return iMusicService.saveMusic(musicDTO, lyric, cover, audioMap);
@@ -88,11 +88,10 @@ public class MusicController {
 
     @ApiOperation(value = "下载音乐")
     @GetMapping("/downloadMusic")
-    public Result<Void> downloadMusic(@RequestParam Long musicId,
-                            @RequestParam Integer quality,
+    public Result<Void> downloadMusic(@RequestBody MusicPlayDTO dto,
                             HttpServletResponse response) {
         try {
-            iMusicService.downloadMusic(musicId, quality, response);
+            iMusicService.downloadMusic(dto, response);
             return Result.ok();
         } catch (Exception e) {
             return Result.fail("下载失败：" + e.getMessage());
@@ -101,7 +100,7 @@ public class MusicController {
 
     @ApiOperation(value = "播放音乐（获取播放链接）")
     @PostMapping("/play")
-    public Result<MusicPlayVO> playMusic(@RequestBody MusicPlayDTO dto) {
+    public Result<MusicPlayVO> playMusic(@Valid @RequestBody MusicPlayDTO dto) {
         return iMusicService.playMusic(dto);
     }
 
