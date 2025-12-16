@@ -65,7 +65,7 @@ public class AdminCommunityServiceImpl implements SocialService {
     @Override
     public Result<String> deletedCommunityBatch(DeletedMusicianDTO deletedMusicianDTO) {
         try {
-            List<String> ids = deletedMusicianDTO.getMusicianIds();
+            List<String> ids = deletedMusicianDTO.getIds();
             ids.stream()
                     .map(Long::valueOf)
                     .forEach(id -> {
@@ -82,30 +82,35 @@ public class AdminCommunityServiceImpl implements SocialService {
 
     @Override
     public Result<String> banPost(String id) {
-        //判断动态是否存在
-        LambdaQueryWrapper<CommunityPost> queryWrapper = new LambdaQueryWrapper<>();
-        queryWrapper.eq(CommunityPost::getId,id)
-                .in(CommunityPost::getIsDeleted,0,2)
-                .eq(CommunityPost::getStatus,1);
-        CommunityPost communityPost = adminPostMapper.selectOne(queryWrapper);
-        if(communityPost == null){
-            return Result.fail("动态不存在");
-        }
-        //如果动态是正常状态，封禁
-        if(communityPost.getStatus() == 0){
-            UpdateWrapper<CommunityPost> updateWrapper = new UpdateWrapper<>();
-            updateWrapper.eq("id",id)
-                    .set("is_deleted",2);
-            adminPostMapper.update(null,updateWrapper);
-            return Result.ok("封禁成功");
-        }
-        //如果动态是封禁状态，解封
-        if(communityPost.getStatus() == 2){
-            UpdateWrapper<CommunityPost> updateWrapper = new UpdateWrapper<>();
-            updateWrapper.eq("id",id)
-                    .set("is_deleted",0);
-            adminPostMapper.update(null,updateWrapper);
-            return Result.ok("解封成功");
+        try {
+            //判断动态是否存在
+            LambdaQueryWrapper<CommunityPost> queryWrapper = new LambdaQueryWrapper<>();
+            queryWrapper.eq(CommunityPost::getId, id)
+                    .in(CommunityPost::getIsDeleted, 0, 2)
+                    .eq(CommunityPost::getStatus, 1);
+            CommunityPost communityPost = adminPostMapper.selectOne(queryWrapper);
+            if (communityPost == null) {
+                return Result.fail("动态不存在");
+            }
+            //如果动态是正常状态，封禁
+            if (communityPost.getIsDeleted() == 0) {
+                UpdateWrapper<CommunityPost> updateWrapper = new UpdateWrapper<>();
+                updateWrapper.eq("id", id)
+                        .set("is_deleted", 2);
+                adminPostMapper.update(null, updateWrapper);
+                return Result.ok("封禁成功");
+            }
+            //如果动态是封禁状态，解封
+            if (communityPost.getIsDeleted() == 2) {
+                UpdateWrapper<CommunityPost> updateWrapper = new UpdateWrapper<>();
+                updateWrapper.eq("id", id)
+                        .set("is_deleted", 0);
+                adminPostMapper.update(null, updateWrapper);
+                return Result.ok("解封成功");
+            }
+        } catch (Exception e) {
+            log.equals("操作失败" + e);
+            return Result.fail("操作失败");
         }
         return Result.fail("操作失败");
     }
@@ -140,7 +145,7 @@ public class AdminCommunityServiceImpl implements SocialService {
             if (communityPost == null) {
                 return Result.fail("动态不存在");
             }
-            adminPostMapper.updatePost(postId, updatePostDTO.getStatus(), updatePostDTO.getTitle(), updatePostDTO.getTitle());
+            adminPostMapper.updatePost(postId, updatePostDTO.getStatus(), updatePostDTO.getContent(), updatePostDTO.getTitle());
             return Result.ok("修改成功");
         }catch (Exception e) {
             log.error("修改失败", e);

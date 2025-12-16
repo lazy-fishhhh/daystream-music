@@ -1,6 +1,7 @@
 package admin.service.impl;
 
 import admin.domain.dto.AdminCommentDTO;
+import admin.domain.dto.CommentBatchDTO;
 import admin.domain.dto.DeleteUserDTO;
 import admin.domain.dto.UpdateCommentDTO;
 import admin.domain.vo.AdminCommentVO;
@@ -43,8 +44,8 @@ public class AdminCommentServiceImpl implements AdminCommentService {
     }
 
     @Override
-    public Result<String> deleteComment(DeleteUserDTO deleteUserDTO) {
-        List<Long> ids= deleteUserDTO.getUserId();
+    public Result<String> deleteComment(CommentBatchDTO commentBatchDTO) {
+        List<Long> ids= commentBatchDTO.getCommentId();
         //批量删除评论
         ids.stream()
                 .forEach(id->{

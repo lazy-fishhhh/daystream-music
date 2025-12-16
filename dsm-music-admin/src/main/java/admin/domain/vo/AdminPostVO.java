@@ -23,6 +23,10 @@ public class AdminPostVO {
      */
     private String authorAvatar;
     /**
+     * 作者身份
+     */
+    private String role;
+    /**
      * 标题
      */
     private String title;
@@ -33,5 +37,5 @@ public class AdminPostVO {
     /**
      * 状态 0-正常 2-封禁下架
      */
-    private Integer status;
+    private Integer postStatus;
 }

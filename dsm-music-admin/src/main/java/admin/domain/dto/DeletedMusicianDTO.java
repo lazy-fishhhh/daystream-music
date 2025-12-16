@@ -8,8 +8,8 @@ import java.util.List;
 @Data
 public class DeletedMusicianDTO {
     /**
-     * 音乐人id
+     * id
      */
     @NotNull(message = "id不能为空")
-    private List<String> musicianIds;
+    private List<String> ids;
 }

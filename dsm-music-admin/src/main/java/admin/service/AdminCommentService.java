@@ -1,6 +1,7 @@
 package admin.service;
 
 import admin.domain.dto.AdminCommentDTO;
+import admin.domain.dto.CommentBatchDTO;
 import admin.domain.dto.DeleteUserDTO;
 import admin.domain.dto.UpdateCommentDTO;
 import admin.domain.vo.AdminCommentVO;
@@ -14,7 +15,7 @@ public interface AdminCommentService {
 
     Result<AdminCommentVO> getCommentDetail(Long id);
 
-    Result<String> deleteComment(DeleteUserDTO deleteUserDTO);
+    Result<String> deleteComment(CommentBatchDTO commentBatchDTO);
 
     Result<String> updateComment(UpdateCommentDTO updateCommentDTO);
 }
