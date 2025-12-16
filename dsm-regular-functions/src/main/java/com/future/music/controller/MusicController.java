@@ -2,6 +2,7 @@ package com.future.music.controller;
 
 
 import com.future.login.util.SecurityUtil;
+import com.future.music.domain.dto.MusicPlayDTO;
 import com.future.music.domain.dto.MusicPlayReportDTO;
 import com.future.music.domain.vo.*;
 import com.future.music.service.IMusicService;
@@ -22,6 +23,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import javax.validation.Valid;
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
@@ -48,11 +50,15 @@ public class MusicController {
     @ApiOperation(value = "上传音乐")
     @PostMapping("/upload")
     public Result<Void> saveMusic(
-            @RequestPart() MusicDTO musicDTO,
-            @RequestPart("lyric") MultipartFile lyric,
+            @RequestPart("musicDTO") MusicDTO musicDTO,
+            @RequestPart(value = "lyric", required = false) MultipartFile lyric,
             @RequestPart("cover") MultipartFile cover,
-            @RequestPart(value = "audioMap", required = false) Map<Integer, MultipartFile> audioMap) {
-        return iMusicService.saveMusic(musicDTO, lyric, cover, audioMap);
+            @RequestPart(value = "standard", required = false) MultipartFile standard,
+            @RequestPart(value = "highDefinition", required = false) MultipartFile highDefinition,
+            @RequestPart(value = "lossless", required = false) MultipartFile lossless,
+            @RequestPart(value = "spatialAudio", required = false) MultipartFile spatialAudio
+            ) {
+        return iMusicService.saveMusic(musicDTO, lyric, cover, standard, highDefinition, lossless, spatialAudio);
     }
 
     @ApiOperation(value = "删除音乐")
@@ -74,9 +80,13 @@ public class MusicController {
             @RequestPart("musicDTO") MusicDTO musicDTO, // JSON参数（需用@RequestPart接收混合参数）
             @RequestPart(value = "lyric", required = false) MultipartFile lyric, // 可选文件
             @RequestPart(value = "cover", required = false) MultipartFile cover,
-            @RequestPart(value = "audioMap", required = false) Map<Integer, MultipartFile> audioMap) {
+            @RequestPart(value = "standard", required = false) MultipartFile standard,
+            @RequestPart(value = "highDefinition", required = false) MultipartFile highDefinition,
+            @RequestPart(value = "lossless", required = false) MultipartFile lossless,
+            @RequestPart(value = "spatialAudio", required = false) MultipartFile spatialAudio
+            ) {
         // 直接调用业务层方法，返回结果（业务层已处理校验和异常）
-        return iMusicService.updateMusic(musicId, musicDTO, lyric, cover, audioMap);
+        return iMusicService.updateMusic(musicId, musicDTO, lyric, cover, standard, highDefinition, lossless, spatialAudio);
     }
 
     @ApiOperation(value = "查询单个音乐信息")
@@ -87,11 +97,10 @@ public class MusicController {
 
     @ApiOperation(value = "下载音乐")
     @GetMapping("/downloadMusic")
-    public Result<Void> downloadMusic(@RequestParam Long musicId,
-                            @RequestParam Integer quality,
+    public Result<Void> downloadMusic(@RequestBody MusicPlayDTO dto,
                             HttpServletResponse response) {
         try {
-            iMusicService.downloadMusic(musicId, quality, response);
+            iMusicService.downloadMusic(dto, response);
             return Result.ok();
         } catch (Exception e) {
             return Result.fail("下载失败：" + e.getMessage());
@@ -100,9 +109,8 @@ public class MusicController {
 
     @ApiOperation(value = "播放音乐（获取播放链接）")
     @PostMapping("/play")
-    public Result<MusicPlayVO> playMusic(@RequestParam Long musicId,
-                                         @RequestParam Integer quality) {
-        return iMusicService.playMusic(musicId, quality);
+    public Result<MusicPlayVO> playMusic(@Valid @RequestBody MusicPlayDTO dto) {
+        return iMusicService.playMusic(dto);
     }
 
     @ApiOperation(value = "上报播放状态（统计播放量）")

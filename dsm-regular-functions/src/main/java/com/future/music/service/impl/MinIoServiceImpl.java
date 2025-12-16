@@ -76,7 +76,7 @@ class MinIoServiceImpl implements IMinIoService {
     public void downloadFile(String objectName, HttpServletResponse response) {
         String s=objectName.substring(objectName.lastIndexOf("/") + 1);
 
-        try (InputStream in = getFileInputStream(objectName);
+        try (InputStream in = getFileInputStream(s);
              OutputStream out = response.getOutputStream()) {
 
             // 设置响应头（支持浏览器下载）
@@ -157,7 +157,7 @@ class MinIoServiceImpl implements IMinIoService {
             minioClient.statObject(
                     StatObjectArgs.builder()
                             .bucket(bucketName)
-                            .object(objectName)
+                            .object(objectName.substring(objectName.lastIndexOf("/") + 1))
                             .build()
             );
             // 没有抛出异常，说明文件存在
@@ -175,18 +175,6 @@ class MinIoServiceImpl implements IMinIoService {
             // 处理其他异常
             throw new RuntimeException("判断文件存在性失败：" + e.getMessage());
         }
-    }
-
-    //获取文件最后修改时间的方法
-    @Override
-    public Instant getObjectLastModified(String objectName) throws Exception {
-        StatObjectResponse stat = minioClient.statObject(
-                StatObjectArgs.builder()
-                        .bucket(bucketName)
-                        .object(objectName)
-                        .build()
-        );
-        return stat.lastModified().toInstant(); // 返回文件最后修改时间
     }
 
     //判断是否是正确的格式
@@ -232,28 +220,11 @@ class MinIoServiceImpl implements IMinIoService {
                     GetPresignedObjectUrlArgs.builder()
                             .method(Method.GET)
                             .bucket(bucketName) // 你的MinIO桶名
-                            .object(objectName)
+                            .object(objectName.substring(objectName.lastIndexOf("/") + 1))
                             .expiry(expireSeconds)
                             .build()
             );
             return url;
-        } catch (Exception e) {
-            return null;
-        }
-    }
-
-    /**
-     * 从MinIO下载图片为BufferedImage
-     */
-    @Override
-    public BufferedImage downloadImage(String objectName) {
-        try (InputStream is = minioClient.getObject(
-                GetObjectArgs.builder()
-                        .bucket(bucketName)
-                        .object(objectName)
-                        .build()
-        )) {
-            return ImageIO.read(is);
         } catch (Exception e) {
             return null;
         }

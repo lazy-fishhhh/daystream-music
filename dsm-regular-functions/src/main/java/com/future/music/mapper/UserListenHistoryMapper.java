@@ -41,5 +41,15 @@ public interface UserListenHistoryMapper extends BaseMapper<UserListenHistory> {
                                                         @Param("startDate") LocalDate startDate,
                                                         @Param("endDate") LocalDate endDate);
 
+    /**
+     * 直接查询用户今日听歌总时长是否大于30分钟（1800秒）
+     * @param userId 用户ID
+     * @param today 今日日期（格式：yyyy-MM-dd）
+     * @return 1=大于30分钟，0=不大于（MyBatis会自动映射为Boolean）
+     */
+    @Select("SELECT IF(SUM(total_listen_seconds) > 1800, 1, 0) FROM user_listen_history " +
+            "WHERE user_id = #{userId} AND listen_time = #{today}")
+    Boolean isTodayListenOver30Min(@Param("userId") Long userId, @Param("today") String today);
+
 
 }
