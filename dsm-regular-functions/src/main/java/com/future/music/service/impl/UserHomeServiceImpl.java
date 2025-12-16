@@ -6,6 +6,7 @@ import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.future.login.exception.BusinessException;
 import com.future.login.mapper.UserMapper;
@@ -29,12 +30,14 @@ import constants.SystemConstants;
 import entity.pojo.info.User;
 import entity.pojo.music.Album;
 import entity.pojo.music.Playlist;
+import entity.pojo.music.UserListenHistory;
 import entity.pojo.social.LikeRecord;
 import entity.pojo.social.UserCollection;
 import entity.pojo.util.PageReq;
 import entity.pojo.util.PageResp;
 import entity.pojo.util.Result;
 import io.swagger.models.auth.In;
+import jakarta.annotation.Resource;
 import kotlin.jvm.internal.Lambda;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -236,6 +239,13 @@ public class UserHomeServiceImpl implements IUserHomeService {
 
             Playlist likePlaylist = playlistMapper.selectOne(queryWrapper);
             userInfoVO.setLikePlaylistId(likePlaylist.getId());
+
+            // 获取歌单数量
+            Long playlistCount = playlistMapper.selectCount(new LambdaQueryWrapper<Playlist>().eq(Playlist::getUserId, userId));
+            userInfoVO.setPlaylistCount(playlistCount);
+
+            // 是否听过30分钟以上的音乐
+            userInfoVO.setIsListenDurationOver30Min(userListenHistoryMapper.isTodayListenOver30Min(userId, LocalDate.now().toString()));
 
             return Result.ok(userInfoVO);
         } catch (TooManyResultsException e) {
