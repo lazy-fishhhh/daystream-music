@@ -2,6 +2,7 @@ package admin.domain.dto;
 
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
 @Data
@@ -13,6 +14,7 @@ public class ReportDTO {
     /**
      * 状态查找 0-待处理 1-审核通过 2-审核驳回
      */
+    @NotNull(message = "状态不能为空")
     private Integer status;
     /**
      * 举报类型 1-音乐 2-评论 3-用户

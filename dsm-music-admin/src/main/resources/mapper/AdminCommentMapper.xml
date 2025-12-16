@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="admin.mapper.AdminCommentMapper">
+    <select id="getCommentList" resultType="admin.domain.vo.AdminCommentVO">
+        select c.id,c.user_id,c.target_id,c.content,c.target_type as type,c.created_time,
+        u.username,u.avatar
+        from comment c
+        left join user u on c.user_id = u.id
+        <where>
+            c.status=1
+            <if test="type!=null">
+                    and c.target_type=#{type}
+            </if>
+            <if test="keyword!=null and keyword!=''">
+                    and (c.content like concat('%',#{keyword},'%')
+                    or u.username like concat('%',#{keyword},'%'))
+            </if>
+        </where>
+        order by c.created_time desc
+    </select>
+    <select id="getDetail" resultType="admin.domain.vo.AdminCommentVO">
+        select c.id,c.user_id,c.target_id,c.content,c.target_type as type,c.created_time,
+        u.username,u.avatar
+        from comment c
+        left join user u on c.user_id = u.id
+        where
+        c.staus=1
+        and c.id=#{id}
+    </select>
+    <update id="deleteComment">
+        update comment set status=0 where id=#{id}
+        and status=1
+    </update>
+    <update id="updateComment">
+        update comment set
+        content=#{content}
+        where id=#{id}
+        and status=1
+    </update>
+</mapper>

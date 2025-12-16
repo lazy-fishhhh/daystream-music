@@ -1,5 +1,6 @@
 package admin.controller;
 
+import admin.domain.dto.AdminMusicianApplyDTO;
 import admin.domain.dto.HandleReportDTO;
 import admin.domain.dto.ReportDTO;
 import admin.domain.vo.ReportVO;
@@ -10,14 +11,13 @@ import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/report")
 @Api(tags = "举报管理")
+@PreAuthorize("hasRole('管理员')")
 public class ReportController {
     @Autowired
     private ReportService reportService;
@@ -30,6 +30,21 @@ public class ReportController {
     @ApiOperation(value = "处理举报")
     public Result handleReport(@Valid @RequestBody HandleReportDTO handle) {
         return reportService.handleReport(handle);
+    }
+    @PostMapping("/deleteReport")
+    @ApiOperation(value = "批量删除举报,仅限未处理的举报")
+    public Result deleteReport(@Valid @RequestBody AdminMusicianApplyDTO adminMusicianApplyDTO) {
+        return reportService.deleteReport(adminMusicianApplyDTO);
+    }
+    @PostMapping("/passReport")
+    @ApiOperation(value = "批量通过,仅限未处理的举报")
+    public Result passReport(@Valid @RequestBody AdminMusicianApplyDTO adminMusicianApplyDTO) {
+        return reportService.passReport(adminMusicianApplyDTO);
+    }
+    @PostMapping("/rejectReport")
+    @ApiOperation(value = "批量驳回,仅限未处理的举报")
+    public Result rejectReport(@Valid @RequestBody AdminMusicianApplyDTO adminMusicianApplyDTO) {
+        return reportService.rejectReport(adminMusicianApplyDTO);
     }
 
 }

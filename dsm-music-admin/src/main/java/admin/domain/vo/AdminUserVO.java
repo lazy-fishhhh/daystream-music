@@ -1,6 +1,9 @@
 package admin.domain.vo;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Data;
+
+import java.time.LocalDateTime;
 
 @Data
 public class AdminUserVO {
@@ -32,5 +35,14 @@ public class AdminUserVO {
      * 邮箱
      */
     private String email;
+    /**
+     * 是否是vip
+     */
+    private Boolean isVip;
+    @JsonIgnore
+    /**
+     * vip到期时间
+     */
+    private LocalDateTime vipExpireTime;
 
 }

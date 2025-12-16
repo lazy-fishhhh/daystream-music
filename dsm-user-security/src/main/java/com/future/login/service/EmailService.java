@@ -6,7 +6,6 @@ import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 
-@Service
 public interface EmailService {
     Result sendCaptcha(String toEmail) throws MessagingException, IOException;
 }

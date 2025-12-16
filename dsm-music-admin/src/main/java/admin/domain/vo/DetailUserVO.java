@@ -47,4 +47,8 @@ public class DetailUserVO {
      * 音浪数
      */
     private Integer walletBalance;
+    /**
+     * 是否是vip
+     */
+    private Boolean isVip;
 }

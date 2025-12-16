@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="admin.mapper.AdminPostMapper">
+    <select id="communityList" resultType="admin.domain.vo.AdminPostVO">
+        select p.id,p.user_id as authorId,p.title,p.content,p.create_time,p.is_deleted as status,
+        u.username as authorName,u.avatar as authorAvatar,
+        r.role_name as role
+        from community_post p
+        left join user u on p.user_id = u.id
+        left join user_role ur on u.id = ur.user_id
+        left join role r on ur.role_id = r.id
+        where p.status=1
+        and p.is_deleted in (0,2)
+        <if test="role != null">
+        and r.id=#{role}
+        </if>
+        <if test="kye!=null and key!=''">
+        and (p.title like concat('%',#{key},'%')
+            or
+            p.content like concat('%',#{key},'%'))
+        </if>
+        order by p.create_time desc
+    </select>
+    <select id="detailPost" resultType="admin.domain.vo.AdminPostVO">
+        select p.id,p.user_id as authorId,p.title,p.content,p.create_time,p.is_deleted as status,
+        u.username as authorName,u.avatar as authorAvatar,
+        r.role_name as role
+        from community_post p
+        left join user u on p.user_id = u.id
+        left join user_role ur on u.id = ur.user_id
+        left join role r on ur.role_id = r.id
+        where p.status=1
+        and p.is_deleted in (0,2)
+        and p.id=#{postId}
+    </select>
+    <update id="updatePost">
+        update community_post
+        <set>
+            <if test="status != null">
+                 is_deleted = #{status},
+            </if>
+            <if test="content != null and content!=''">
+                 content = #{content},
+            </if>
+            <if test="title!=null and title!=''">
+                title = #{title}
+            </if>
+        </set>
+        where id=#{postId}
+        and status=1
+    </update>
+    <select id="getList" resultType="admin.domain.vo.AdminPostVO">
+        select p.id,p.user_id as authorId,p.title,p.content,p.create_time,
+        u.username as authorName,u.avatar as authorAvatar,
+        r.role_name as role
+        from community_post p
+        left join user u on p.user_id = u.id
+        left join user_role ur on u.id = ur.user_id
+        left join role r on ur.role_id = r.id
+        where
+        <if test="role != null">
+            r.id=#{role}
+        </if>
+        <if test="kye!=null and key!=''">
+            and (p.title like concat('%',#{key},'%')
+            or
+            p.content like concat('%',#{key},'%'))
+        </if>
+        <if test="status != null">
+            and p.status = #{status}
+        </if>
+        order by p.create_time desc
+    </select>
+    <update id="updatePostStatus">
+        update community_post
+        set
+        status=#{status}
+        where id=#{postId}
+    </update>
+    <update id="deletedPost">
+        update community_post
+        set
+        is_deleted=#{status},
+        delete_time=now()
+        where id= #{postId}
+    </update>
+</mapper>

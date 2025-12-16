@@ -20,10 +20,12 @@ import entity.pojo.util.PageResp;
 import entity.pojo.util.Result;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.security.core.parameters.P;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
@@ -46,6 +48,16 @@ public class UserAdminServiceImpl implements UserAdminService {
         Page<AdminUserVO> page = new Page<>(userAdminDTO.getPageNum(), userAdminDTO.getPageSize());
         //查询
         IPage<AdminUserVO> userList = adminUserMapper.getUserList(page, userAdminDTO.getStatus(), userAdminDTO.getKey());
+        userList.getRecords().stream()
+                .forEach(user -> {
+                    if(user.getVipExpireTime()==null)
+                    {
+                        user.setIsVip(false);
+                    }
+                    else {
+                        user.setIsVip(LocalDateTime.now().isAfter(user.getVipExpireTime()) ? false : true);
+                    }
+                });
         //封装返回
         PageResp<AdminUserVO> pageResp = new PageResp<>();
         pageResp.setRecords(userList.getRecords());
@@ -112,6 +124,16 @@ public class UserAdminServiceImpl implements UserAdminService {
         if(detailUser==null)
         {
             return Result.fail("用户不存在");
+        }
+        if(detailUser.getVipExpireTime()==null)
+        {
+            detailUser.setIsVip(false);
+        }
+        else if(LocalDateTime.now().isAfter(detailUser.getVipExpireTime()))
+        {
+            detailUser.setIsVip(false);
+        }else{
+            detailUser.setIsVip(true);
         }
         return Result.ok(detailUser);
     }

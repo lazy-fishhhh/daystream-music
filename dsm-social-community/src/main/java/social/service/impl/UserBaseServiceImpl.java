@@ -12,6 +12,7 @@ import entity.pojo.info.User;
 import entity.pojo.info.UserRole;
 import entity.pojo.music.Album;
 import entity.pojo.music.Music;
+import entity.pojo.music.MusicMv;
 import entity.pojo.music.PlaylistMusic;
 import entity.pojo.social.*;
 import entity.pojo.util.Result;
@@ -97,7 +98,7 @@ public class UserBaseServiceImpl implements UserBaseService {
         if (likeEnumByvalue == null) {
             return Result.fail("请输入正确的点赞类型");
         }
-        //判断目标id的数据是否存在 目标类型 1-音乐 2-评论 3-动态
+        //判断目标id的数据是否存在 目标类型 1-音乐 2-评论 3-动态 4-mv
         if (targetType == LikeEnum.MUSIC.getValue()) {
             LambdaQueryWrapper<Music> musicWrapper = new LambdaQueryWrapper();
             musicWrapper.eq(Music::getId, targetId)
@@ -125,6 +126,15 @@ public class UserBaseServiceImpl implements UserBaseService {
             {
                 return Result.fail("动态不存在");
             }
+        }else if(targetType==LikeEnum.MV.getValue())
+        {
+            LambdaQueryWrapper<MusicMv> mvWrapper=new LambdaQueryWrapper<>();
+            mvWrapper.eq(MusicMv::getId,targetId)
+                    .eq(MusicMv::getStatus,1);
+                    MusicMv musicMv = musicMvMapper.selectOne(mvWrapper);
+                    if(musicMv==null) {
+                        return Result.fail("MV暂未上架");
+                    }
         }
         //根据点赞类型不同，处理不同的点赞
         //如果点赞记录已存在只是之前逻辑取消点赞了,那么重新恢复点赞记录

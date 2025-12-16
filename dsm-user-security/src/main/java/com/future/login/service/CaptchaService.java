@@ -8,7 +8,6 @@ import org.springframework.stereotype.Service;
 /**
  * 验证码
  */
-@Service
 public interface CaptchaService {
     //生成图形验证码
     Result<CaptchaVO> creatCaptcha();

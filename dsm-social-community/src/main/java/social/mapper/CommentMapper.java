@@ -2,6 +2,8 @@ package social.mapper;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import entity.pojo.social.Comment;
 import org.apache.ibatis.annotations.*;
 import social.domain.vo.CommentListVO;
@@ -56,4 +58,5 @@ public interface CommentMapper extends BaseMapper<Comment> {
     Long selectTargetId(@Param("targetId")Long targetId,
                         @Param("type")Integer type,
                         @Param("userId")Long userId);
+
 }

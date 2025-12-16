@@ -11,7 +11,6 @@ import social.domain.vo.LikeVO;
 
 import java.util.List;
 
-@Service
 public interface UserBaseService {
     Result getUserInfo();
     Result<LikeVO> likeandUnlike(LikeDTO likeDTO);

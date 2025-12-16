@@ -12,7 +12,7 @@ public class CommentDTO {
     @NotBlank(message = "目标id不能为空")
     private String targetId;
     /**
-     * 评论类型 1-音乐 2-歌单 3-专辑 4-社区动态
+     * 评论类型 1-音乐 2-歌单 3-专辑 4-社区动态 5-mv
      */
     @NotNull(message = "评论类型不能为空")
     private Integer targetType;

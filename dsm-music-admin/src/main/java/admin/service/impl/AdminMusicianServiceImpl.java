@@ -27,6 +27,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 import static constants.RedisCacheConstants.TOKEN_USER_PREFIX;
 
@@ -105,7 +106,8 @@ public class AdminMusicianServiceImpl implements AdminMusicianService {
     @Override
     public Result<String> batchPass(AdminMusicianApplyDTO musiciansDTO) {
         //批量通过
-        List<Long> ids = musiciansDTO.getApplyId();
+        List<String> idList = musiciansDTO.getApplyId();
+        List<Long> ids = idList.stream().map(id->Long.parseLong(id)).collect(Collectors.toList());
         //变更审批状态
         adminMusicianMapper.batchPass(ids);
         //变更用户身份
@@ -130,23 +132,25 @@ public class AdminMusicianServiceImpl implements AdminMusicianService {
     @Override
     public Result<String> batchRefuse(AdminMusicianApplyDTO musiciansDTO) {
         //批量驳回
-        List<Long> ids = musiciansDTO.getApplyId();
+        List<String> idList = musiciansDTO.getApplyId();
+        List<Long> ids = idList.stream().map(id->Long.parseLong(id)).collect(Collectors.toList());
         adminMusicianMapper.batchRefuse(ids);
         return Result.ok("批量驳回成功");
     }
 
     @Override
     public Result<String> deleteMusicianApply(AdminMusicianApplyDTO adminMusicianApplyDTO) {
-        List<Long> applyId = adminMusicianApplyDTO.getApplyId();
+        List<String> applyId = adminMusicianApplyDTO.getApplyId();
         //查询一个
         LambdaQueryWrapper<Musician> lambdaQueryWrapper=new LambdaQueryWrapper<>();
-        lambdaQueryWrapper.eq(Musician::getId,applyId.get(0))
+        lambdaQueryWrapper.eq(Musician::getId,Long.parseLong(applyId.get(0)))
                         .in(Musician::getStatus,1,2);
         Musician musician = adminMusicianMapper.selectOne(lambdaQueryWrapper);
         if(musician!=null) {
             return Result.fail("操作失败，仅限未处理的审核");
         }
         applyId.stream()
+                .map(id->Long.parseLong(id))
                 .forEach(id-> {
                    adminMusicianMapper.deleteById(id);
                 });

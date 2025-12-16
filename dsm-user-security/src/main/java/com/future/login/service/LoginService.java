@@ -12,7 +12,6 @@ import java.util.Map;
  * 登录
  */
 
-@Service
 public interface LoginService {
     //通过邮箱登录
     Result LoginByEmail(LoginEmailDTO emailDTO);
