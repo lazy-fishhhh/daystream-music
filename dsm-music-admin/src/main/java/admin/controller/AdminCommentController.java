@@ -1,7 +1,7 @@
 package admin.controller;
 
 import admin.domain.dto.AdminCommentDTO;
-import admin.domain.dto.DeleteUserDTO;
+import admin.domain.dto.CommentBatchDTO;
 import admin.domain.dto.UpdateCommentDTO;
 import admin.domain.vo.AdminCommentVO;
 import admin.service.AdminCommentService;
@@ -34,8 +34,8 @@ public class AdminCommentController {
     }
     @PostMapping("/deleteComment")
     @ApiOperation(value = "批量删除评论")
-    public Result<String> deleteComment(@Valid @RequestBody DeleteUserDTO deleteUserDTO) {
-        return adminCommentService.deleteComment(deleteUserDTO);
+    public Result<String> deleteComment(@Valid @RequestBody CommentBatchDTO commentBatchDTO) {
+        return adminCommentService.deleteComment(commentBatchDTO);
     }
     @PostMapping("/updateComment")
     @ApiOperation(value = "更新评论")

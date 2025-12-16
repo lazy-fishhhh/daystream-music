@@ -19,4 +19,5 @@ public class CommunityPost {
     private Integer likeCount;//点赞数
     private LocalDateTime createTime;//创建时间
     private LocalDateTime deleteTime;//删除时间
+    private LocalDateTime updatedTime;
 }

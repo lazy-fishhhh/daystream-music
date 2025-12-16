@@ -67,7 +67,7 @@ public class ReportServiceImpl implements ReportService {
     public Result handleReport(HandleReportDTO handleReportDTO) {
         Long currentUserId = SecurityUtil.getCurrentUserId();
         //获取举报id
-        Long reportId = Long.parseLong(handleReportDTO.getReportId());
+        Long reportId = Long.parseLong(handleReportDTO.getId());
         LambdaQueryWrapper<UserReport> reportQueryWrapper = new LambdaQueryWrapper<>();
         reportQueryWrapper.eq(UserReport::getId,reportId);
         UserReport userReport = reportMapper.selectOne(reportQueryWrapper);
@@ -101,7 +101,8 @@ public class ReportServiceImpl implements ReportService {
             else if(targetType==2) {
                 //判断评论是否存在
                 LambdaQueryWrapper<Comment> commentWrapper = new LambdaQueryWrapper();
-                commentWrapper.eq(Comment::getId, targetId);
+                commentWrapper.eq(Comment::getId, targetId)
+                        .eq(Comment::getStatus,1);
                 Comment comment = commentMapper.selectOne(commentWrapper);
                 if (comment == null) {
                     return Result.ok("该评论已删除,无法操作");
@@ -237,7 +238,8 @@ public class ReportServiceImpl implements ReportService {
                 } else if (targetType == 2) {
                     //判断评论是否存在
                     LambdaQueryWrapper<Comment> commentWrapper = new LambdaQueryWrapper();
-                    commentWrapper.eq(Comment::getId, targetId);
+                    commentWrapper.eq(Comment::getId, targetId)
+                            .eq(Comment::getStatus, 1);
                     Comment comment = commentMapper.selectOne(commentWrapper);
                     if (comment == null) {
                         continue;

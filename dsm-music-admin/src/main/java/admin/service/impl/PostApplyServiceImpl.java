@@ -26,7 +26,7 @@ public class PostApplyServiceImpl implements PostApplyService {
     public Result<PageResp<AdminPostVO>> getList(PostApplyDTO postApplyDTO) {
         //构建分页
         Page<AdminPostVO> page = new Page<>(postApplyDTO.getPageNum(), postApplyDTO.getPageSize());
-        IPage<AdminPostVO> iPage = adminPostMapper.getList(page);
+        IPage<AdminPostVO> iPage = adminPostMapper.getList(page,postApplyDTO.getRole(), postApplyDTO.getKey(), postApplyDTO.getStatus());
         PageResp<AdminPostVO> pageResp = new PageResp<>();
         pageResp.setTotal(iPage.getTotal());
         pageResp.setRecords(iPage.getRecords());
@@ -39,12 +39,12 @@ public class PostApplyServiceImpl implements PostApplyService {
     @Override
     public Result<String> passBatch(DeletedMusicianDTO ids) {
         try {
-            List<String> idList = ids.getMusicianIds();
+            List<String> idList = ids.getIds();
             //批量通过动态
             //因为类型的限制,所以传过来的都是一样的审批状态，只需要判断一个，如果不是未处理，则不能批量通过
             LambdaQueryWrapper<CommunityPost> wrapper = new LambdaQueryWrapper<>();
             wrapper.eq(CommunityPost::getId, idList.get(0))
-                    .eq(CommunityPost::getStatus, 0);
+                    .in(CommunityPost::getStatus, 1,2);
             CommunityPost communityPost = adminPostMapper.selectOne(wrapper);
             if (communityPost != null) {
                 return Result.fail("请选择未处理的审核进行操作");
@@ -66,10 +66,10 @@ public class PostApplyServiceImpl implements PostApplyService {
     @Override
     public Result<String> rejectBatch(DeletedMusicianDTO ids) {
         try {
-            List<String> idList = ids.getMusicianIds();
+            List<String> idList = ids.getIds();
             LambdaQueryWrapper<CommunityPost> wrapper = new LambdaQueryWrapper<>();
             wrapper.eq(CommunityPost::getId, idList.get(0))
-                    .eq(CommunityPost::getStatus, 0);
+                    .in(CommunityPost::getStatus, 1,2);
             CommunityPost communityPost = adminPostMapper.selectOne(wrapper);
             if (communityPost != null) {
                 return Result.fail("请选择未处理的审核进行操作");
@@ -91,7 +91,7 @@ public class PostApplyServiceImpl implements PostApplyService {
     @Override
     public Result<String> handle(HandleReportDTO handleDto) {
         try{
-            Long id=Long.parseLong(handleDto.getReportId());
+            Long id=Long.parseLong(handleDto.getId());
             Integer status=handleDto.getHandleResult();
             adminPostMapper.updatePostStatus(id,status);
             return Result.ok("操作成功");

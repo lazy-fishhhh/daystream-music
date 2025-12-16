@@ -19,7 +19,10 @@ public interface AdminPostMapper extends BaseMapper<CommunityPost> {
                     @Param("title")String title);
     AdminPostVO detailPost(Long postId);
 
-    IPage<AdminPostVO> getList(Page<AdminPostVO> page);
+    IPage<AdminPostVO> getList(@Param("page") Page<AdminPostVO> page,
+                               @Param("role")Integer role,
+                               @Param("key")String key,
+                               @Param("status")Integer status);
     void updatePostStatus(@Param("postId")Long postId,
                          @Param("status")Integer status);
     void deletedPost(@Param("postId")Long postId,
