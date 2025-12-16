@@ -100,9 +100,9 @@ public class MusicController {
 
     @ApiOperation(value = "播放音乐（获取播放链接）")
     @PostMapping("/play")
-    public Result<MusicPlayVO> playMusic(@RequestParam Long musicId,
+    public Result<MusicPlayVO> playMusic(@RequestParam String musicId,
                                          @RequestParam Integer quality) {
-        return iMusicService.playMusic(musicId, quality);
+        return iMusicService.playMusic(Long.parseLong(musicId), quality);
     }
 
     @ApiOperation(value = "上报播放状态（统计播放量）")
