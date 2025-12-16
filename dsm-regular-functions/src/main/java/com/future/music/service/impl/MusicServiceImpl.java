@@ -143,10 +143,18 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
             return Result.fail("请先登录再进行该操作");
         }
         Map<Integer, MultipartFile> audioMap = new HashMap<>();
-        audioMap.put(1, standard);
-        audioMap.put(2, highDefinition);
-        audioMap.put(3, lossless);
-        audioMap.put(4, spatialAudio);
+        if (standard != null && !standard.isEmpty()){
+            audioMap.put(1, standard);
+        }
+        if (highDefinition != null && !highDefinition.isEmpty()){
+            audioMap.put(2, highDefinition);
+        }
+        if (lossless != null && !lossless.isEmpty()){
+            audioMap.put(3, lossless);
+        }
+        if (spatialAudio != null && !spatialAudio.isEmpty()){
+            audioMap.put(4, spatialAudio);
+        }
 
         List<String> uploadedFilePaths = new ArrayList<>(); // 用于回滚删除的文件路径
 
@@ -653,10 +661,18 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
             return Result.fail("请先登录再进行该操作");
         }
         Map<Integer, MultipartFile> audioMap = new HashMap<>();
-        audioMap.put(1, standard);
-        audioMap.put(2, highDefinition);
-        audioMap.put(3, lossless);
-        audioMap.put(4, spatialAudio);
+        if (standard != null && !standard.isEmpty()){
+            audioMap.put(1, standard);
+        }
+        if (highDefinition != null && !highDefinition.isEmpty()){
+            audioMap.put(2, highDefinition);
+        }
+        if (lossless != null && !lossless.isEmpty()){
+            audioMap.put(3, lossless);
+        }
+        if (spatialAudio != null && !spatialAudio.isEmpty()){
+            audioMap.put(4, spatialAudio);
+        }
 
         // 存储新上传的文件路径（用于事务回滚时删除）
         List<String> newUploadedFiles = new ArrayList<>();
