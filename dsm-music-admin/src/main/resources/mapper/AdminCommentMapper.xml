@@ -26,7 +26,7 @@
         from comment c
         left join user u on c.user_id = u.id
         where
-        c.staus=1
+        c.status=1
         and c.id=#{id}
     </select>
     <update id="deleteComment">

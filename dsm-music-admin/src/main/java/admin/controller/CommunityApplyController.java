@@ -25,6 +25,7 @@ public class CommunityApplyController {
     @Autowired
     private PostApplyService postApplyService;
     @PostMapping("/list")
+    @ApiOperation(value="获取动态申请列表")
     Result<PageResp<AdminPostVO>> communityApplyList(@Valid @RequestBody PostApplyDTO postApplyDTO) {
         return postApplyService.getList(postApplyDTO);
     }

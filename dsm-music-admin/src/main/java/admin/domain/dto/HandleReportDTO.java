@@ -10,7 +10,7 @@ public class HandleReportDTO {
      * id
      */
     @NotBlank(message = "id不能为空")
-    private String reportId;
+    private String id;
     /**
      * 处理结果 1-已通过 2-已驳回
      */
