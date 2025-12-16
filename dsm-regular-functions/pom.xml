@@ -187,6 +187,12 @@
         </dependency>
 
         <!-- 音乐时长解析 -->
+        <!-- 1. JavaCPP 核心库（必须，负责本地库加载） -->
+        <dependency>
+            <groupId>org.bytedeco</groupId>
+            <artifactId>javacpp</artifactId>
+            <version>1.5.10</version>
+        </dependency>
         <!-- 1. JavaCV 核心库（音频解析基础） -->
         <dependency>
             <groupId>org.bytedeco</groupId>
@@ -210,18 +216,12 @@
 <!--            <classifier>windows-x86_64</classifier> &lt;!&ndash; Windows 64位系统 &ndash;&gt;-->
 <!--        </dependency>-->
         <!-- Linux x86_64（64位）平台专用 FFmpeg 原生库 -->
-<!--        <dependency>-->
-<!--            <groupId>org.bytedeco</groupId>-->
-<!--            <artifactId>ffmpeg</artifactId>-->
-<!--            <version>6.1.1-1.5.10</version>-->
-<!--            <classifier>linux-x86_64</classifier> &lt;!&ndash; Linux 64位x86架构 &ndash;&gt;-->
-<!--        </dependency>-->
-        <!-- Linux arm64（aarch64）平台专用 FFmpeg 原生库 -->
         <dependency>
             <groupId>org.bytedeco</groupId>
             <artifactId>ffmpeg</artifactId>
             <version>6.1.1-1.5.10</version>
-            <classifier>linux-arm64</classifier> <!-- Linux ARM64架构 -->
+            <classifier>linux-x86_64</classifier> <!-- Linux 64位x86架构 -->
+            <type>jar</type>
         </dependency>
 
         <!-- MinIO客户端 -->
