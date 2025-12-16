@@ -194,10 +194,10 @@ public class UserServiceImpl  implements IUserService {
         if (playlist1 == null){
             throw new BusinessException("10002","歌单不存在");
         }
-        if (!Objects.equals(dto.getName(), "我的喜欢")){
+        if (Objects.equals(dto.getName(), "我的喜欢")){
             throw new BusinessException("10001","此歌单名称不允许修改");
         }
-        if (!Objects.equals(dto.getDescription(), "我的喜欢")){
+        if (Objects.equals(dto.getDescription(), "我的喜欢")){
             throw new BusinessException("10001","此歌单描述不允许修改");
         }
 
