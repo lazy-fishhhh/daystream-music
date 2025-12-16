@@ -210,11 +210,18 @@
 <!--            <classifier>windows-x86_64</classifier> &lt;!&ndash; Windows 64位系统 &ndash;&gt;-->
 <!--        </dependency>-->
         <!-- Linux x86_64（64位）平台专用 FFmpeg 原生库 -->
+<!--        <dependency>-->
+<!--            <groupId>org.bytedeco</groupId>-->
+<!--            <artifactId>ffmpeg</artifactId>-->
+<!--            <version>6.1.1-1.5.10</version>-->
+<!--            <classifier>linux-x86_64</classifier> &lt;!&ndash; Linux 64位x86架构 &ndash;&gt;-->
+<!--        </dependency>-->
+        <!-- Linux arm64（aarch64）平台专用 FFmpeg 原生库 -->
         <dependency>
             <groupId>org.bytedeco</groupId>
             <artifactId>ffmpeg</artifactId>
             <version>6.1.1-1.5.10</version>
-            <classifier>linux-x86_64</classifier> <!-- Linux 64位x86架构 -->
+            <classifier>linux-arm64</classifier> <!-- Linux ARM64架构 -->
         </dependency>
 
         <!-- MinIO客户端 -->
