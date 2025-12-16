@@ -2,6 +2,8 @@ package com.future.trade.service.Impl;
 
 import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.future.login.exception.BusinessException;
 import com.future.login.mapper.UserMapper;
 import com.future.login.util.SecurityUtil;
@@ -12,11 +14,14 @@ import com.future.trade.entity.VipPackage;
 import com.future.trade.entity.dto.SeckillActivityDTO;
 import com.future.trade.entity.enums.ProductTypeEnum;
 import com.future.trade.entity.message.SeckillOrderMsg;
+import com.future.trade.entity.vo.SeckillActivityVO;
 import com.future.trade.mapper.SeckillActivityMapper;
 import com.future.trade.mapper.SeckillOrderMapper;
 import com.future.trade.mapper.VipPackageMapper;
 import com.future.trade.service.ISeckillActivityService;
 import constants.RabbitConstants;
+import entity.pojo.util.PageReq;
+import entity.pojo.util.PageResp;
 import entity.pojo.util.Result;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -28,10 +33,12 @@ import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
+
 import util.RedisTemplateWorker;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import static com.future.trade.constants.BasicOrderConstants.MAX_SECKILL_DAY;
@@ -406,9 +413,104 @@ public class SeckillActivityService implements ISeckillActivityService {
 //            // createTime、updateTime 由数据库自动填充，无需手动设置
 //            seckillOrderMapper.insert(seckillOrder);
 //
-//            // TODO MQ同步秒杀订单到普通订单表
+//            //  MQ同步秒杀订单到普通订单表
 //            return seckillOrder;
 //        }
 
+    /**
+     * 获取所有秒杀商品（分页）
+     * @param pageReq 分页请求参数
+     * @return 所有秒杀商品分页列表
+     */
+    @Override
+    public Result<PageResp<SeckillActivityVO>> getAllSeckillProducts(PageReq pageReq) {
+        try {
+            log.info("开始查询所有秒杀商品，分页参数：pageNum={}, pageSize={}", pageReq.getPageNum(), pageReq.getPageSize());
+
+            // 创建分页对象
+            Page<SeckillActivity> page = new com.baomidou.mybatisplus.extension.plugins.pagination.Page<>(pageReq.getPageNum(), pageReq.getPageSize());
+            
+            // 执行连表分页查询
+            IPage<SeckillActivityVO> activityVOPage = seckillActivityMapper.selectAllSeckillActivities(page, null);
+            
+            // 构建分页响应
+            PageResp<SeckillActivityVO> pageResp = new PageResp<>();
+            pageResp.setRecords(activityVOPage.getRecords());
+            pageResp.setTotal(activityVOPage.getTotal());
+            pageResp.setSize(activityVOPage.getSize());
+            pageResp.setCurrent(activityVOPage.getCurrent());
+            pageResp.setPages(activityVOPage.getPages());
+            
+            log.info("查询所有秒杀商品完成，共{}条记录", activityVOPage.getTotal());
+            return Result.ok(pageResp);
+        } catch (Exception e) {
+            log.error("查询所有秒杀商品失败：", e);
+            return Result.fail(SeckillErrorCode.ACTIVITY_NOT_FOUND.getMessage());
+        }
+    }
+
+    /**
+     * 获取即将开启的秒杀商品（分页）
+     * @param pageReq 分页请求参数
+     * @return 即将开启的秒杀商品分页列表
+     */
+    @Override
+    public Result<PageResp<SeckillActivityVO>> getUpcomingSeckillProducts(PageReq pageReq) {
+        try {
+            log.info("开始查询即将开启的秒杀商品，分页参数：pageNum={}, pageSize={}", pageReq.getPageNum(), pageReq.getPageSize());
+
+            // 创建分页对象
+            Page<SeckillActivity> page = new com.baomidou.mybatisplus.extension.plugins.pagination.Page<>(pageReq.getPageNum(), pageReq.getPageSize());
+            
+            // 执行连表分页查询
+            IPage<SeckillActivityVO> activityVOPage = seckillActivityMapper.selectUpcomingSeckillActivities(page, LocalDateTime.now(),null);
+            
+            // 构建分页响应
+            PageResp<SeckillActivityVO> pageResp = new PageResp<>();
+            pageResp.setRecords(activityVOPage.getRecords());
+            pageResp.setTotal(activityVOPage.getTotal());
+            pageResp.setSize(activityVOPage.getSize());
+            pageResp.setCurrent(activityVOPage.getCurrent());
+            pageResp.setPages(activityVOPage.getPages());
+            
+            log.info("查询即将开启的秒杀商品完成，共{}条记录", activityVOPage.getTotal());
+            return Result.ok(pageResp);
+        } catch (Exception e) {
+            log.error("查询即将开启的秒杀商品失败：", e);
+            return Result.fail(SeckillErrorCode.ACTIVITY_NOT_FOUND.getMessage());
+        }
+    }
+
+    /**
+     * 获取正在进行中的秒杀商品（分页）
+     * @param pageReq 分页请求参数
+     * @return 正在进行中的秒杀商品分页列表
+     */
+    @Override
+    public Result<PageResp<SeckillActivityVO>> getOngoingSeckillProducts(PageReq pageReq) {
+        try {
+            log.info("开始查询正在进行中的秒杀商品，分页参数：pageNum={}, pageSize={}", pageReq.getPageNum(), pageReq.getPageSize());
+
+            // 创建分页对象
+            Page<SeckillActivity> page = new com.baomidou.mybatisplus.extension.plugins.pagination.Page<>(pageReq.getPageNum(), pageReq.getPageSize());
+            
+            // 执行连表分页查询
+            IPage<SeckillActivityVO> activityVOPage = seckillActivityMapper.selectOngoingSeckillActivities(page, LocalDateTime.now(),null);
+            
+            // 构建分页响应
+            PageResp<SeckillActivityVO> pageResp = new PageResp<>();
+            pageResp.setRecords(activityVOPage.getRecords());
+            pageResp.setTotal(activityVOPage.getTotal());
+            pageResp.setSize(activityVOPage.getSize());
+            pageResp.setCurrent(activityVOPage.getCurrent());
+            pageResp.setPages(activityVOPage.getPages());
+            
+            log.info("查询正在进行中的秒杀商品完成，共{}条记录", activityVOPage.getTotal());
+            return Result.ok(pageResp);
+        } catch (Exception e) {
+            log.error("查询正在进行中的秒杀商品失败：", e);
+            return Result.fail(SeckillErrorCode.ACTIVITY_NOT_FOUND.getMessage());
+        }
+    }
 
 }
