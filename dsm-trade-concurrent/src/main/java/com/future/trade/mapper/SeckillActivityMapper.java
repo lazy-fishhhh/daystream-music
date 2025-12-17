@@ -31,8 +31,8 @@ public interface SeckillActivityMapper extends BaseMapper<SeckillActivity> {
      * @return 影响行数（1=成功，0=失败）
      */
     @Update("UPDATE seckill_activity " +
-            "SET remaining_stock = remaining_stock - 1, version = version + 1, update_time = #{now} " +
-            "WHERE id = #{activityId} AND remaining_stock > 0 AND version = #{version}")
+            "SET remaining_stock = remaining_stock - 1, version = version + 1, update_time = NOW() " +
+            "WHERE id = #{activityId} AND remaining_stock > 0")
     int decreaseStock(@Param("activityId") Long activityId);
 
     /**
@@ -42,7 +42,7 @@ public interface SeckillActivityMapper extends BaseMapper<SeckillActivity> {
      * @return 影响行数
      */
     @Update("UPDATE seckill_activity " +
-            "SET remaining_stock = remaining_stock + 1, update_time = #{now} " +
+            "SET remaining_stock = remaining_stock + 1, update_time = NOW() " +
             "WHERE id = #{activityId} AND remaining_stock < total_stock") // 防止库存超总数量
     int increaseStock(@Param("activityId") Long activityId);
 
@@ -138,7 +138,7 @@ public interface SeckillActivityMapper extends BaseMapper<SeckillActivity> {
             "END as original_price " +
             "FROM seckill_activity sa " +
             "LEFT JOIN vip_package vp ON sa.product_type = #{productTypeVip} AND sa.product_id = vp.id " +
-            "WHERE sa.start_time <= #{currentTime} AND sa.end_time >= #{currentTime} AND sa.status = 1 " +
+            "WHERE sa.start_time <= #{currentTime} AND sa.end_time >= #{currentTime}  " +
             "ORDER BY sa.start_time ASC")
     IPage<SeckillActivityVO> selectOngoingSeckillActivities(Page<SeckillActivity> page,
                                                             @Param("currentTime") LocalDateTime currentTime,

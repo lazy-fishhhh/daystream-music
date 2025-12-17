@@ -162,28 +162,11 @@
 			<version>0.11.5</version>
 		</dependency>
 
-        <!-- 音乐时长解析 -->
-        <!-- 1. JavaCV 核心库（音频解析基础） -->
+        <!-- 音频元数据解析依赖 -->
         <dependency>
-            <groupId>org.bytedeco</groupId>
-            <artifactId>javacv</artifactId>
-            <version>1.5.10</version> <!-- 推荐 1.5.10 及以上，兼容 Spring Boot 3.x -->
-        </dependency>
-
-        <!-- 2. FFmpeg 基础依赖（与 JavaCV 版本匹配） -->
-        <dependency>
-            <groupId>org.bytedeco</groupId>
-            <artifactId>ffmpeg</artifactId>
-            <version>6.1.1-1.5.10</version> <!-- 版本格式：[FFmpeg版本]-[JavaCV版本]，需与上面一致 -->
-            <type>pom</type>
-        </dependency>
-
-        <!-- 3. Windows 平台专用 FFmpeg 原生库（根据你的操作系统选择） -->
-        <dependency>
-            <groupId>org.bytedeco</groupId>
-            <artifactId>ffmpeg</artifactId>
-            <version>6.1.1-1.5.10</version>
-            <classifier>windows-x86_64</classifier> <!-- Windows 64位系统 -->
+            <groupId>net.jthink</groupId>
+            <artifactId>jaudiotagger</artifactId>
+            <version>3.0.1</version>
         </dependency>
 
         <!-- MinIO客户端 -->
