@@ -28,7 +28,7 @@ public class MqConfig {
         RabbitTemplate rabbitTemplate = new RabbitTemplate(connectionFactory);
         // 绑定发送端转换器
         rabbitTemplate.setMessageConverter(jacksonMessageConverter());
-        // 发布确认回调（你的原有逻辑）
+        // 发布确认回调
         rabbitTemplate.setConfirmCallback((correlationData, ack, cause) -> {
             if (ack) {
                 log.info("发布确认回调ack：消息成功投递到交换机, id: {}", correlationData != null ? correlationData.getId() : "未知");
@@ -45,23 +45,4 @@ public class MqConfig {
         return rabbitTemplate;
     }
 
-    // ========== 配置监听容器工厂，绑定JSON转换器 ==========
-    // 注意：方法名要和监听器中指定的 containerFactory 名称一致！
-    //  RabbitConstants.SECKILL_RABBIT_LISTENER_CONTAINER_FACTORY
-    // 该常量的值是 "seckillRabbitListenerContainerFactory"，则方法名对应这个值
-    @Bean("seckillRabbitListenerContainerFactory")
-    public SimpleRabbitListenerContainerFactory seckillRabbitListenerContainerFactory(
-            ConnectionFactory connectionFactory,
-            MessageConverter jacksonMessageConverter) {
-        SimpleRabbitListenerContainerFactory factory = new SimpleRabbitListenerContainerFactory();
-        // 绑定连接工厂
-        factory.setConnectionFactory(connectionFactory);
-        // 核心：给监听容器绑定JSON转换器（缺失的关键步骤）
-        factory.setMessageConverter(jacksonMessageConverter);
-        // 可选：补充你的容器工厂其他配置（如并发数、重试等）
-        factory.setConcurrentConsumers(1);
-        factory.setMaxConcurrentConsumers(5);
-        factory.setDefaultRequeueRejected(false); // 异常消息不重新入队（避免死循环）
-        return factory;
-    }
 }

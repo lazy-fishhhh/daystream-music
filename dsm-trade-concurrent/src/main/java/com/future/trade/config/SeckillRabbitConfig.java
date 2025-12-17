@@ -3,6 +3,7 @@ package com.future.trade.config;
 import org.springframework.amqp.core.*;
 import org.springframework.amqp.rabbit.config.SimpleRabbitListenerContainerFactory;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
+import org.springframework.amqp.support.converter.MessageConverter;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -42,21 +43,23 @@ public class SeckillRabbitConfig {
     }
 
     // 4. 秒杀专用的手动确认工厂
-    @Bean(name = SECKILL_RABBIT_LISTENER_CONTAINER_FACTORY)
-    public SimpleRabbitListenerContainerFactory seckillRabbitListenerContainerFactory(ConnectionFactory connectionFactory) {
+    // ========== 配置监听容器工厂，绑定JSON转换器 ==========
+    // 注意：方法名要和监听器中指定的 containerFactory 名称一致！
+    //  RabbitConstants.SECKILL_RABBIT_LISTENER_CONTAINER_FACTORY
+    // 该常量的值是 "seckillRabbitListenerContainerFactory"，则方法名对应这个值
+    @Bean("seckillRabbitListenerContainerFactory")
+    public SimpleRabbitListenerContainerFactory seckillRabbitListenerContainerFactory(
+            ConnectionFactory connectionFactory,
+            MessageConverter jacksonMessageConverter) {
         SimpleRabbitListenerContainerFactory factory = new SimpleRabbitListenerContainerFactory();
+        // 绑定连接工厂
         factory.setConnectionFactory(connectionFactory);
-        // 核心：手动确认模式
-        factory.setAcknowledgeMode(AcknowledgeMode.MANUAL);
-        // 秒杀高并发优化配置
-        factory.setPrefetchCount(100); // 批量预取消息
-        factory.setConcurrentConsumers(5); // 初始消费线程
-        factory.setMaxConcurrentConsumers(20); // 最大消费线程
-
-        // 关闭重试（不配置默认即关闭）
-        // 若要显式关闭重试，可配置空的RetryTemplate
-        // factory.setRetryTemplate(new RetryTemplate());
-
+        // 核心：给监听容器绑定JSON转换器
+        factory.setMessageConverter(jacksonMessageConverter);
+        // 可选：补充容器工厂其他配置（如并发数、重试等）
+        factory.setConcurrentConsumers(1);
+        factory.setMaxConcurrentConsumers(5);
+        factory.setDefaultRequeueRejected(false); // 异常消息不重新入队（避免死循环）
         return factory;
     }
 }
