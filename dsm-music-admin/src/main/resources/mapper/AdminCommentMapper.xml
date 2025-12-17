@@ -5,9 +5,22 @@
 <mapper namespace="admin.mapper.AdminCommentMapper">
     <select id="getCommentList" resultType="admin.domain.vo.AdminCommentVO">
         select c.id,c.user_id,c.target_id,c.content,c.target_type as type,c.created_time,
-        u.username,u.avatar
+        u.username,u.avatar,
+        case
+        when c.target_type = 1 then s.music_name  -- 歌曲名
+        when c.target_type = 2 then p.playlist_name -- 歌单名
+        when c.target_type = 3 then a.album_name -- 专辑名
+        when c.target_type = 4 then cp.title -- 动态名
+        when c.target_type = 5 then m.mv_name -- mv名
+        else 'null'
+        end as title
         from comment c
         left join user u on c.user_id = u.id
+        left join music s on c.target_type = 1 and c.target_id = s.id
+        left join playlist p on c.target_type = 2 and c.target_id = p.id
+        left join album a on c.target_type = 3 and c.target_id = a.id
+        left join community_post cp on c.target_type = 4 and c.target_id = cp.id
+        left join music_mv m on c.target_type = 5 and c.target_id = m.id
         <where>
             c.status=1
             <if test="type!=null">

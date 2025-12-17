@@ -35,6 +35,10 @@ public class AdminCommentVO {
      */
     private Long targetId;
     /**
+     * 评论对象title
+     */
+    private String title;
+    /**
      * 评论时间
      */
     private LocalDateTime createdTime;

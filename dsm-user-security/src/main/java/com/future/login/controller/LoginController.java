@@ -1,5 +1,6 @@
 package com.future.login.controller;
 
+import com.future.login.domain.dto.BindEmail;
 import com.future.login.domain.dto.FogetDTO;
 import com.future.login.domain.dto.LoginEmailDTO;
 import com.future.login.domain.vo.CaptchaVO;
@@ -65,4 +66,10 @@ public class LoginController {
                                 HttpServletResponse response) {
         qqAuthService.handleCallback(code, state,response);
     }
+    /*@ApiOperation("绑定之前创建的邮箱账号")
+    @PostMapping("/bindEmail")
+    public Result bindEmail(@Valid @RequestBody BindEmail bindEmail)
+    {
+        return loginService.bindEmail(bindEmail);
+    }*/
 }

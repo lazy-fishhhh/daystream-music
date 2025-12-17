@@ -26,7 +26,9 @@ import entity.pojo.util.PageResp;
 import entity.pojo.util.Result;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.parameters.P;
 import org.springframework.stereotype.Service;
+import social.domain.vo.DeleteCommentVO;
 import social.mapper.CommentMapper;
 
 import java.util.List;
@@ -52,7 +54,7 @@ public class ReportServiceImpl implements ReportService {
     public Result<PageResp<ReportVO>> getReportList(ReportDTO reportDTO) {
         //构建分页
         Page<ReportVO> page =new Page<>(reportDTO.getPageNum(),reportDTO.getPageSize());
-        IPage<ReportVO> reportVOIPage = reportMapper.reportList(page, reportDTO.getType(), reportDTO.getReason(), reportDTO.getKey(),reportDTO.getStatus());
+        IPage<ReportVO> reportVOIPage = reportMapper.reportList(page, reportDTO.getReason(), reportDTO.getKey(),reportDTO.getStatus());
         PageResp<ReportVO> pageResp = new PageResp<>();
         pageResp.setTotal(reportVOIPage.getTotal());
         pageResp.setPages(reportVOIPage.getPages());
@@ -107,11 +109,29 @@ public class ReportServiceImpl implements ReportService {
                 if (comment == null) {
                     return Result.ok("该评论已删除,无法操作");
                 }
-                //把评论删除
-                UpdateWrapper<Comment> commentUpdateWrapper = new UpdateWrapper<>();
-                commentUpdateWrapper.eq("id", targetId)
-                        .set("status", 0);
-                commentMapper.update(commentUpdateWrapper);
+                Long parentId = comment.getParentId();
+                Long commentTargetId = comment.getTargetId();
+                Integer commentTargetType = comment.getTargetType();
+                Long commentId = comment.getId();
+                //如果删除的是父评论
+                if(parentId==0)
+                {
+                    //获取父评论下所有的子评论
+                    List<Long> deleteId = commentMapper.getDeleteId(commentId);
+                    //删除评论
+                    Long l = commentMapper.deleteComment(deleteId, commentId);
+                    //更新目标的评论数
+                    commentMapper.updateCommentCountByType(commentTargetId,commentTargetType,l);
+                }
+                //如果是子评论
+                else{
+                    //直接删除
+                    commentMapper.deleteComment(null, commentId);
+                    //更新父评论的评论数
+                    commentMapper.ParentCommentCount(parentId,1L);
+                    //更新目标的评论数
+                    commentMapper.updateCommentCountByType(commentTargetId,commentTargetType,1L);
+                }
                 reportMapper.updatehandle(reportId,currentUserId,handleResult);
                 return Result.ok("评论删除成功");
             }else if (targetType == 3)
@@ -137,38 +157,36 @@ public class ReportServiceImpl implements ReportService {
                 userMapper.update(userUpdateWrapper);
                 reportMapper.updatehandle(reportId,currentUserId,handleResult);
                 return Result.ok("用户封禁成功");
-            }else if(targetType==4)
-            {
+            }else if(targetType==4) {
                 //判断音乐人
-                LambdaQueryWrapper<Musician> musicianWrapper=new LambdaQueryWrapper<>();
-                musicianWrapper.eq(Musician::getUserId,targetId)
-               .in(Musician::getStatus,0,2);
-                if(adminMusicianMapper.selectOne(musicianWrapper)!=null)
-                {
+                LambdaQueryWrapper<Musician> musicianWrapper = new LambdaQueryWrapper<>();
+                musicianWrapper.eq(Musician::getId, targetId);
+                Musician musician = adminMusicianMapper.selectOne(musicianWrapper);
+                if (musician.getStatus() == 0 || musician.getStatus() == 2) {
                     return Result.fail("音乐人不存在");
                 }
-                LambdaQueryWrapper<Musician> musicianWrapper1=new LambdaQueryWrapper<>();
-                musicianWrapper1.eq(Musician::getUserId,targetId)
-                        .eq(Musician::getStatus,1)
-                        .eq(Musician::getIsDeleted,2);
-                if(adminMusicianMapper.selectOne(musicianWrapper1)!=null)
-                {
-                    return Result.fail("该音乐人已注销，无法操作");
+                if (musician.getStatus() == 1) {
+                    if (musician.getIsDeleted() == 2) {
+                        return Result.fail("该音乐人已注销，无法操作");
+                    }
+                    //封禁音乐人
+                    else {
+                        Long userId=musician.getUserId();
+                        UpdateWrapper<Musician> musicianUpdateWrapper = new UpdateWrapper<>();
+                        musicianUpdateWrapper.eq("id", targetId)
+                                .set("is_deleted", 1);
+                        adminMusicianMapper.update(musicianUpdateWrapper);
+                        //把音乐人身份更新成普通人
+                        UpdateWrapper<UserRole> userRoleUpdateWrapper = new UpdateWrapper<>();
+                        userRoleUpdateWrapper.eq("user_id",userId)
+                                .set("role_id", 1);
+                        userRole3Mapper.update(userRoleUpdateWrapper);
+                        //变更redis中的权限
+                        updateUserInfoService.updateUserInfo(userId);
+                        reportMapper.updatehandle(reportId, currentUserId, handleResult);
+                        return Result.ok("音乐人封禁成功");
+                    }
                 }
-                //封禁音乐人
-                UpdateWrapper<Musician> musicianUpdateWrapper=new UpdateWrapper<>();
-                musicianUpdateWrapper.eq("user_id",targetId)
-                        .set("is_deleted",1);
-                adminMusicianMapper.update(musicianUpdateWrapper);
-                //把音乐人身份更新成普通人
-                    UpdateWrapper<UserRole> userRoleUpdateWrapper = new UpdateWrapper<>();
-                    userRoleUpdateWrapper.eq("user_id", targetId)
-                            .set("role_id", 1);
-                    userRole3Mapper.update(userRoleUpdateWrapper);
-                    //变更redis中的权限
-                updateUserInfoService.updateUserInfo(targetId);
-                reportMapper.updatehandle(reportId,currentUserId,handleResult);
-                return Result.ok("音乐人封禁成功");
             }
         }
         reportMapper.updatehandle(reportId,currentUserId,handleResult);
@@ -244,11 +262,29 @@ public class ReportServiceImpl implements ReportService {
                     if (comment == null) {
                         continue;
                     }
-                    //把评论删除
-                    UpdateWrapper<Comment> commentUpdateWrapper = new UpdateWrapper<>();
-                    commentUpdateWrapper.eq("id", targetId)
-                            .set("status", 0);
-                    commentMapper.update(commentUpdateWrapper);
+                    Long parentId = comment.getParentId();
+                    Long commentTargetId = comment.getTargetId();
+                    Integer commentTargetType = comment.getTargetType();
+                    Long commentId = comment.getId();
+                    //如果删除的是父评论
+                    if(parentId==0)
+                    {
+                        //获取父评论下所有的子评论
+                        List<Long> deleteId = commentMapper.getDeleteId(commentId);
+                        //删除评论
+                        Long l = commentMapper.deleteComment(deleteId, commentId);
+                        //更新目标的评论数
+                        commentMapper.updateCommentCountByType(commentTargetId,commentTargetType,l);
+                    }
+                    //如果是子评论
+                    else{
+                        //直接删除
+                        commentMapper.deleteComment(null, commentId);
+                        //更新父评论的评论数
+                        commentMapper.ParentCommentCount(parentId,1L);
+                        //更新目标的评论数
+                        commentMapper.updateCommentCountByType(commentTargetId,commentTargetType,1L);
+                    }
                     reportMapper.updatehandle(id, currentUserId, 1);
                 } else if (targetType == 3) {
                     //判断用户是否存在
@@ -272,31 +308,32 @@ public class ReportServiceImpl implements ReportService {
                 } else if (targetType == 4) {
                     //判断音乐人
                     LambdaQueryWrapper<Musician> musicianWrapper = new LambdaQueryWrapper<>();
-                    musicianWrapper.eq(Musician::getUserId, targetId)
-                            .in(Musician::getStatus, 0, 2);
-                    if (adminMusicianMapper.selectOne(musicianWrapper) != null) {
+                    musicianWrapper.eq(Musician::getId, targetId);
+                    Musician musician = adminMusicianMapper.selectOne(musicianWrapper);
+                    if (musician.getStatus() == 0 || musician.getStatus() == 2) {
                         continue;
                     }
-                    LambdaQueryWrapper<Musician> musicianWrapper1 = new LambdaQueryWrapper<>();
-                    musicianWrapper1.eq(Musician::getUserId, targetId)
-                            .eq(Musician::getStatus, 1)
-                            .eq(Musician::getIsDeleted, 2);
-                    if (adminMusicianMapper.selectOne(musicianWrapper1) != null) {
-                        continue;
+                    if (musician.getStatus() == 1) {
+                        if (musician.getIsDeleted() == 2) {
+                            continue;
+                        }
+                        //封禁音乐人
+                        else {
+                            Long userId = musician.getUserId();
+                            UpdateWrapper<Musician> musicianUpdateWrapper = new UpdateWrapper<>();
+                            musicianUpdateWrapper.eq("id", targetId)
+                                    .set("is_deleted", 1);
+                            adminMusicianMapper.update(musicianUpdateWrapper);
+                            //把音乐人身份更新成普通人
+                            UpdateWrapper<UserRole> userRoleUpdateWrapper = new UpdateWrapper<>();
+                            userRoleUpdateWrapper.eq("user_id", userId)
+                                    .set("role_id", 1);
+                            userRole3Mapper.update(userRoleUpdateWrapper);
+                            //变更redis中的权限
+                            updateUserInfoService.updateUserInfo(userId);
+                            reportMapper.updatehandle(id, currentUserId, 1);
+                        }
                     }
-                    //封禁音乐人
-                    UpdateWrapper<Musician> musicianUpdateWrapper = new UpdateWrapper<>();
-                    musicianUpdateWrapper.eq("user_id", targetId)
-                            .set("is_deleted", 1);
-                    adminMusicianMapper.update(musicianUpdateWrapper);
-                    //把音乐人身份更新成普通人
-                    UpdateWrapper<UserRole> userRoleUpdateWrapper = new UpdateWrapper<>();
-                    userRoleUpdateWrapper.eq("user_id", targetId)
-                            .set("role_id", 1);
-                    userRole3Mapper.update(userRoleUpdateWrapper);
-                    //变更redis中的权限
-                    updateUserInfoService.updateUserInfo(targetId);
-                    reportMapper.updatehandle(id, currentUserId, 1);
                 }
             }
             return Result.ok("批量通过成功");
@@ -331,6 +368,19 @@ public class ReportServiceImpl implements ReportService {
             return Result.fail("操作失败");
         }
 
+    }
+
+    @Override
+    public Result getDetaiReport(String id) {
+       Long reportId = Long.parseLong(id);
+       LambdaQueryWrapper<UserReport> reportWrapper = new LambdaQueryWrapper<>();
+       reportWrapper.eq(UserReport::getId, reportId);
+       UserReport userReport = reportMapper.selectOne(reportWrapper);
+       if (userReport == null){
+           return Result.fail("举报不存在");
+       }else {
+           return Result.ok(reportMapper.getDetaiReport(reportId));
+       }
     }
 
 

@@ -3,89 +3,25 @@
         PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="admin.mapper.Report2Mapper">
-    <select id="roportList" resultType="admin.domain.vo.ReportVO">
-        select r.id,
-        r.reporter_id,
-        r.target_type,
-        r.target_id,
-        r.report_reason,
-        r.report_content,
-        r.created_time,
-        r.status
-        from report as r
-        left join user as u on r.reporter_id=u.id
-        <if test="r.target_type==3">
-        left join user as ud on r.target_id=ud.id
-        </if>
-        <if test="r.target_type==1">
-            left join song as s on r.target_id=s.id
-        </if>
-        <if test="r.target_type==2">
-            left join comment as c on r.target_id=c.id
-        </if>
-
-    </select>
-        <resultMap id="ReportVOMap" type="admin.domain.vo.ReportVO">
-            <id column="id" property="id"/>
-            <result column="reporter_id" property="reporterId"/>
-            <result column="target_type" property="targetType"/>
-            <result column="target_id" property="targetId"/>
-            <result column="report_reason" property="reason"/>
-            <result column="report_content" property="reportContent"/>
-            <result column="created_time" property="createdTime"/>
-            <result column="handle_status" property="status"/>
-            <result column="reporter_name" property="reporterName"/>
-            <result column="reporter_avatar" property="reporterAvatar"/>
-            <result column="target_name" property="targetName"/>
-            <result column="target_avatar" property="targetAvatar"/>
-            <result column="target_status" property="targetStatus"/>
-        </resultMap>
-
-    <select id="reportList" resultMap="ReportVOMap">
+    <select id="reportList" resultType="admin.domain.vo.ReportVO">
         select
         r.id,
         r.reporter_id,
-        r.target_type,
         r.target_id,
-        r.report_reason,
-        r.report_content,
+        r.report_reason as reason,
+        r.report_content as reportContent,
         r.created_time,
-        r.handle_status,
-        u.username as reporter_name,
-        u.avatar as reporter_avatar,
-        CASE
-        WHEN r.target_type = 1 THEN mu.music_name   -- 音乐
-        WHEN r.target_type = 2 THEN c.content      -- 评论
-        WHEN r.target_type = 3 THEN ud.username     -- 普通用户
-        WHEN r.target_type = 4 THEN m.stage_name   -- 音乐人
-        END as target_name,
-        CASE
-        WHEN r.target_type = 1 THEN mu.cover_url   -- 音乐封面
-        WHEN r.target_type = 2 THEN ud.avatar      -- 评论发布者头像
-        WHEN r.target_type = 3 THEN ud.avatar      -- 普通用户头像
-        WHEN r.target_type = 4 THEN m.avatar       -- 音乐人头像
-        END as target_avatar,
-
-        CASE
-        WHEN r.target_type = 1 THEN IF(mu.status = 2, 0, 1)  -- 音乐状态
-        WHEN r.target_type = 2 THEN IF(c.status = 0, 0, 1)   -- 评论状态
-        WHEN r.target_type = 3 THEN ud.user_status           -- 普通用户状态
-        WHEN r.target_type = 4 THEN m.status                 -- 音乐人状态
-        END as target_status
+        r.handle_status as status,
+        c.content as targetContent,
+        u.username as reporterName,
+        u.avatar as reporterAvatar
         from user_report as r
-        left join user as u on r.reporter_id = u.id
         left join comment as c on r.target_type = 2 and r.target_id = c.id
-        left join music as mu on r.target_type = 1 and r.target_id = mu.id
-        left join user as ud on
-        (r.target_type = 3 and r.target_id = ud.id)  -- 普通用户
-        or (r.target_type = 2 and c.user_id = ud.id) -- 评论发布者
-        left join musician as m on r.target_type = 4 and r.target_id = m.id
+        left join user as u on c.user_id = u.id
         <where>
+            c.target_type = 2
             <if test="status != null">
-                r.handle_status = #{status}
-            </if>
-            <if test="type != null">
-                and r.target_type = #{type}
+               and r.handle_status = #{status}
             </if>
             <if test="reason != null">
                 and r.report_reason = #{reason}
@@ -93,16 +29,49 @@
             <if test="key != null and key != ''">
                 and (
                 u.username like concat('%', #{key}, '%')
-                or r.report_content like concat('%', #{key}, '%')
-                or CASE
-                WHEN r.target_type = 1 THEN mu.music_name
-                WHEN r.target_type = 2 THEN c.content
-                WHEN r.target_type = 3 THEN ud.username
-                WHEN r.target_type = 4 THEN m.stage_name
-                END like concat('%', #{key}, '%')
+                or c.content like concat('%', #{key}, '%')
                 )
             </if>
         </where>
+        order by r.created_time desc
+    </select>
+    <select id="getDetaiReport" resultType="admin.domain.vo.DetailReportVO" flushCache="true">
+        select
+        r.id,
+        r.reporter_id,
+        r.target_id,
+        r.report_reason as reason,
+        r.report_content as reportContent,
+        r.created_time,
+        c.content as targetContent,
+        c.target_type as source,
+        COALESCE(
+        case
+        when c.target_type = 1 then m.music_name
+        when c.target_type = 2 then p.playlist_name
+        when c.target_type = 3 then a.album_name
+        when c.target_type = 4 then cp.title
+        when c.target_type = 5 then mv.mv_name
+        else '未知内容'
+        end,
+        '未知内容'
+        ) as title,
+        r.handle_status as status,
+        uc.id as authorId,
+        uc.username as authorName,
+        uc.avatar as authorAvatar,
+        ur.username as reporterName,
+        ur.avatar as reporterAvatar
+        from user_report as r
+        inner join comment as c on r.target_id = c.id
+        left join music as m on c.target_type = 1 and c.target_id = m.id
+        left join playlist as p on c.target_type = 2 and c.target_id = p.id
+        left join album as a on c.target_type = 3 and c.target_id = a.id
+        left join community_post as cp on c.target_type = 4 and c.target_id = cp.id
+        left join music_mv as mv on c.target_type = 5 and c.target_id = mv.id
+        left join user as uc on c.user_id = uc.id
+        left join user as ur on r.reporter_id = ur.id
+        where r.id = #{reportId}
         order by r.created_time desc
     </select>
 </mapper>
