@@ -43,8 +43,6 @@ import org.springframework.web.bind.annotation.*;
 @EnableRabbit // 启用Spring RabbitMQ功能
 public class DemoApplication {
 	public static void main(String[] args) {
-        Loader.load(org.bytedeco.ffmpeg.global.avutil.class);
-
 		SpringApplication.run(DemoApplication.class, args);
 	}
 
