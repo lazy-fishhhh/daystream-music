@@ -270,7 +270,7 @@ public class AdminMusicianServiceImpl implements AdminMusicianService {
     @Override
     public Result<String> deleteBatch(DeletedMusicianDTO deletedMusicianDTO) {
         try {
-            List<String> MusicianIds = deletedMusicianDTO.getMusicianIds();
+            List<String> MusicianIds = deletedMusicianDTO.getIds();
             //逐个删除用户
             MusicianIds.stream()
                     .map(Long::valueOf)

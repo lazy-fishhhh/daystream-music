@@ -4,7 +4,7 @@
         "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="admin.mapper.AdminPostMapper">
     <select id="communityList" resultType="admin.domain.vo.AdminPostVO">
-        select p.id,p.user_id as authorId,p.title,p.content,p.create_time,p.is_deleted as status,
+        select p.id,p.user_id as authorId,p.title,p.content,p.create_time,p.is_deleted as postStatus,
         u.username as authorName,u.avatar as authorAvatar,
         r.role_name as role
         from community_post p
@@ -16,7 +16,7 @@
         <if test="role != null">
         and r.id=#{role}
         </if>
-        <if test="kye!=null and key!=''">
+        <if test="key!=null and key!=''">
         and (p.title like concat('%',#{key},'%')
             or
             p.content like concat('%',#{key},'%'))
@@ -24,7 +24,7 @@
         order by p.create_time desc
     </select>
     <select id="detailPost" resultType="admin.domain.vo.AdminPostVO">
-        select p.id,p.user_id as authorId,p.title,p.content,p.create_time,p.is_deleted as status,
+        select p.id,p.user_id as authorId,p.title,p.content,p.create_time,p.is_deleted as postStatus,
         u.username as authorName,u.avatar as authorAvatar,
         r.role_name as role
         from community_post p
@@ -45,8 +45,9 @@
                  content = #{content},
             </if>
             <if test="title!=null and title!=''">
-                title = #{title}
+                title = #{title},
             </if>
+            updated_time = now()
         </set>
         where id=#{postId}
         and status=1
@@ -59,11 +60,11 @@
         left join user u on p.user_id = u.id
         left join user_role ur on u.id = ur.user_id
         left join role r on ur.role_id = r.id
-        where
+        <where>
         <if test="role != null">
             r.id=#{role}
         </if>
-        <if test="kye!=null and key!=''">
+        <if test="key!=null and key!=''">
             and (p.title like concat('%',#{key},'%')
             or
             p.content like concat('%',#{key},'%'))
@@ -71,6 +72,7 @@
         <if test="status != null">
             and p.status = #{status}
         </if>
+        </where>
         order by p.create_time desc
     </select>
     <update id="updatePostStatus">
