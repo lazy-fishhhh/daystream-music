@@ -138,7 +138,7 @@ public interface SeckillActivityMapper extends BaseMapper<SeckillActivity> {
             "END as original_price " +
             "FROM seckill_activity sa " +
             "LEFT JOIN vip_package vp ON sa.product_type = #{productTypeVip} AND sa.product_id = vp.id " +
-            "WHERE sa.start_time <= #{currentTime} AND sa.end_time >= #{currentTime} AND sa.status = 1 " +
+            "WHERE sa.start_time <= #{currentTime} AND sa.end_time >= #{currentTime}  " +
             "ORDER BY sa.start_time ASC")
     IPage<SeckillActivityVO> selectOngoingSeckillActivities(Page<SeckillActivity> page,
                                                             @Param("currentTime") LocalDateTime currentTime,
