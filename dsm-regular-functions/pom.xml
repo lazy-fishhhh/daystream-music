@@ -200,13 +200,19 @@
             <version>1.5.10</version> <!-- 推荐 1.5.10 及以上，兼容 Spring Boot 3.x -->
         </dependency>
 
-        <!-- 2. FFmpeg 基础依赖（与 JavaCV 版本匹配） -->
+        <!-- 替换为 ffmpeg-platform，自动包含 Java 包 + 全平台原生库 -->
         <dependency>
             <groupId>org.bytedeco</groupId>
-            <artifactId>ffmpeg</artifactId>
-            <version>6.1.1-1.5.10</version> <!-- 版本格式：[FFmpeg版本]-[JavaCV版本]，需与上面一致 -->
-            <type>pom</type>
+            <artifactId>ffmpeg-platform</artifactId>
+            <version>6.1.1-1.5.10</version> <!-- 版本格式：[FFmpeg版本]-[JavaCV版本]，与上面一致 -->
         </dependency>
+        <!-- 2. FFmpeg 基础依赖（与 JavaCV 版本匹配） -->
+<!--        <dependency>-->
+<!--            <groupId>org.bytedeco</groupId>-->
+<!--            <artifactId>ffmpeg</artifactId>-->
+<!--            <version>6.1.1-1.5.10</version> &lt;!&ndash; 版本格式：[FFmpeg版本]-[JavaCV版本]，需与上面一致 &ndash;&gt;-->
+<!--            <type>pom</type>-->
+<!--        </dependency>-->
 
         <!-- 3. Windows 平台专用 FFmpeg 原生库（根据你的操作系统选择） -->
 <!--        <dependency>-->
@@ -216,13 +222,13 @@
 <!--            <classifier>windows-x86_64</classifier> &lt;!&ndash; Windows 64位系统 &ndash;&gt;-->
 <!--        </dependency>-->
         <!-- Linux x86_64（64位）平台专用 FFmpeg 原生库 -->
-        <dependency>
-            <groupId>org.bytedeco</groupId>
-            <artifactId>ffmpeg</artifactId>
-            <version>6.1.1-1.5.10</version>
-            <classifier>linux-x86_64</classifier> <!-- Linux 64位x86架构 -->
-            <type>jar</type>
-        </dependency>
+<!--        <dependency>-->
+<!--            <groupId>org.bytedeco</groupId>-->
+<!--            <artifactId>ffmpeg</artifactId>-->
+<!--            <version>6.1.1-1.5.10</version>-->
+<!--            <classifier>linux-x86_64</classifier> &lt;!&ndash; Linux 64位x86架构 &ndash;&gt;-->
+<!--            <type>jar</type>-->
+<!--        </dependency>-->
 
         <!-- MinIO客户端 -->
         <dependency>
