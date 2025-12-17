@@ -262,14 +262,6 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
-                <configuration>
-                    <includes>
-                        <include>
-                            <groupId>org.bytedeco</groupId>
-                            <artifactId>ffmpeg</artifactId>
-                        </include>
-                    </includes>
-                </configuration>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
