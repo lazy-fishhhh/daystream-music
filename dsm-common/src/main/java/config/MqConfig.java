@@ -13,6 +13,9 @@ import org.springframework.context.annotation.Configuration;
 @Slf4j
 @Configuration
 public class MqConfig  {
+
+
+
     // RabbitMQ消息转换器
     // 发消息时将java对象转换成json
     // 收消息时将json转换成java对象

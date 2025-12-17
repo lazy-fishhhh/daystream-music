@@ -3,6 +3,7 @@ package com.future.trade.config;
 import org.springframework.amqp.core.*;
 import org.springframework.amqp.rabbit.config.SimpleRabbitListenerContainerFactory;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -15,29 +16,32 @@ import static constants.RabbitConstants.*;
 @Configuration
 public class SeckillRabbitConfig {
 
-    // 1. 秒杀订单交换机（Topic类型）
-    @Bean
-    public TopicExchange seckillOrderExchange() {
-        return new TopicExchange(SECKILL_ORDER_EXCHANGE, true, false);
-    }
-
-    // 2. 秒杀订单队列（持久化）
-    @Bean
-    public Queue seckillOrderQueue() {
-        return QueueBuilder.durable(SECKILL_ORDER_QUEUE)
-                .withArgument("x-queue-mode", "lazy") // 懒加载，适配高并发
+    // 1. 配置秒杀订单交换机
+    @Bean(name = SECKILL_ORDER_EXCHANGE)
+    public Exchange seckillOrderExchange() {
+        return ExchangeBuilder.topicExchange(SECKILL_ORDER_EXCHANGE)
+                .durable(true)
                 .build();
     }
 
-    // 3. 强制绑定交换机和队列（路由键100%匹配）
-    @Bean
-    public Binding seckillOrderBinding() {
-        return BindingBuilder.bind(seckillOrderQueue())
-                .to(seckillOrderExchange())
-                .with(ROUTING_KEY_SECKILL_ORDER);
+    // 2. 配置秒杀订单队列
+    @Bean(name = SECKILL_ORDER_QUEUE)
+    public Queue seckillOrderQueue() {
+        return QueueBuilder.durable(SECKILL_ORDER_QUEUE)
+                .build();
     }
 
-    // 4. 手动确认工厂
+    // 3. 配置绑定关系
+    @Bean
+    public Binding seckillOrderBinding(@Qualifier(SECKILL_ORDER_EXCHANGE) Exchange exchange,
+                                       @Qualifier(SECKILL_ORDER_QUEUE) Queue queue) {
+        return BindingBuilder.bind(queue)
+                .to(exchange)
+                .with(ROUTING_KEY_SECKILL_ORDER)
+                .noargs();
+    }
+
+    // 4. 秒杀专用的手动确认工厂
     @Bean(name = SECKILL_RABBIT_LISTENER_CONTAINER_FACTORY)
     public SimpleRabbitListenerContainerFactory seckillRabbitListenerContainerFactory(ConnectionFactory connectionFactory) {
         SimpleRabbitListenerContainerFactory factory = new SimpleRabbitListenerContainerFactory();
