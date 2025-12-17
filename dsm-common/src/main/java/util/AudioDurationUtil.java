@@ -1,9 +1,17 @@
 package util;
 
-import org.bytedeco.javacv.FFmpegFrameGrabber;
+import org.jaudiotagger.audio.AudioFile;
+import org.jaudiotagger.audio.AudioFileIO;
+import org.jaudiotagger.audio.exceptions.CannotReadException;
+import org.jaudiotagger.audio.exceptions.InvalidAudioFrameException;
+import org.jaudiotagger.audio.exceptions.ReadOnlyFileException;
+import org.jaudiotagger.tag.TagException;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.File;
+import java.io.IOException;
 import java.io.InputStream;
+import java.util.UUID;
 
 /**
  * 音频时长工具类，支持解析主流音频格式（MP3、FLAC、WAV、AAC等）的时长
@@ -17,37 +25,40 @@ public class AudioDurationUtil {
      * @return 时长（秒），解析失败返回 -1
      */
     public static int getAudioDuration(MultipartFile audioFile) {
-        // 校验文件是否为空
+        // 1. 校验文件
         if (audioFile.isEmpty()) {
             return -1;
         }
 
-        FFmpegFrameGrabber grabber = null;
-        try (InputStream inputStream = audioFile.getInputStream()) {
-            // 初始化FFmpeg解析器
-            grabber = new FFmpegFrameGrabber(inputStream);
-            grabber.start(); // 启动解析
+        File tempFile = null;
+        try {
+            // 1. 生成临时文件时指定后缀（让Jaudiotagger更易识别格式）
+            String originalFilename = audioFile.getOriginalFilename();
+            String suffix = originalFilename != null ? originalFilename.substring(originalFilename.lastIndexOf(".")) : ".tmp";
+            tempFile = File.createTempFile("audio_" + UUID.randomUUID(), suffix);
+            // 2. 强制刷新写入，确保文件完全落地
+            audioFile.transferTo(tempFile);
+            tempFile.setReadable(true); // 确保读权限
 
-            // 获取时长（FFmpeg返回微秒，转换为秒）
-            long durationMicros = grabber.getLengthInTime();
-            if (durationMicros < 0) {
+            // 3. 验证文件大小（避免空文件/截断文件）
+            if (tempFile.length() < 1024) { // 小于1KB的音频文件大概率是损坏的
                 return -1;
             }
 
-            return (int) durationMicros / 1000000; // 1秒 = 1,000,000微秒
+            // 4. 解析文件
+            AudioFile audioFileObj = AudioFileIO.read(tempFile);
+            return audioFileObj.getAudioHeader().getTrackLength();
 
-        } catch (FFmpegFrameGrabber.Exception e) {
+        } catch (CannotReadException e) {
+            // 不支持的格式/文件损坏
             return -1;
-        } catch (Exception e) {
+        } catch (IOException | TagException | ReadOnlyFileException | InvalidAudioFrameException e) {
+            // 其他解析异常
             return -1;
         } finally {
-            // 确保资源关闭
-            if (grabber != null) {
-                try {
-                    grabber.stop();
-                } catch (FFmpegFrameGrabber.Exception e) {
-                    return -1;
-                }
+            // 5. 删除临时文件，释放磁盘空间
+            if (tempFile != null && tempFile.exists()) {
+                boolean deleted = tempFile.delete();
             }
         }
     }

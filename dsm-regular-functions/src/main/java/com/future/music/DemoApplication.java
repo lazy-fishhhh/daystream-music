@@ -1,6 +1,5 @@
 package com.future.music;
 
-import org.bytedeco.javacpp.Loader;
 import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
 import org.springframework.amqp.support.converter.MessageConverter;
