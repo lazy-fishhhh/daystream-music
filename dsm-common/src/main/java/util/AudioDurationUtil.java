@@ -2,16 +2,19 @@ package util;
 
 import org.jaudiotagger.audio.AudioFile;
 import org.jaudiotagger.audio.AudioFileIO;
+import org.jaudiotagger.audio.AudioHeader;
 import org.jaudiotagger.audio.exceptions.CannotReadException;
 import org.jaudiotagger.audio.exceptions.InvalidAudioFrameException;
 import org.jaudiotagger.audio.exceptions.ReadOnlyFileException;
-import org.jaudiotagger.tag.TagException;
 import org.springframework.web.multipart.MultipartFile;
+import org.xml.sax.ContentHandler;
+import org.xml.sax.SAXException;
 
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.UUID;
+import java.util.Arrays;
 
 /**
  * 音频时长工具类，支持解析主流音频格式（MP3、FLAC、WAV、AAC等）的时长
@@ -20,45 +23,62 @@ public class AudioDurationUtil {
 
 
     /**
-     * 解析音频文件时长（单位：秒）
-     * @param audioFile 上传的音频文件（MultipartFile）
-     * @return 时长（秒），解析失败返回 -1
+     * 解析MultipartFile类型的音频文件时长，返回整数秒数
+     * @param multipartFile 音频文件（MP3/FLAC等）
+     * @return 时长（秒）：解析成功返回正整数，失败返回-1，文件为空返回-2
      */
-    public static int getAudioDuration(MultipartFile audioFile) {
-        // 1. 校验文件
-        if (audioFile.isEmpty()) {
+    public static int getAudioDuration(MultipartFile multipartFile) {
+        // 空文件直接返回-1
+        if (multipartFile.isEmpty() || multipartFile.getSize() == 0) {
             return -1;
         }
 
         File tempFile = null;
         try {
-            // 1. 生成临时文件时指定后缀（让Jaudiotagger更易识别格式）
-            String originalFilename = audioFile.getOriginalFilename();
-            String suffix = originalFilename != null ? originalFilename.substring(originalFilename.lastIndexOf(".")) : ".tmp";
-            tempFile = File.createTempFile("audio_" + UUID.randomUUID(), suffix);
-            // 2. 强制刷新写入，确保文件完全落地
-            audioFile.transferTo(tempFile);
-            tempFile.setReadable(true); // 确保读权限
+            // 创建临时文件，保留原文件后缀（提升解析兼容性）
+            String originalFilename = multipartFile.getOriginalFilename();
+            String suffix = originalFilename != null && originalFilename.contains(".")
+                    ? originalFilename.substring(originalFilename.lastIndexOf("."))
+                    : ".tmp";
+            tempFile = File.createTempFile("audio_temp", suffix);
 
-            // 3. 验证文件大小（避免空文件/截断文件）
-            if (tempFile.length() < 1024) { // 小于1KB的音频文件大概率是损坏的
-                return -1;
+            // MultipartFile 写入临时文件（使用transferTo更高效）
+            try (FileOutputStream fos = new FileOutputStream(tempFile)) {
+                fos.write(multipartFile.getBytes());
             }
 
-            // 4. 解析文件
-            AudioFile audioFileObj = AudioFileIO.read(tempFile);
-            return audioFileObj.getAudioHeader().getTrackLength();
+            // 读取音频文件信息
+            AudioFile audioFile = AudioFileIO.read(tempFile);
+            AudioHeader audioHeader = audioFile.getAudioHeader();
+
+            // 获取时长（秒），转为int类型
+            int trackLength = audioHeader.getTrackLength();
+            return trackLength > 0 ? trackLength : -1;
 
         } catch (CannotReadException e) {
-            // 不支持的格式/文件损坏
+            System.err.println("不支持的音频格式：" + e.getMessage());
             return -1;
-        } catch (IOException | TagException | ReadOnlyFileException | InvalidAudioFrameException e) {
-            // 其他解析异常
+        } catch (InvalidAudioFrameException e) {
+            System.err.println("音频文件帧结构异常：" + e.getMessage());
+            return -1;
+        } catch (ReadOnlyFileException e) {
+            System.err.println("文件为只读状态：" + e.getMessage());
+            return -1;
+        } catch (IOException e) {
+            System.err.println("文件IO异常：" + e.getMessage());
+            return -1;
+        } catch (Exception e) {
+            System.err.println("解析音频时长失败：" + e.getMessage());
             return -1;
         } finally {
-            // 5. 删除临时文件，释放磁盘空间
+            // 删除临时文件（确保资源释放）
             if (tempFile != null && tempFile.exists()) {
-                boolean deleted = tempFile.delete();
+                // 加个判断，防止删除失败时的日志刷屏
+                if (!tempFile.delete()) {
+                    System.err.println("临时文件删除失败：" + tempFile.getAbsolutePath());
+                    // 也可以使用定时任务或临时文件目录自动清理机制
+                    tempFile.deleteOnExit();
+                }
             }
         }
     }

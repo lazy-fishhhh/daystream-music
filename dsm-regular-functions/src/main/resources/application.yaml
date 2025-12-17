@@ -41,9 +41,8 @@ spring:
     multipart:
       enabled: true
       max-file-size: 1000MB
-      max-request-size: 2000MB
-      file-size-threshold: 2MB
-      location: /tmp # 临时文件存储目录（确保有足够磁盘空间）
+      max-request-size: 1000MB
+      file-size-threshold: 1000MB
 redisson:
     # 关闭 Redisson 对 Spring Data Redis 的自动整合
   spring-data-redis:
