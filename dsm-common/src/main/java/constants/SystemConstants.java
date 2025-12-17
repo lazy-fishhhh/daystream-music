@@ -34,7 +34,7 @@ public class SystemConstants {
 
     //文件大小相关
     public static final int MAX_PICTURE_SIZE = 1024 * 1024 * 10;
-    public static final int MAX_MUSIC_SIZE = 1024 * 1024 * 100;
+    public static final int MAX_MUSIC_SIZE = 1024 * 1024 * 200;
     public static final int MAX_LYRIC_SIZE = 1024 * 1024;
 
     // 搜索类型

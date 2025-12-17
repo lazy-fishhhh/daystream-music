@@ -21,6 +21,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import util.AudioDurationUtil;
 
 import javax.validation.Valid;
 import java.io.IOException;
@@ -40,6 +41,11 @@ public class MusicController {
 
     @Resource
     private IPlaylistService playlistService;
+
+    @GetMapping("/aaaa")
+    public Result<Integer> aaa(MultipartFile audioFile) {
+        return Result.ok(AudioDurationUtil.getAudioDuration(audioFile));
+    }
 
     @ApiOperation(value = "获取所有可选筛选标签")
     @GetMapping("/all-tags")
