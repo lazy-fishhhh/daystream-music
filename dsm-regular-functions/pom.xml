@@ -194,18 +194,18 @@
 <!--            <version>1.5.10</version>-->
 <!--        </dependency>-->
         <!-- 1. JavaCV 核心库（音频解析基础） -->
-        <dependency>
-            <groupId>org.bytedeco</groupId>
-            <artifactId>javacv</artifactId>
-            <version>1.5.10</version> <!-- 推荐 1.5.10 及以上，兼容 Spring Boot 3.x -->
-        </dependency>
+<!--        <dependency>-->
+<!--            <groupId>org.bytedeco</groupId>-->
+<!--            <artifactId>javacv</artifactId>-->
+<!--            <version>1.5.10</version> &lt;!&ndash; 推荐 1.5.10 及以上，兼容 Spring Boot 3.x &ndash;&gt;-->
+<!--        </dependency>-->
 
         <!-- 替换为 ffmpeg-platform，自动包含 Java 包 + 全平台原生库 -->
-        <dependency>
-            <groupId>org.bytedeco</groupId>
-            <artifactId>ffmpeg-platform</artifactId>
-            <version>6.1.1-1.5.10</version> <!-- 版本格式：[FFmpeg版本]-[JavaCV版本]，与上面一致 -->
-        </dependency>
+<!--        <dependency>-->
+<!--            <groupId>org.bytedeco</groupId>-->
+<!--            <artifactId>ffmpeg-platform</artifactId>-->
+<!--            <version>6.1.1-1.5.10</version> &lt;!&ndash; 版本格式：[FFmpeg版本]-[JavaCV版本]，与上面一致 &ndash;&gt;-->
+<!--        </dependency>-->
         <!-- 2. FFmpeg 基础依赖（与 JavaCV 版本匹配） -->
 <!--        <dependency>-->
 <!--            <groupId>org.bytedeco</groupId>-->
