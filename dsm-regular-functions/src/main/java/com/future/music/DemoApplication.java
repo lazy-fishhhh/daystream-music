@@ -36,7 +36,8 @@ import org.springframework.web.bind.annotation.*;
         "config",
         "annotation",
         "util",
-		"admin"
+		"admin",
+        "com.future.trade.config"
 })
 @EnableScheduling // 启用Spring定时任务机制
 @EnableRabbit // 启用Spring RabbitMQ功能

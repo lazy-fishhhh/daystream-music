@@ -49,4 +49,19 @@ public interface ISeckillActivityService {
      * @return 正在进行中的秒杀商品分页列表
      */
     Result<PageResp<SeckillActivityVO>> getOngoingSeckillProducts(PageReq pageReq);
+
+    /**
+     * 修改未开始的秒杀商品
+     * @param activityId 秒杀活动ID
+     * @param dto 秒杀活动DTO
+     * @return 结果
+     */
+    Result<String> updateSeckillActivity(Long activityId, @Valid SeckillActivityDTO dto);
+
+    /**
+     * 删除秒杀商品
+     * @param activityId 秒杀活动ID
+     * @return 结果
+     */
+    Result<String> deleteSeckillActivity(Long activityId);
 }

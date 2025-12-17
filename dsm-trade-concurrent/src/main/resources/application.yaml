@@ -1,10 +1,22 @@
-#logging:
-#  logback:
-#    dateformat: "yyyy-MM-dd HH:mm:ss"
-#
-#spring:
-#  rabbitmq:
-#    host: 127.0.0.1
-#    port: 5672
-#    username: huayue
-#    password: 123
+logging:
+  level:
+    root: info
+    com.future.trade: debug
+  logback:
+    dateformat: "yyyy-MM-dd HH:mm:ss"
+
+spring:
+  rabbitmq:
+    host: 39.96.214.163
+    port: 5672
+    username: DayStreamMusic
+    password: 123456
+    virtual-host: /DayStreamMusic
+    connection-timeout: 2000ms
+    template:
+      retry:
+        enabled: true
+        initial-interval: 1000ms
+        max-attempts: 3
+        max-interval: 2000ms
+        multiplier: 1.5

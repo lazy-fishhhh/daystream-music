@@ -26,6 +26,7 @@ import entity.pojo.util.Result;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.amqp.rabbit.connection.CorrelationData;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -122,17 +123,22 @@ public class SeckillActivityService implements ISeckillActivityService {
 
     /**
      * 1. 基础参数二次校验（防绕过前端）
+     * @param dto 秒杀活动DTO
+     * @param activityId 活动ID（修改时传入，用于排除自身）
      */
-    private void validateBaseParam(SeckillActivityDTO dto) {
+    private void validateBaseParam(SeckillActivityDTO dto, Long... activityId) {
         // 活动名称非空且去重（避免重复活动）
         if (!StringUtils.hasText(dto.getActivityName())) {
             throw new BusinessException(SeckillErrorCode.PARAM_ERROR.getCode(), "活动名称不能为空");
         }
         // 校验活动名称是否已存在
-        long nameCount = seckillActivityMapper.selectCount(
-                new LambdaQueryWrapper<SeckillActivity>()
-                        .eq(SeckillActivity::getActivityName, dto.getActivityName())
-        );
+        LambdaQueryWrapper<SeckillActivity> queryWrapper = new LambdaQueryWrapper<SeckillActivity>()
+                .eq(SeckillActivity::getActivityName, dto.getActivityName());
+        // 如果提供了活动ID，则排除当前活动
+        if (activityId != null && activityId.length > 0 && activityId[0] != null) {
+            queryWrapper.ne(SeckillActivity::getId, activityId[0]);
+        }
+        long nameCount = seckillActivityMapper.selectCount(queryWrapper);
         if (nameCount > 0) {
             throw new BusinessException(SeckillErrorCode.ACTIVITY_NAME_DUPLICATE.getCode(), SeckillErrorCode.ACTIVITY_NAME_DUPLICATE.getMessage());
         }
@@ -269,7 +275,7 @@ public class SeckillActivityService implements ISeckillActivityService {
             throw new BusinessException("400", "秒杀活动已结束");
         }
 
-        // 3. Lua脚本原子校验：库存+一人一单（移除余额预校验）
+        // 3. Lua脚本原子校验：库存+一人一单
         Long luaResult = stringRedisTemplate.execute(
                 SECKILL_SCRIPT,
                 Collections.emptyList(),
@@ -287,6 +293,10 @@ public class SeckillActivityService implements ISeckillActivityService {
         }
         if (result == 401) {
             throw new BusinessException("401", "您已参与过秒杀，不可二次参与~");
+        }
+        if (result == 500) {
+            log.info("redis中未查询到秒杀活动,秒杀活动已过期");
+            throw new BusinessException("500", "秒杀活动已过期");
         }
 
         // 5. 生成唯一订单号
@@ -314,19 +324,22 @@ public class SeckillActivityService implements ISeckillActivityService {
                 TimeUnit.SECONDS
         );
 
-        // 9. 异步发送MQ消息
+        // 发送MQ消息
         try {
+            log.info("开始发送秒杀MQ消息，订单号：{}", orderNo);
+            log.info("交换机名称：{}", RabbitConstants.SECKILL_ORDER_EXCHANGE);
+            log.info("路由键：{}", RabbitConstants.ROUTING_KEY_SECKILL_ORDER);
+            log.info("消息内容：{}", JSONUtil.toJsonStr(msg));
             rabbitTemplate.convertAndSend(
                     RabbitConstants.SECKILL_ORDER_EXCHANGE,
                     RabbitConstants.ROUTING_KEY_SECKILL_ORDER,
                     msg
             );
+            log.info("秒杀MQ消息发送请求已提交，订单号：{}", orderNo);
         } catch (Exception e) {
-            // 本地异常：回滚Redis库存
-            stringRedisTemplate.opsForValue().increment(SeckillConstants.SECKILL_ACTIVITY_STOCK_PREFIX + seckillActivityId, 1);
-            stringRedisTemplate.delete(orderExistKey);
-            stringRedisTemplate.delete(pendingKey);
+            // 本地异常（如连接超时、序列化失败）
             log.error("发送秒杀消息失败，订单号：{}", orderNo, e);
+            // 回滚逻辑...
             throw new BusinessException("500", "秒杀失败，请重试");
         }
 
@@ -511,6 +524,133 @@ public class SeckillActivityService implements ISeckillActivityService {
             log.error("查询正在进行中的秒杀商品失败：", e);
             return Result.fail(SeckillErrorCode.ACTIVITY_NOT_FOUND.getMessage());
         }
+    }
+
+    /**
+     * 修改未开始的秒杀商品
+     * 1. 参数二次校验（防绕过前端校验）
+     * 2. 业务规则校验（时间、库存、商品有效性）
+     * 3. 事务保证（数据一致性）
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public Result<String> updateSeckillActivity(Long activityId, @Valid SeckillActivityDTO dto) {
+        try {
+            log.info("修改秒杀活动请求参数：activityId={}, dto={}", activityId, dto);
+
+            // 1. 检查活动是否存在
+            SeckillActivity existingActivity = seckillActivityMapper.selectById(activityId);
+            if (existingActivity == null) {
+                log.warn("修改秒杀活动失败：活动不存在，activityId={}", activityId);
+                throw new BusinessException(SeckillErrorCode.ACTIVITY_NOT_FOUND.getCode(), "秒杀活动不存在");
+            }
+
+            if (!existingActivity.getProductType().equals(ProductTypeEnum.getByCode(dto.getProductType())) || !existingActivity.getProductId().equals(dto.getProductId())){
+                return Result.fail("不允许修改秒杀商品的类型与id");
+            }
+
+
+
+            // 2. 检查活动是否已经开始（只有未开始的活动才能修改）
+            if (existingActivity.getStartTime().isBefore(LocalDateTime.now()) || existingActivity.getStartTime().isEqual(LocalDateTime.now())) {
+                log.warn("修改秒杀活动失败：活动已开始，无法修改，activityId={}", activityId);
+                throw new BusinessException(SeckillErrorCode.ACTIVITY_ALREADY_STARTED.getCode(), "活动已开始，无法修改");
+            }
+
+            // 3. 基础参数二次校验
+            validateBaseParam(dto, activityId);
+
+            // 4. 业务规则校验
+            validateBusinessRule(dto);
+
+            // 5. 商品有效性校验
+            validateProductValid(dto.getProductType(), dto.getProductId());
+
+            // 6. 更新活动信息
+            updateSeckillActivityInfo(existingActivity, dto);
+
+            // 7. 更新到数据库
+            int updateRow = seckillActivityMapper.updateById(existingActivity);
+            if (updateRow != 1) {
+                log.error("修改秒杀活动失败：数据库更新影响行数异常，activityId={}", activityId);
+                throw new BusinessException(SeckillErrorCode.SYSTEM_ERROR.getCode(), "秒杀活动修改失败");
+            }
+
+            // 8. 更新Redis中的库存信息
+            stringRedisTemplate.opsForValue().set(SECKILL_ACTIVITY_STOCK_PREFIX + activityId, String.valueOf(existingActivity.getTotalStock()));
+
+            log.info("修改秒杀活动成功：activityId={}, activityName={}", activityId, existingActivity.getActivityName());
+            return Result.ok("修改秒杀活动成功");
+
+        } catch (BusinessException e) {
+            log.warn("修改秒杀活动业务异常：{}，参数：activityId={}, dto={}", e.getMessage(), activityId, dto);
+            throw e;
+        } catch (Exception e) {
+            log.error("修改秒杀活动系统异常：activityId={}, dto={}", activityId, dto, e);
+            throw new BusinessException(SeckillErrorCode.SYSTEM_ERROR.getCode(), SeckillErrorCode.SYSTEM_ERROR.getMessage());
+        }
+    }
+
+    /**
+     * 删除秒杀商品
+     * 1. 检查活动是否存在
+     * 2. 检查活动是否已经开始（只有未开始的活动才能删除）
+     * 3. 事务保证（数据一致性）
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public Result<String> deleteSeckillActivity(Long activityId) {
+        try {
+            log.info("删除秒杀活动请求：activityId={}", activityId);
+
+            // 1. 检查活动是否存在
+            SeckillActivity existingActivity = seckillActivityMapper.selectById(activityId);
+            if (existingActivity == null) {
+                log.warn("删除秒杀活动失败：活动不存在，activityId={}", activityId);
+                throw new BusinessException(SeckillErrorCode.ACTIVITY_NOT_FOUND.getCode(), "秒杀活动不存在");
+            }
+
+            // 2. 检查活动是否已经开始（只有未开始的活动才能删除）
+            if (existingActivity.getStartTime().isBefore(LocalDateTime.now()) || existingActivity.getStartTime().isEqual(LocalDateTime.now())) {
+                log.warn("删除秒杀活动失败：活动已开始，无法删除，activityId={}", activityId);
+                throw new BusinessException(SeckillErrorCode.ACTIVITY_ALREADY_STARTED.getCode(), "活动已开始，无法删除");
+            }
+
+            // 3. 从数据库删除活动
+            int deleteRow = seckillActivityMapper.deleteById(activityId);
+            if (deleteRow != 1) {
+                log.error("删除秒杀活动失败：数据库删除影响行数异常，activityId={}", activityId);
+                throw new BusinessException(SeckillErrorCode.SYSTEM_ERROR.getCode(), "秒杀活动删除失败");
+            }
+
+            // 4. 从Redis删除活动库存信息
+            stringRedisTemplate.delete(SECKILL_ACTIVITY_STOCK_PREFIX + activityId);
+
+            log.info("删除秒杀活动成功：activityId={}, activityName={}", activityId, existingActivity.getActivityName());
+            return Result.ok("删除秒杀活动成功");
+
+        } catch (BusinessException e) {
+            log.warn("删除秒杀活动业务异常：{}，activityId={}", e.getMessage(), activityId);
+            throw e;
+        } catch (Exception e) {
+            log.error("删除秒杀活动系统异常：activityId={}", activityId, e);
+            throw new BusinessException(SeckillErrorCode.SYSTEM_ERROR.getCode(), SeckillErrorCode.SYSTEM_ERROR.getMessage());
+        }
+    }
+
+    /**
+     * 更新秒杀活动信息
+     */
+    private void updateSeckillActivityInfo(SeckillActivity existingActivity, SeckillActivityDTO dto) {
+        existingActivity.setActivityName(dto.getActivityName());
+        existingActivity.setProductType(ProductTypeEnum.getByCode(dto.getProductType()));
+        existingActivity.setProductId(dto.getProductId());
+        existingActivity.setTotalStock(dto.getTotalStock());
+        existingActivity.setRemainingStock(dto.getTotalStock()); // 重新设置剩余库存为总库存
+        existingActivity.setSeckillPrice(dto.getSeckillPrice());
+        existingActivity.setStartTime(dto.getStartTime());
+        existingActivity.setEndTime(dto.getEndTime());
+        // updateTime 由数据库自动填充，无需手动设置
     }
 
 }

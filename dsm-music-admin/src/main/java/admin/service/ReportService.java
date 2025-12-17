@@ -19,4 +19,6 @@ public interface ReportService {
     Result passReport(AdminMusicianApplyDTO adminMusicianApplyDTO);
 
     Result rejectReport(AdminMusicianApplyDTO adminMusicianApplyDTO);
+
+    Result getDetaiReport(String id);
 }

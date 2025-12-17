@@ -24,6 +24,7 @@ public enum SeckillErrorCode {
     // 秒杀活动状态相关错误
     ACTIVITY_NOT_FOUND("SECKILL_4008", "秒杀活动不存在"),
     ACTIVITY_NOT_STARTED("SECKILL_4009", "秒杀活动未开始"),
+    ACTIVITY_ALREADY_STARTED("SECKILL_4016", "秒杀活动已开始"),
     ACTIVITY_ENDED("SECKILL_4010", "秒杀活动已结束"),
     ACTIVITY_CLOSED("SECKILL_4011", "秒杀活动已关闭"),
     ACTIVITY_FULL("SECKILL_4012", "秒杀活动已售罄"),

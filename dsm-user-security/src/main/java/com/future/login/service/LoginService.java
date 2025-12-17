@@ -1,6 +1,7 @@
 package com.future.login.service;
 
 
+import com.future.login.domain.dto.BindEmail;
 import com.future.login.domain.dto.FogetDTO;
 import com.future.login.domain.dto.LoginEmailDTO;
 import entity.pojo.util.Result;
@@ -20,4 +21,6 @@ public interface LoginService {
     //忘记密码
     Result fogetPassword(FogetDTO fogetDTO);
     String loginByQQ(String openid,Map<String, String> userInfo);
+
+    //Result bindEmail(BindEmail bindEmail);
 }

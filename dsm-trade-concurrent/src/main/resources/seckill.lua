@@ -24,6 +24,10 @@ local orderKey = SECKILL_ORDER_NO_PREFIX .. seckillActivityId
 -- 3.脚本业务
 -- 3.1.判断库存是否充足 get stockKey
 -- redis.call('get', stockKey)这个获取的是字符串，无法与数字比较,要用tonumber转换成数字
+if(tonumber(redis.call('get', stockKey)) == nil) then
+    return 500
+end
+
 if(tonumber(redis.call('get', stockKey)) <= 0) then
     -- 3.2.库存不足，返回1
     return 400

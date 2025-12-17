@@ -21,29 +21,22 @@ public class ReportVO {
      */
     private String reporterAvatar;
     /**
-     * 被举报Id
+     * 举报详细内容
+     */
+    private String reportContent;
+    /**
+     * 被举报评论Id
      */
     private String targetId;
     /**
-     * 被举报人姓名
+     * 被举报评论内容
      */
-    private String targetName;
-    /**
-     * 被举报人头像
-     */
-    private String targetAvatar;
-    /**
-     * 被举报类型
-     */
-    private String targetType;
+    private String targetContent;
     /**
      * 举报理由
      */
-    private String reason;
-    /**
-     * 举报内容
-     */
-    private String reportContent;
+    private Integer reason;
+
     /**
      * 创建时间
      */
@@ -52,8 +45,4 @@ public class ReportVO {
      * 状态：0-未处理 1-通过 2-驳回
      */
     private Integer status;
-    /**
-     * 目标状态 0-已下架/封禁 1-正常 2-注销
-     */
-    private Integer targetStatus;
 }

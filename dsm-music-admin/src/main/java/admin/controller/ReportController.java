@@ -3,6 +3,7 @@ package admin.controller;
 import admin.domain.dto.AdminMusicianApplyDTO;
 import admin.domain.dto.HandleReportDTO;
 import admin.domain.dto.ReportDTO;
+import admin.domain.vo.DetailReportVO;
 import admin.domain.vo.ReportVO;
 import admin.service.ReportService;
 import entity.pojo.util.PageResp;
@@ -10,6 +11,7 @@ import entity.pojo.util.Result;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -30,6 +32,11 @@ public class ReportController {
     @ApiOperation(value = "处理举报")
     public Result handleReport(@Valid @RequestBody HandleReportDTO handle) {
         return reportService.handleReport(handle);
+    }
+    @GetMapping("/getDetaiReport")
+    @ApiOperation(value = "获取举报详情")
+    public Result<DetailReportVO> getDetaiReport(@NotBlank(message = "id不能为空") @Valid @RequestParam(value = "id", required = true)String id) {
+        return reportService.getDetaiReport(id);
     }
     @PostMapping("/deleteReport")
     @ApiOperation(value = "批量删除举报,仅限未处理的举报")
