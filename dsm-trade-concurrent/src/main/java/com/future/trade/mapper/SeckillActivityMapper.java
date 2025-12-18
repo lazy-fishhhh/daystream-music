@@ -31,7 +31,7 @@ public interface SeckillActivityMapper extends BaseMapper<SeckillActivity> {
      * @return 影响行数（1=成功，0=失败）
      */
     @Update("UPDATE seckill_activity " +
-            "SET remaining_stock = remaining_stock - 1, version = version + 1, update_time = NOW() " +
+            "SET remaining_stock = remaining_stock - 1,  update_time = NOW() " +
             "WHERE id = #{activityId} AND remaining_stock > 0")
     int decreaseStock(@Param("activityId") Long activityId);
 

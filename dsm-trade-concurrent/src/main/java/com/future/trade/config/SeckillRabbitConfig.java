@@ -3,6 +3,7 @@ package com.future.trade.config;
 import org.springframework.amqp.core.*;
 import org.springframework.amqp.rabbit.config.SimpleRabbitListenerContainerFactory;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
+import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
 import org.springframework.amqp.support.converter.MessageConverter;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
@@ -10,14 +11,10 @@ import org.springframework.context.annotation.Configuration;
 
 import static constants.RabbitConstants.*;
 
-
-/**
- * 秒杀模块专属MQ配置（手动确认）
- */
 @Configuration
 public class SeckillRabbitConfig {
 
-    // 1. 配置秒杀订单交换机
+    // 1. 秒杀订单交换机
     @Bean(name = SECKILL_ORDER_EXCHANGE)
     public Exchange seckillOrderExchange() {
         return ExchangeBuilder.topicExchange(SECKILL_ORDER_EXCHANGE)
@@ -25,14 +22,17 @@ public class SeckillRabbitConfig {
                 .build();
     }
 
-    // 2. 配置秒杀订单队列
+    // 2. 秒杀订单队列（绑定死信）
     @Bean(name = SECKILL_ORDER_QUEUE)
     public Queue seckillOrderQueue() {
         return QueueBuilder.durable(SECKILL_ORDER_QUEUE)
+                .deadLetterExchange("seckill.dead.exchange") // 死信交换机
+                .deadLetterRoutingKey("seckill.dead") // 死信路由键
+                .ttl(60000) // 消息过期时间
                 .build();
     }
 
-    // 3. 配置绑定关系
+    // 3. 绑定关系
     @Bean
     public Binding seckillOrderBinding(@Qualifier(SECKILL_ORDER_EXCHANGE) Exchange exchange,
                                        @Qualifier(SECKILL_ORDER_QUEUE) Queue queue) {
@@ -42,24 +42,36 @@ public class SeckillRabbitConfig {
                 .noargs();
     }
 
-    // 4. 秒杀专用的手动确认工厂
-    // ========== 配置监听容器工厂，绑定JSON转换器 ==========
-    // 注意：方法名要和监听器中指定的 containerFactory 名称一致！
-    //  RabbitConstants.SECKILL_RABBIT_LISTENER_CONTAINER_FACTORY
-    // 该常量的值是 "seckillRabbitListenerContainerFactory"，则方法名对应这个值
+    // 4. 死信交换机+队列+绑定（新增）
+    @Bean("seckill.dead.exchange")
+    public Exchange seckillDeadExchange() {
+        return ExchangeBuilder.topicExchange("seckill.dead.exchange").durable(true).build();
+    }
+
+    @Bean("seckill.dead.queue")
+    public Queue seckillDeadQueue() {
+        return QueueBuilder.durable("seckill.dead.queue").build();
+    }
+
+    @Bean
+    public Binding seckillDeadBinding(@Qualifier("seckill.dead.exchange") Exchange exchange,
+                                      @Qualifier("seckill.dead.queue") Queue queue) {
+        return BindingBuilder.bind(queue).to(exchange).with("seckill.dead").noargs();
+    }
+
+    // 5. 秒杀容器工厂（核心修复：内置转换器+关闭自动ACK）
     @Bean("seckillRabbitListenerContainerFactory")
     public SimpleRabbitListenerContainerFactory seckillRabbitListenerContainerFactory(
-            ConnectionFactory connectionFactory,
-            MessageConverter jacksonMessageConverter) {
+            ConnectionFactory connectionFactory) {
         SimpleRabbitListenerContainerFactory factory = new SimpleRabbitListenerContainerFactory();
-        // 绑定连接工厂
         factory.setConnectionFactory(connectionFactory);
-        // 核心：给监听容器绑定JSON转换器
-        factory.setMessageConverter(jacksonMessageConverter);
-        // 可选：补充容器工厂其他配置（如并发数、重试等）
+        // 内置创建转换器，避免注入失败
+        factory.setMessageConverter(new Jackson2JsonMessageConverter());
         factory.setConcurrentConsumers(1);
         factory.setMaxConcurrentConsumers(5);
-        factory.setDefaultRequeueRejected(false); // 异常消息不重新入队（避免死循环）
+        factory.setDefaultRequeueRejected(false);
+        // 关键：关闭自动ACK，启用手动ACK
+        factory.setAcknowledgeMode(AcknowledgeMode.MANUAL);
         return factory;
     }
 }

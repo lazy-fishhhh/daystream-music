@@ -139,7 +139,7 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
                                   MultipartFile highDefinition,
                                   MultipartFile lossless,
                                   MultipartFile spatialAudio
-                            ) {
+    ) {
         if (SecurityUtil.getCurrentUserId() ==  null){
             return Result.fail("请先登录再进行该操作");
         }
@@ -657,7 +657,7 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
                                     MultipartFile highDefinition,
                                     MultipartFile lossless,
                                     MultipartFile spatialAudio
-                                    ) {
+    ) {
 
         if (SecurityUtil.getCurrentUserId() == null) {
             return Result.fail("请先登录再进行该操作");

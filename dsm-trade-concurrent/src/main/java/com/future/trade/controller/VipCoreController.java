@@ -1,25 +1,21 @@
 package com.future.trade.controller;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.future.trade.entity.dto.SeckillActivityDTO;
+import com.future.trade.entity.vo.SeckillActivityVO;
+import com.future.trade.entity.vo.VipStatusVO;
+import com.future.trade.service.ISeckillActivityService;
+import com.future.trade.service.Impl.VipCoreService;
 import entity.pojo.util.PageReq;
 import entity.pojo.util.PageResp;
 import entity.pojo.util.Result;
-
-import com.future.trade.entity.vo.SeckillActivityVO;
-import com.future.trade.entity.vo.VipStatusVO;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import lombok.RequiredArgsConstructor;
-
-
 import org.springframework.validation.annotation.Validated;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.ModelAttribute;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
-import com.future.trade.service.Impl.VipCoreService;
-import com.future.trade.service.ISeckillActivityService;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 
 @Api("VIP核心服务")
@@ -83,5 +79,27 @@ public class VipCoreController {
         return seckillActivityService.getOngoingSeckillProducts(pageReq);
     }
 
+    /**
+     * 修改未开始的秒杀商品
+     * @param activityId 秒杀活动ID
+     * @param dto 秒杀活动DTO
+     * @return 结果
+     */
+    @ApiOperation("修改未开始的秒杀商品")
+    @PutMapping("/seckill/{activityId}")
+    public Result<String> updateSeckillActivity(@PathVariable Long activityId, @Validated @RequestBody SeckillActivityDTO dto) {
+        return seckillActivityService.updateSeckillActivity(activityId, dto);
+    }
+
+    /**
+     * 删除秒杀商品
+     * @param activityId 秒杀活动ID
+     * @return 结果
+     */
+    @ApiOperation("删除秒杀商品")
+    @DeleteMapping("/seckill/{activityId}")
+    public Result<String> deleteSeckillActivity(@PathVariable Long activityId) {
+        return seckillActivityService.deleteSeckillActivity(activityId);
+    }
     
 }

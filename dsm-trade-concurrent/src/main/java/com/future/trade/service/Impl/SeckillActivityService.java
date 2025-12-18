@@ -304,7 +304,7 @@ public class SeckillActivityService implements ISeckillActivityService {
 
         // 6. 设置幂等性Key（30分钟过期）
         String orderExistKey = SeckillConstants.SECKILL_ORDER_EXIST + orderNo;
-        stringRedisTemplate.opsForValue().set(orderExistKey, "1", CACHE_SHORT_TTL, TimeUnit.SECONDS);
+        stringRedisTemplate.opsForValue().set(orderExistKey, "1", 24 * 60 * 60, TimeUnit.SECONDS);
 
         // 7. 构建消息体
         SeckillOrderMsg msg = new SeckillOrderMsg();
