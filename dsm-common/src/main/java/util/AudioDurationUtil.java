@@ -76,8 +76,6 @@ public class AudioDurationUtil {
                 // 加个判断，防止删除失败时的日志刷屏
                 if (!tempFile.delete()) {
                     System.err.println("临时文件删除失败：" + tempFile.getAbsolutePath());
-                    // 也可以使用定时任务或临时文件目录自动清理机制
-                    tempFile.deleteOnExit();
                 }
             }
         }

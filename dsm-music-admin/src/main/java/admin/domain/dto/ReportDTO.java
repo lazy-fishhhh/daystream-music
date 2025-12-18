@@ -17,10 +17,6 @@ public class ReportDTO {
     @NotNull(message = "状态不能为空")
     private Integer status;
     /**
-     * 举报类型 1-音乐 2-评论 3-用户
-     */
-    private Integer type;
-    /**
      * 举报原因 1-色情低俗 2-违法信息 3-人身攻击 4-广告 5-侵权
      */
     private Integer reason;

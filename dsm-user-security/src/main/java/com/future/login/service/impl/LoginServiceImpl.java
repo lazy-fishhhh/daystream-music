@@ -8,6 +8,7 @@ import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.future.login.domain.LoginUserDetails;
+import com.future.login.domain.dto.BindEmail;
 import com.future.login.domain.dto.FogetDTO;
 import com.future.login.domain.dto.LoginEmailDTO;
 import com.future.login.exception.AccountDisabledException;
@@ -139,6 +140,55 @@ public class LoginServiceImpl implements LoginService {
         String jwt = generateAndCacheUserToken(user);
         return jwt;
     }
+    /*
+    //绑定之前的账号密码
+    @Override
+    public Result bindEmail(BindEmail bindEmail) {
+        String email = bindEmail.getEmail();
+        String password = bindEmail.getPassword();
+        if (!RegexPatterns.matches(email, RegexPatterns.EMAIL_REGEX))
+        {
+            return Result.fail("邮箱格式错误，请输入正确的邮箱");
+        }
+        if (!RegexPatterns.matches(password, RegexPatterns.PASSWORD_REGEX))
+        {
+            return Result.fail("密码8-20位,包含大写字母、数字和特殊字符,请输入正确的密码格式");
+        }
+        LambdaQueryWrapper<User> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.eq(User::getEmail,email)
+                .eq(User::getUserStatus,2);
+        User user = userMapper.selectOne(queryWrapper);
+        if(Objects.isNull(user))
+        {
+            return Result.fail("该邮箱用户不存在，绑定失败");
+        }
+        queryWrapper.eq(User::getUserStatus,0);
+        User user2 = userMapper.selectOne(queryWrapper);
+        if(Objects.isNull(user2))
+        {
+            return Result.fail("该邮箱用户已被封禁，绑定失败");
+        }
+        queryWrapper.eq(User::getUserStatus,1);
+        User user3=userMapper.selectOne(queryWrapper);
+        if(!bCryptPasswordEncoder.matches(password,user3.getPassword()))
+        {
+            return Result.fail("密码错误");
+        }
+        if(user3.getQqOpenId()!=null)
+        {
+            return Result.fail("该邮箱用户已绑定qq,请勿重复绑定");
+        }
+        //判断是否使用之前的姓名 头像,如果使用的话
+        if(bindEmail.getUseOldInfo())
+        {
+            user3.setQqOpenId(user3.getQqOpenId());
+            //生成token
+            String jwt = JwtUtil.createJWT(user3.getId().toString());
+            //存入reids
+
+        }
+
+    }*/
 
     /**
      * 创建新的QQ用户
@@ -148,7 +198,7 @@ public class LoginServiceImpl implements LoginService {
         // 基础信息
         newUser.setQqOpenId(userInfo.get("openid"));
         newUser.setUsername(userInfo.get("nickname"));
-        newUser.setAvatar(userInfo.get("figureurl_2"));
+        newUser.setAvatar(userInfo.get("avatar_100"));
         newUser.setGender(changeSex(userInfo.get("gender")));
         //设置唯一标识
         newUser.setQqOpenId(openId);
@@ -177,11 +227,8 @@ public class LoginServiceImpl implements LoginService {
     private void updateUserLoginInfo(User user, Map<String, String> userInfo) {
         UpdateWrapper<User> wrapper = new UpdateWrapper<>();
         wrapper.eq("qq_open_id", user.getQqOpenId())
-                .set("last_login_time", LocalDateTime.now())
-                .set("avatar", userInfo.get("figureurl_2"));
+                .set("last_login_time", LocalDateTime.now());
         userMapper.update(null, wrapper);
-        user.setLastLoginTime(LocalDateTime.now());
-        user.setAvatar(userInfo.get("figureurl_qq_2"));
     }
 
     /**
