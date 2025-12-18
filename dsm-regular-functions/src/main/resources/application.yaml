@@ -101,13 +101,6 @@ spring:
     publisher-confirm-type: correlated # 开启确认模式
     publisher-returns: true # 开启返回模式
 
-logging:
-  level:
-    com.future.trade.listener: ERROR # 消费者强制ERROR级别
-    org.springframework.amqp: DEBUG # 打印MQ转换/消费异常
-    org.mybatis: INFO
-  pattern:
-    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{50} - %msg%n"
 
 
 

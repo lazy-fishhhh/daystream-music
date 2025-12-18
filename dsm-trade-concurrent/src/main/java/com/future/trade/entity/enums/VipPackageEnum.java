@@ -55,6 +55,8 @@ public enum VipPackageEnum {
             1
     );
 
+
+
     // 套餐ID（对应数据库 vip_package.id）
     private final Integer id;
 

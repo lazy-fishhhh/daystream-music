@@ -3,6 +3,7 @@ package com.future.trade.service.Impl;
 import code.BusinessErrorCode;
 import code.UserErrorCode;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -119,7 +120,7 @@ public class VipOrderService implements IVipOrderService {
         // 1. 获取用户当前VIP状态
         VipStatusVO vipStatusVO;
         try {
-            vipStatusVO = vipCoreService.checkAndUpdateVipStatus();// 自调用？
+            vipStatusVO = vipCoreService.checkAndUpdateVipStatus();
         } catch (JsonProcessingException e) {
             throw  VipStatusException.invalidStatus(userId);
         }
@@ -141,12 +142,21 @@ public class VipOrderService implements IVipOrderService {
             vip.setEndTime(vip.getEndTime().plusDays(vipPackageEnum.getDurationDays()));
             vipMapper.updateById(vip);
             stringRedisTemplate.delete(USER_VIP_INFO_PREFIX + userId);
-
             // 2.1.3调用订单服务创建订单
-            Order order = selfProxy.createVipOrder(Long.valueOf(vipPackageEnum.getId()));
+            Order order = selfProxy.createVipOrder(Long.valueOf(vipPackageEnum.getId()), vip);
             // 记录订单ID到VIP记录
             vip.setOrderId(order.getId());
             vipMapper.updateById(vip);
+            LambdaUpdateWrapper<User> updateWrapper = new LambdaUpdateWrapper<>();
+            updateWrapper.eq(User::getId, userId)
+                    // 直接set字段，MyBatis-Plus自动处理LocalDateTime的SQL参数绑定
+                    .set(User::getVipExpireTime, vip.getEndTime());
+            int affectedRows = userMapper.update(null, updateWrapper);
+            if (affectedRows == 0) {
+                throw new RuntimeException("更新用户VIP过期时间失败，用户ID：" + userId);
+            }
+            log.info("更新用户VIP过期时间成功，用户ID：" + userId);
+
 
             return Result.ok("VIP续费成功, 有效期至" + vip.getEndTime());
         }
@@ -183,11 +193,20 @@ public class VipOrderService implements IVipOrderService {
         }
 
         // 2.2.3 调用订单服务创建订单
-        Order order = selfProxy.createVipOrder(Long.valueOf(vipPackageEnum.getId()));
+        Order order = selfProxy.createVipOrder(Long.valueOf(vipPackageEnum.getId()), vip);
         // 记录订单ID到VIP记录
         vip.setOrderId(order.getId());
         vipMapper.updateById(vip);
 
+        LambdaUpdateWrapper<User> updateWrapper = new LambdaUpdateWrapper<>();
+        updateWrapper.eq(User::getId, userId)
+                // 直接set字段，MyBatis-Plus自动处理LocalDateTime的SQL参数绑定
+                .set(User::getVipExpireTime, vip.getEndTime());
+        int affectedRows = userMapper.update(null, updateWrapper);
+        if (affectedRows == 0) {
+            throw new RuntimeException("更新用户VIP过期时间失败，用户ID：" + userId);
+        }
+        log.info("更新用户VIP过期时间成功，用户ID：" + userId);
         return Result.ok("VIP购买成功, 有效期至" + vip.getEndTime());
     }
 
@@ -198,7 +217,7 @@ public class VipOrderService implements IVipOrderService {
      */
     // 默认就是REQUIRED 内层事务与外层事务合并 ，这里写一下帮助理解
     @Transactional(propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
-    public Order createVipOrder(Long packageId) {
+    public Order createVipOrder(Long packageId, Vip vip) {
         // 默认VIP只能购买一个套餐这里就不传数量了
         // 1. 验证用户和套餐信息的有效性
         Long userId = SecurityUtil.getCurrentUserId();
@@ -253,7 +272,7 @@ public class VipOrderService implements IVipOrderService {
         orderItem.setPrice(vipPackage.getCurrentPrice());
         orderItem.setQuantity(1);
         orderItem.setEffectiveTime(LocalDateTime.now());
-        orderItem.setExpireTime(LocalDateTime.now().plusDays(vipPackage.getDurationDays()));
+        orderItem.setExpireTime(vip.getEndTime());
         
         // 5. 保存订单详情
         orderItemMapper.insert(orderItem);
