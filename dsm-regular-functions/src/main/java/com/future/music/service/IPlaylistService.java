@@ -12,7 +12,7 @@ public interface IPlaylistService {
 
     Result<PlaylistDetailVO> getPlaylistDetail(Long playlistId, int pageNum, int pageSize);
 
-    Result<List<SearchUserVO>> getPlaylistCollectors(String playlistId, int pageNum, int pageSize);
+    Result<List<CollectorVO>> getPlaylistCollectors(String playlistId, int pageNum, int pageSize);
 
     Result<PageResp<PlaylistVO>> filterPlaylistByTagIds(PlaylistFilterDTO filterDTO);
 

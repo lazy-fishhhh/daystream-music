@@ -19,6 +19,7 @@ import entity.dto.SearchDTO;
 import entity.pojo.info.User;
 import entity.pojo.music.*;
 import entity.pojo.social.LikeRecord;
+import entity.pojo.social.UserCollection;
 import entity.pojo.util.PageResp;
 import entity.pojo.util.Result;
 import jakarta.annotation.Resource;
@@ -145,7 +146,7 @@ public class PlaylistServiceImpl implements IPlaylistService {
      * @return 收藏者分页列表（包含用户ID、用户名、头像等）
      */
     @Override
-    public Result<List<SearchUserVO>> getPlaylistCollectors(String playlistId, int pageNum, int pageSize) {
+    public Result<List<CollectorVO>> getPlaylistCollectors(String playlistId, int pageNum, int pageSize) {
         // 1. 校验 playlistId 非空且为有效数字
         if (!StringUtils.hasText(playlistId)) {
             return Result.fail("歌单ID不能为空");
@@ -164,11 +165,19 @@ public class PlaylistServiceImpl implements IPlaylistService {
          }
 
         // 4. 执行分页查询
-        Page<SearchUserVO> page = new Page<>(pageNum, pageSize);
-        IPage<SearchUserVO> userPage = userCollectionMapper.selectPlaylistCollectors(page, id);
+        Page<CollectorVO> page = new Page<>(pageNum, pageSize);
+        IPage<CollectorVO> userPage = userCollectionMapper.selectPlaylistCollectors(page, id);
 
         // 5. 空值处理（确保返回空列表而非null）
-        List<SearchUserVO> records = userPage.getRecords() == null ? Collections.emptyList() : userPage.getRecords();
+        List<CollectorVO> records = userPage.getRecords() == null ? Collections.emptyList() : userPage.getRecords();
+
+        for (CollectorVO collectorVO : records) {
+            QueryWrapper<UserCollection> queryWrapper = new QueryWrapper<>();
+            queryWrapper.eq("user_id", collectorVO.getId())
+                    .eq("target_type", 2)
+                    .eq("is_canceled", 0);
+            collectorVO.setCollectPlaylistCount(userCollectionMapper.selectCount(queryWrapper));
+        }
 
         // 可选：返回分页总信息（如总条数、总页数），前端更友好
         return Result.ok(records);

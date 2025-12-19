@@ -76,7 +76,7 @@ public class PlaylistController {
      */
     @ApiOperation(value = "获取歌单收藏者分页列表")
     @GetMapping("/collectors/{playlistId}")
-    public Result<List<SearchUserVO>> getPlaylistCollectors(@PathVariable String playlistId,
+    public Result<List<CollectorVO>> getPlaylistCollectors(@PathVariable String playlistId,
                                                             @RequestParam(defaultValue = "1") int pageNum,
                                                             @RequestParam(defaultValue = "12") int pageSize) {
         return playlistService.getPlaylistCollectors(playlistId, pageNum, pageSize);
