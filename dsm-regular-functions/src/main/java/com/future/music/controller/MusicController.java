@@ -42,11 +42,6 @@ public class MusicController {
     @Resource
     private IPlaylistService playlistService;
 
-    @GetMapping("/aaaa")
-    public Result<Integer> aaa(MultipartFile audioFile) {
-        return Result.ok(AudioDurationUtil.getAudioDuration(audioFile));
-    }
-
     @ApiOperation(value = "获取所有可选筛选标签")
     @GetMapping("/all-tags")
     public Result<MusicFilterTagVO> getAllFilterTags() {
