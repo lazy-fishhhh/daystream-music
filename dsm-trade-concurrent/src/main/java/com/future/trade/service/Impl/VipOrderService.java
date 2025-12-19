@@ -259,10 +259,10 @@ public class VipOrderService implements IVipOrderService {
         order.setPayTime(LocalDateTime.now());
         order.setCreatedTime(LocalDateTime.now());
         order.setUpdatedTime(LocalDateTime.now());
-        
+
         // 3. 保存订单
         orderMapper.insert(order);
-        
+
         // 4. 创建订单详情
         OrderItem orderItem = new OrderItem();
         orderItem.setOrderId(order.getId());
@@ -273,8 +273,8 @@ public class VipOrderService implements IVipOrderService {
         orderItem.setQuantity(1);
         orderItem.setEffectiveTime(LocalDateTime.now());
         orderItem.setExpireTime(vip.getEndTime());
-        
-        // 5. 保存订单详情
+
+        // 4. 保存订单详情
         orderItemMapper.insert(orderItem);
 
         // 6. 扣减用户余额
@@ -288,7 +288,8 @@ public class VipOrderService implements IVipOrderService {
             if (user.getWalletBalance() < vipPackage.getCurrentPrice()) {
                 throw new BusinessException(BusinessErrorCode.BALANCE_NOT_ENOUGH.getCode(),"余额不足");
             }
-            // 扣减用户余额
+
+            // 5. 扣减用户余额
             user.setWalletBalance(user.getWalletBalance() - vipPackage.getCurrentPrice());
             userMapper.updateById(user);
 

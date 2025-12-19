@@ -8,7 +8,7 @@ public class BasicOrderConstants {
     public static final int MIN_REWARD_AMOUNT = 1;
 
     //秒杀最高库存
-    public static final int MAX_SECKILL_STOCK = 10000;
+    public static final int MAX_SECKILL_STOCK = 100000;
 
     // 秒杀持续最高天数
     public static final int MAX_SECKILL_DAY = 7;

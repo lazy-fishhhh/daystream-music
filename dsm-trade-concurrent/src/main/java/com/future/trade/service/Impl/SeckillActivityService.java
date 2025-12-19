@@ -149,7 +149,7 @@ public class SeckillActivityService implements ISeckillActivityService {
             throw new BusinessException(SeckillErrorCode.PARAM_ERROR.getCode(), "商品ID必须为正整数");
         }
 
-        // 库存范围校验（1-10000，防止超大数据量导致性能问题）
+        // 库存范围校验（1-100000，防止超大数据量导致性能问题）
         if (dto.getTotalStock() == null || dto.getTotalStock() < 1 || dto.getTotalStock() > MAX_SECKILL_STOCK) {
             throw new BusinessException(SeckillErrorCode.STOCK_OUT_OF_RANGE.getCode(), SeckillErrorCode.STOCK_OUT_OF_RANGE.getMessage());
         }
@@ -302,9 +302,9 @@ public class SeckillActivityService implements ISeckillActivityService {
         // 5. 生成唯一订单号
         long orderNo = generateSeckillOrderNo();
 
-        // 6. 设置幂等性Key（30分钟过期）
-        String orderExistKey = SeckillConstants.SECKILL_ORDER_EXIST + orderNo;
-        stringRedisTemplate.opsForValue().set(orderExistKey, "1", 24 * 60 * 60, TimeUnit.SECONDS);
+//        // 6. 设置幂等性Key（30分钟过期）
+//        String orderExistKey = SeckillConstants.SECKILL_ORDER_EXIST + orderNo;
+//        stringRedisTemplate.opsForValue().set(orderExistKey, "value", 24 * 60 * 60, TimeUnit.SECONDS);
 
         // 7. 构建消息体
         SeckillOrderMsg msg = new SeckillOrderMsg();

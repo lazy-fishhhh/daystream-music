@@ -1,12 +1,16 @@
 package com.future.trade.listener;
 
 import cn.hutool.json.JSONUtil;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.future.login.exception.BusinessException;
 import com.future.login.mapper.UserMapper;
+import com.future.trade.entity.Order;
 import com.future.trade.entity.SeckillOrder;
 import com.future.trade.entity.enums.OrderStatusEnum;
 import com.future.trade.entity.message.SeckillOrderMsg;
+import com.future.trade.mapper.OrderMapper;
 import com.future.trade.mapper.SeckillActivityMapper;
 import com.future.trade.mapper.SeckillOrderMapper;
 import constants.RabbitConstants;
@@ -16,6 +20,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.amqp.support.AmqpHeaders;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.stereotype.Service;
@@ -36,25 +42,29 @@ public class SeckillOrderListener {
     private final StringRedisTemplate stringRedisTemplate;
     private final SeckillOrderMapper seckillOrderMapper;
     private final SeckillActivityMapper seckillActivityMapper;
+    private final OrderMapper orderMapper;
+
+    @Autowired
+    @Lazy
+    private  SeckillOrderListener proxy;
 
     @PostConstruct
     public void init() {
         // 强制ERROR级别，确保初始化日志打印
-        log.error("【秒杀消费者】初始化完成，监听队列：{}", RabbitConstants.SECKILL_ORDER_QUEUE);
+        log.info("【秒杀消费者】初始化完成，监听队列：{}", RabbitConstants.SECKILL_ORDER_QUEUE);
     }
 
     @RabbitListener(containerFactory = RabbitConstants.SECKILL_RABBIT_LISTENER_CONTAINER_FACTORY,
             queues = RabbitConstants.SECKILL_ORDER_QUEUE)
-    @Transactional(rollbackFor = Exception.class)
     public void handleSeckillOrder(SeckillOrderMsg message,
                                    Channel channel,
                                    @Header(AmqpHeaders.DELIVERY_TAG) long deliveryTag) throws IOException {
         // 第一步：强制打印消息接收日志（确认消费逻辑触发）
-        log.error("【秒杀消费者】接收到消息，订单号：{}，消息体：{}",
+        log.info("【秒杀消费者】接收到消息，订单号：{}，消息体：{}",
                 message.getOrderNo(), JSONUtil.toJsonStr(message));
 
         String orderExistKey = SECKILL_ORDER_EXIST + message.getOrderNo();
-        String exists = stringRedisTemplate.opsForValue().get(orderExistKey);
+//        String exists = stringRedisTemplate.opsForValue().get(orderExistKey);
 
         try {
 //            // 1. 幂等性校验
@@ -63,36 +73,21 @@ public class SeckillOrderListener {
 //                channel.basicAck(deliveryTag, false);
 //                return;
 //            }
-
-            // 2. 扣减用户余额
-            LambdaUpdateWrapper<User> balanceWrapper = new LambdaUpdateWrapper<>();
-            balanceWrapper.eq(User::getId, message.getUserId())
-                    .ge(User::getWalletBalance, message.getPrice())
-                    .setSql("wallet_balance = wallet_balance - " + message.getPrice());
-            int balanceUpdateCount = userMapper.update(null, balanceWrapper);
-            if (balanceUpdateCount == 0) {
-                throw new BusinessException(BALANCE_NOT_ENOUGH.getCode(), "用户余额不足");
+            // ========== 数据库幂等校验 ==========
+            int count = Math.toIntExact(seckillOrderMapper.selectCount(
+                    new LambdaQueryWrapper<SeckillOrder>().eq(SeckillOrder::getOrderNo, message.getOrderNo())
+            ));
+            if (count > 0) {
+                log.warn("【幂等拦截】订单{}已存在，跳过重复处理", message.getOrderNo());
+                return; // 不抛异常，消费成功
             }
 
-            // 3. 扣减库存
-            int stockUpdateCount = seckillActivityMapper.decreaseStock(message.getActivityId());
-            if (stockUpdateCount == 0) {
-                throw new BusinessException("400", "数据库库存不足");
-            }
 
-            // 4. 创建订单
-            SeckillOrder seckillOrder = new SeckillOrder();
-            seckillOrder.setOrderNo(String.valueOf(message.getOrderNo()));
-            seckillOrder.setUserId(message.getUserId());
-            seckillOrder.setActivityId(message.getActivityId());
-            seckillOrder.setProductId(message.getProductId());
-            seckillOrder.setSeckillPrice(Math.toIntExact(message.getPrice()));
-            seckillOrder.setOrderStatus(OrderStatusEnum.PENDING_PAY);
-            seckillOrder.setProductType(message.getProductType());
-            seckillOrderMapper.insert(seckillOrder);
+            // 订单核心业务
+            proxy.coreOrderHandler(message);
 
             // 5. 完成：删除Key + ACK
-            stringRedisTemplate.delete(orderExistKey);
+//            stringRedisTemplate.delete(orderExistKey);
             channel.basicAck(deliveryTag, false);
             log.error("【秒杀消费者】订单{}处理成功", message.getOrderNo());
 
@@ -105,5 +100,47 @@ public class SeckillOrderListener {
             channel.basicNack(deliveryTag, false, false);
             throw e;
         }
+    }
+
+
+    @Transactional
+    public void coreOrderHandler(SeckillOrderMsg message) {
+
+        // 2. 扣减用户余额
+        LambdaUpdateWrapper<User> balanceWrapper = new LambdaUpdateWrapper<>();
+        balanceWrapper.eq(User::getId, message.getUserId())
+                .ge(User::getWalletBalance, message.getPrice())
+                .setSql("wallet_balance = wallet_balance - " + message.getPrice());
+        int balanceUpdateCount = userMapper.update(null, balanceWrapper);
+        if (balanceUpdateCount == 0) {
+            throw new BusinessException(BALANCE_NOT_ENOUGH.getCode(), "用户余额不足");
+        }
+
+        // 3. 扣减库存
+        int stockUpdateCount = seckillActivityMapper.decreaseStock(message.getActivityId());
+        if (stockUpdateCount == 0) {
+            throw new BusinessException("400", "数据库库存不足");
+        }
+
+        // 4.1 创建订单
+        SeckillOrder seckillOrder = new SeckillOrder();
+        seckillOrder.setOrderNo(String.valueOf(message.getOrderNo()));
+        seckillOrder.setUserId(message.getUserId());
+        seckillOrder.setActivityId(message.getActivityId());
+        seckillOrder.setProductId(message.getProductId());
+        seckillOrder.setSeckillPrice(Math.toIntExact(message.getPrice()));
+        seckillOrder.setOrderStatus(OrderStatusEnum.COMPLETED);
+        seckillOrder.setProductType(message.getProductType());
+        seckillOrderMapper.insert(seckillOrder);
+
+        // 4.2 秒杀订单写入普通订单
+        Order order = new Order();
+        order.setOrderNo(String.valueOf(message.getOrderNo()));
+        order.setUserId(message.getUserId());
+        order.setTotalAmount(Math.toIntExact(message.getPrice()));
+        order.setPayAmount(Math.toIntExact(message.getPrice()));
+        order.setOrderType(1);
+        order.setStatus(OrderStatusEnum.COMPLETED.getCode());
+        orderMapper.insert(order);
     }
 }

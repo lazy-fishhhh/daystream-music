@@ -89,7 +89,7 @@ public final class RabbitConstants {
     /**
      * 秒杀订单处理队列
      */
-    public static final String SECKILL_ORDER_QUEUE = "seckill.new.order.queue";
+    public static final String SECKILL_ORDER_QUEUE = "seckill.order.queue";
 
     // ==================== 路由键 (Routing Keys) ====================
 

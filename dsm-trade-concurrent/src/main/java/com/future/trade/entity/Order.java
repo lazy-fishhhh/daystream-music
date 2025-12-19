@@ -35,7 +35,7 @@ public class Order {
 
     @Column(name = "order_type", nullable = false)
     @Convert(converter = OrderTypeConverter.class)
-    private int orderType; // 订单类型（1-VIP订阅，2-单曲购买，3-打赏）
+    private int orderType; // 订单类型（1-VIP订阅，2-单曲购买，3-打赏, 4-购买商品）
 
     @Column(name = "status", nullable = false)
     @Convert(converter = OrderStatusConverter.class)
