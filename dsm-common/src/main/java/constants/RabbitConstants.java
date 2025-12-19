@@ -11,6 +11,11 @@ public final class RabbitConstants {
     public static final String  SECKILL_RABBIT_LISTENER_CONTAINER_FACTORY = "seckillRabbitListenerContainerFactory";
 
     // ==================== 交换机 (Exchanges) ====================
+    /**
+     * 创建歌单交换机
+     */
+
+    public static final String CREATE_PLAYLIST_SUCCESS_TOPIC_EXCHANGE = "create.playlist.success.topic.exchange";
 
     /**
      * 签到 交换机
@@ -41,7 +46,13 @@ public final class RabbitConstants {
 
     // ==================== 队列 (Queues) ====================
 
-     /**
+    /**
+     * 创建歌单成功队列
+     */
+    public static final String CREATE_PLAYLIST_SUCCESS_QUEUE = "create.playlist.queue";
+
+
+    /**
      * 音乐下载量更新队列
      */
     public static final String MUSIC_DOWNLOAD_QUEUE = "music.download.queue";
@@ -93,7 +104,12 @@ public final class RabbitConstants {
 
     // ==================== 路由键 (Routing Keys) ====================
 
-     /**
+    /**
+     * 创建歌单成功路由键
+     */
+    public static final String ROUTING_KEY_CREATE_PLAYLIST_SUCCESS = "create.playlist.success";
+
+    /**
      * 音乐下载量更新路由键
      */
     public static final String ROUTING_KEY_MUSIC_DOWNLOAD = "music.download";
