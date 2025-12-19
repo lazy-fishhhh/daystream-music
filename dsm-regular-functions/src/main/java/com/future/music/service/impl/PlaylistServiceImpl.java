@@ -8,10 +8,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.future.login.mapper.UserMapper;
 import com.future.login.util.SecurityUtil;
 import com.future.music.domain.vo.*;
-import com.future.music.mapper.LikeRecordMapper;
-import com.future.music.mapper.MusicTagMapper;
-import com.future.music.mapper.PlaylistMapper;
-import com.future.music.mapper.PlaylistMusicMapper;
+import com.future.music.mapper.*;
 import com.future.music.service.IMusicService;
 import com.future.music.service.IPlaylistMusicService;
 import com.future.music.service.IPlaylistService;
@@ -22,6 +19,7 @@ import entity.dto.SearchDTO;
 import entity.pojo.info.User;
 import entity.pojo.music.*;
 import entity.pojo.social.LikeRecord;
+import entity.pojo.social.UserCollection;
 import entity.pojo.util.PageResp;
 import entity.pojo.util.Result;
 import jakarta.annotation.Resource;
@@ -32,9 +30,11 @@ import org.redisson.api.RedissonClient;
 import org.springframework.beans.BeanUtils;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -71,6 +71,9 @@ public class PlaylistServiceImpl implements IPlaylistService {
 
     @Resource
     private RedissonClient redissonClient;
+
+    @Resource
+    private UserCollectionMapper userCollectionMapper;
 
     /**
      * 根据歌单ID查询歌单详情（包含基本信息和关联歌曲ID）
@@ -133,6 +136,51 @@ public class PlaylistServiceImpl implements IPlaylistService {
         } catch (Exception e) {
             return Result.fail("查询歌单详情失败：" + e.getMessage());
         }
+    }
+
+    /**
+     * 根据歌单ID查询歌单收藏者（分页）
+     * @param playlistId 歌单ID
+     * @param pageNum 分页页码（默认1）
+     * @param pageSize 分页大小（默认20，最大50）
+     * @return 收藏者分页列表（包含用户ID、用户名、头像等）
+     */
+    @Override
+    public Result<List<CollectorVO>> getPlaylistCollectors(String playlistId, int pageNum, int pageSize) {
+        // 1. 校验 playlistId 非空且为有效数字
+        if (!StringUtils.hasText(playlistId)) {
+            return Result.fail("歌单ID不能为空");
+        }
+        Long id;
+        try {
+            id = Long.parseLong(playlistId);
+        } catch (NumberFormatException e) {
+            return Result.fail("歌单ID必须为有效数字");
+        }
+
+        // 3. 可选：校验歌单是否存在（需注入歌单相关Mapper/Service）
+         Playlist playlist = playlistMapper.selectById(id);
+         if (playlist == null) {
+             return Result.fail("歌单不存在");
+         }
+
+        // 4. 执行分页查询
+        Page<CollectorVO> page = new Page<>(pageNum, pageSize);
+        IPage<CollectorVO> userPage = userCollectionMapper.selectPlaylistCollectors(page, id);
+
+        // 5. 空值处理（确保返回空列表而非null）
+        List<CollectorVO> records = userPage.getRecords() == null ? Collections.emptyList() : userPage.getRecords();
+
+        for (CollectorVO collectorVO : records) {
+            QueryWrapper<UserCollection> queryWrapper = new QueryWrapper<>();
+            queryWrapper.eq("user_id", collectorVO.getId())
+                    .eq("target_type", 2)
+                    .eq("is_canceled", 0);
+            collectorVO.setCollectPlaylistCount(userCollectionMapper.selectCount(queryWrapper));
+        }
+
+        // 可选：返回分页总信息（如总条数、总页数），前端更友好
+        return Result.ok(records);
     }
 
     /**

@@ -1,9 +1,6 @@
 package com.future.music.controller;
 
-import com.future.music.domain.vo.MusicFilterTagVO;
-import com.future.music.domain.vo.MusicVO;
-import com.future.music.domain.vo.PlaylistDetailVO;
-import com.future.music.domain.vo.PlaylistVO;
+import com.future.music.domain.vo.*;
 import com.future.music.service.IPlaylistService;
 import com.future.music.service.IUserService;
 import entity.dto.PlayListDTO;
@@ -68,6 +65,21 @@ public class PlaylistController {
                                               @PathVariable String playlistId) {
         Long id = Long.valueOf(playlistId);
         return playlistService.getPlaylistDetail(id, pageNum, pageSize);
+    }
+
+    /**
+     * 获取歌单收藏者分页列表
+     * @param playlistId 歌单ID（从路径参数获取）
+     * @param pageNum 分页页码（默认1）
+     * @param pageSize 分页大小（默认20，最大50）
+     * @return 收藏者分页列表（包含用户ID、用户名、头像等）
+     */
+    @ApiOperation(value = "获取歌单收藏者分页列表")
+    @GetMapping("/collectors/{playlistId}")
+    public Result<List<CollectorVO>> getPlaylistCollectors(@PathVariable String playlistId,
+                                                            @RequestParam(defaultValue = "1") int pageNum,
+                                                            @RequestParam(defaultValue = "12") int pageSize) {
+        return playlistService.getPlaylistCollectors(playlistId, pageNum, pageSize);
     }
 
     /**
