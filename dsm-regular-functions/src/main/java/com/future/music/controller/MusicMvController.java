@@ -35,6 +35,17 @@ public class MusicMvController {
     }
 
     /**
+     * 合并MV分片文件
+     * @param fileUploadDTO 文件上传参数
+     * @return 合并结果
+     */
+    @ApiOperation(value = "合并MV分片文件")
+    @PostMapping("/merge")
+    public Result<String> mergeMvChunks(FileUploadDTO fileUploadDTO) {
+        return musicMvService.mergeMvChunks(fileUploadDTO);
+    }
+
+    /**
      * 创建MV
      * @param musicMvDTO MV相关参数
      * @return 创建结果

@@ -123,14 +123,16 @@ public class UserTaskServiceImpl extends ServiceImpl<UserTaskMapper, UserTask> i
     // ==========懒加载补全的任务列表方法==========
     @Override
     public PageResp<UserTaskVO> getUserTaskListWithLazyLoad(Long userId, PageReq pageReq) {
-        // 1. 先初始化缺失的任务
+        // 1. 初始化缺失的任务
         initUserTasks(userId);
 
         // 2. 构建分页参数
         Page<UserTaskVO> page = new Page<>(pageReq.getPageNum(), pageReq.getPageSize());
 
-        // 3. 使用连表分页查询获取用户任务列表及对应的任务配置信息
-        userTaskMapper.selectUserTaskVOByUserIdWithPage(userId, page);
+        // 3. 调用Mapper并手动接收返回值（关键：强制填充数据）
+        List<UserTaskVO> taskList = userTaskMapper.selectUserTaskVOByUserIdWithPage(page, userId);
+        // 手动将查询结果设置到Page对象中
+        page.setRecords(taskList);
 
         // 4. 转换为通用分页响应对象
         PageResp<UserTaskVO> pageResp = new PageResp<>();

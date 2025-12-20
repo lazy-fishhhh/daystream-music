@@ -89,6 +89,26 @@ public class MusicMvServiceImpl extends ServiceImpl<MusicMvMapper, MusicMv> impl
     }
 
     /**
+     * 合并MV分片文件
+     * @param fileUploadDTO 文件上传参数
+     * @return 合并结果
+     */
+    @Override
+    public Result<String> mergeMvChunks(FileUploadDTO fileUploadDTO) {
+        try {
+            // 从fileUploadDTO中获取必要信息
+            String md5Value = fileUploadDTO.getMd5Value();
+            String originalFilename = fileUploadDTO.getOriginalFilename();
+            
+            // 调用文件服务的合并方法
+            String result = fileService.merge(md5Value, originalFilename);
+            return Result.ok(result);
+        } catch (Exception e) {
+            return Result.fail("MV分片文件合并失败: " + e.getMessage());
+        }
+    }
+
+    /**
      * 创建MV
      * @param musicMvDTO MV相关参数
      * @return 创建结果

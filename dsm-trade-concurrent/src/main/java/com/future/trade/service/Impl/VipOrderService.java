@@ -18,16 +18,15 @@ import com.future.trade.entity.*;
 import com.future.trade.entity.enums.VipPackageEnum;
 import com.future.trade.entity.vo.OrderDetailVO;
 import com.future.trade.entity.vo.VipStatusVO;
-import com.future.trade.mapper.OrderItemMapper;
-import com.future.trade.mapper.OrderMapper;
-import com.future.trade.mapper.VipMapper;
-import com.future.trade.mapper.VipPackageMapper;
+import com.future.trade.mapper.*;
+import entity.pojo.info.TaskConfig;
 import entity.pojo.info.User;
 import entity.pojo.util.PageReq;
 import entity.pojo.util.PageResp;
 import entity.pojo.util.Result;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import message.ExchangeVipMessage;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
@@ -45,7 +44,9 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
+
 import static com.future.trade.constants.VipRedisConstant.*;
+import static constants.RabbitConstants.*;
 import static constants.RedisCacheConstants.LOCK_TTL;
 import static constants.TradeConstants.*;
 
@@ -71,6 +72,7 @@ public class VipOrderService implements IVipOrderService {
     private final VipPackageMapper vipPackageMapper;
     private final UserMapper userMapper;
     private final RabbitTemplate rabbitTemplate;
+    private final TradeTaskConfigMapper tradeTaskConfigMapper;
 
     /*
         注入自身代理对象  —> 解决Spring事务失效原理3：自调用走目标对象而不走代理对象的问题
@@ -157,6 +159,19 @@ public class VipOrderService implements IVipOrderService {
             }
             log.info("更新用户VIP过期时间成功，用户ID：" + userId);
 
+            // 发送兑换会员成功消息
+            ExchangeVipMessage message = new ExchangeVipMessage();
+            message.setUserId(userId);
+
+            LambdaQueryWrapper<TaskConfig> queryWrapper = new LambdaQueryWrapper<>();
+            queryWrapper.eq(TaskConfig::getTaskName, "兑换会员");
+            TaskConfig taskConfig = tradeTaskConfigMapper.selectOne(queryWrapper);
+            message.setTaskId(taskConfig.getId());
+            rabbitTemplate.convertAndSend(
+                    EXCHANGE_VIP_SUCCESS_TOPIC_EXCHANGE,
+                    ROUTING_KEY_EXCHANGE_VIP_SUCCESS,
+                    message
+            );
 
             return Result.ok("VIP续费成功, 有效期至" + vip.getEndTime());
         }
@@ -207,6 +222,20 @@ public class VipOrderService implements IVipOrderService {
             throw new RuntimeException("更新用户VIP过期时间失败，用户ID：" + userId);
         }
         log.info("更新用户VIP过期时间成功，用户ID：" + userId);
+
+        // 发送兑换会员成功消息
+        ExchangeVipMessage message = new ExchangeVipMessage();
+        message.setUserId(userId);
+        LambdaQueryWrapper<TaskConfig> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.eq(TaskConfig::getTaskName, "兑换会员");
+        TaskConfig taskConfig = tradeTaskConfigMapper.selectOne(queryWrapper);
+        message.setTaskId(taskConfig.getId());
+        rabbitTemplate.convertAndSend(
+                EXCHANGE_VIP_SUCCESS_TOPIC_EXCHANGE,
+                ROUTING_KEY_EXCHANGE_VIP_SUCCESS,
+                message
+        );
+
         return Result.ok("VIP购买成功, 有效期至" + vip.getEndTime());
     }
 
