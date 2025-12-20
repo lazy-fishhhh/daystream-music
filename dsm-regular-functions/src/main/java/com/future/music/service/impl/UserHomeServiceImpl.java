@@ -15,18 +15,15 @@ import com.future.music.domain.dto.UserDetailDTO;
 import com.future.music.domain.dto.DailyListenCountDTO;
 import com.future.music.domain.vo.*;
 
-import com.future.music.mapper.LikeRecordMapper;
-import com.future.music.mapper.MusicMapper;
-import com.future.music.mapper.PlaylistMapper;
-import com.future.music.mapper.UserCollectionMapper;
-import com.future.music.mapper.UserListenHistoryMapper;
-import com.future.music.mapper.RegularAlbumMapper;
+import com.future.music.mapper.*;
 import com.future.music.service.IMusicService;
 import com.future.music.service.IUserHomeService;
 import com.future.music.websocket.ChatEndPoint;
 import com.future.player.mapper.AlbumMapper;
 import constants.MusicConstants;
+import constants.RabbitConstants;
 import constants.SystemConstants;
+import entity.pojo.info.TaskConfig;
 import entity.pojo.info.User;
 import entity.pojo.music.Album;
 import entity.pojo.music.Playlist;
@@ -42,10 +39,15 @@ import kotlin.jvm.internal.Lambda;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.ibatis.exceptions.TooManyResultsException;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import social.domain.RoleEnum;
 import social.domain.vo.UserInfoVO;
+import com.future.music.entity.message.UpdateAvatarMessage;
+import com.future.music.entity.message.BindPhoneMessage;
+import com.future.music.entity.message.UpdateUserInfoFirstTimeMessage;
+
 
 
 import java.time.DayOfWeek;
@@ -77,6 +79,8 @@ public class UserHomeServiceImpl implements IUserHomeService {
     private final MinIoServiceImpl minIoService;
     private final UserListenHistoryMapper userListenHistoryMapper;
     private final StringRedisTemplate stringRedisTemplate;
+    private final RabbitTemplate rabbitTemplate;
+    private final TaskConfigMapper taskConfigMapper;
 
     @Override
     public Result<String> updateUserInfo(UserDetailDTO dto) {
@@ -95,6 +99,7 @@ public class UserHomeServiceImpl implements IUserHomeService {
             }
 
             // 头像上传
+            boolean avatarUpdated = false;
             if (dto.getAvatarFile() != null && !dto.getAvatarFile().isEmpty()) {
                 // 校验头像格式
                 boolean isAvatarAllowed = minIoService.isAllowedFile(dto.getAvatarFile(), "picture");
@@ -112,6 +117,7 @@ public class UserHomeServiceImpl implements IUserHomeService {
                 if (oldAvatar != null && !oldAvatar.isEmpty()) {
                     minIoService.deleteFile(oldAvatar);
                 }
+                avatarUpdated = true;
             }
 
             //背景图片上传
@@ -151,6 +157,61 @@ public class UserHomeServiceImpl implements IUserHomeService {
 
             // 执行更新操作
             userMapper.updateById(existUser);
+
+            // 如果更新了头像，发送消息
+            if (avatarUpdated) {
+                UpdateAvatarMessage message = new UpdateAvatarMessage();
+                message.setUserId(userId);
+                LambdaQueryWrapper<TaskConfig> queryWrapper = new LambdaQueryWrapper<>();
+                queryWrapper.eq(TaskConfig::getTaskName, "更换头像");
+                TaskConfig taskConfig = taskConfigMapper.selectOne(queryWrapper);
+                message.setTaskId(taskConfig.getId());
+                
+                rabbitTemplate.convertAndSend(
+                    RabbitConstants.UPDATE_AVATAR_SUCCESS_TOPIC_EXCHANGE,
+                    RabbitConstants.ROUTING_KEY_UPDATE_AVATAR_SUCCESS,
+                    message
+                );
+                log.info("发送更换头像成功消息，用户ID：{}", userId);
+            }
+            
+            // 如果是首次绑定手机号，发送消息
+            if (existUser.getPhone() == null && dto.getPhone() != null) {
+                BindPhoneMessage bindPhoneMessage = new BindPhoneMessage();
+                bindPhoneMessage.setUserId(userId);
+                LambdaQueryWrapper<TaskConfig> queryWrapper = new LambdaQueryWrapper<>();
+                queryWrapper.eq(TaskConfig::getTaskName, "绑定手机号");
+                TaskConfig taskConfig = taskConfigMapper.selectOne(queryWrapper);
+                bindPhoneMessage.setTaskId(taskConfig.getId());
+                
+                rabbitTemplate.convertAndSend(
+                    RabbitConstants.BIND_PHONE_SUCCESS_TOPIC_EXCHANGE,
+                    RabbitConstants.ROUTING_KEY_BIND_PHONE_SUCCESS,
+                    bindPhoneMessage
+                );
+                log.info("发送绑定手机号成功消息，用户ID：{}", userId);
+            }
+            
+            // 如果是初次更新个人信息（判断条件：用户名、性别、个人简介从null变为有值）
+            boolean isFirstUpdate = (existUser.getUsername() == null && dto.getUsername() != null) ||
+                                   (existUser.getGender() == 0 && dto.getGender() != null && !"未知".equals(dto.getGender())) ||
+                                   (existUser.getIntroduction() == null && dto.getIntroduction() != null);
+            
+            if (isFirstUpdate) {
+                UpdateUserInfoFirstTimeMessage message = new UpdateUserInfoFirstTimeMessage();
+                message.setUserId(userId);
+                LambdaQueryWrapper<TaskConfig> queryWrapper = new LambdaQueryWrapper<>();
+                queryWrapper.eq(TaskConfig::getTaskName, "完善个人信息");
+                TaskConfig taskConfig = taskConfigMapper.selectOne(queryWrapper);
+                message.setTaskId(taskConfig.getId());
+                
+                rabbitTemplate.convertAndSend(
+                    RabbitConstants.UPDATE_USER_INFO_FIRST_TIME_TOPIC_EXCHANGE,
+                    RabbitConstants.ROUTING_KEY_UPDATE_USER_INFO_FIRST_TIME,
+                    message
+                );
+                log.info("发送初次更新个人信息成功消息，用户ID：{}", userId);
+            }
 
             // 日志记录
             log.info("更新用户信息成功，用户ID：{}，更新内容：{}", userId, StrUtil.hide(dto.toString(), 0, 50));

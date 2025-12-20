@@ -36,7 +36,7 @@ public class RegexPatterns {
     /**
      * 用户名/昵称校验：2-16位，支持汉字、字母、数字、下划线
      */
-    public static final String USERNAME_REGEX = "^[\\u4e00-\\u9fa5a-zA-Z0-9_]{2,16}$";
+    public static final String USERNAME_REGEX = "^[\\u4e00-\\u9fa5a-zA-Z0-9_]([\\u4e00-\\u9fa5a-zA-Z0-9_ ]){0,14}[\\u4e00-\\u9fa5a-zA-Z0-9_]$";
 
     /**
      * 校验汉字性别：仅允许"未知"、"男"、"女"

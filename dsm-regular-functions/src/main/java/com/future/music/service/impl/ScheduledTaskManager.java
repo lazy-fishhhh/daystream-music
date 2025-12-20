@@ -49,6 +49,7 @@ public class ScheduledTaskManager {
     private static final String REDIS_ZSET_PREFIX = "recommend:user:";   // ZSet：用户推荐列表（key=recommend:user:{userId}）
     private static final String REDIS_HASH_PREFIX = "recommend:music:info:"; // Hash：歌曲详情（key=recommend:music:info:{songId}）
     private static final long REDIS_EXPIRE_DAYS = 2;                    // Redis缓存过期时间（7天）
+    private static final String USER_TASK_PROGRESS_PREFIX = "user:task:progress:"; // 用户任务进度缓存前缀
 
 
     // 依赖注入
@@ -543,6 +544,44 @@ public class ScheduledTaskManager {
             log.error("【Redis读取】歌曲{}的Hash字段{}读取异常，hashKey:{}，用户{}",
                     songId, field, hashKey, userId, e);
             return null;
+        }
+    }
+
+    /**
+     * 定时任务：每天凌晨0点清理过期的任务进度缓存
+     * cron表达式：0 0 0 * * ? → 每天凌晨0点执行
+     */
+    @Scheduled(cron = "0 0 0 * * ?")
+    public void cleanExpiredTaskProgressCache() {
+        String taskName = "过期任务进度缓存清理任务";
+        log.info("【定时任务开始】{}，执行时间：{}", taskName, DATE_TIME_FORMATTER.format(LocalDateTime.now()));
+
+        long startTime = System.currentTimeMillis();
+        try {
+            // 1. 扫描所有任务进度缓存键
+            Set<String> keys = redisTemplate.keys(USER_TASK_PROGRESS_PREFIX + "*");
+            if (CollectionUtils.isEmpty(keys)) {
+                log.info("【定时任务完成】{}，没有需要清理的缓存键", taskName);
+                return;
+            }
+
+            // 2. 清理过期的缓存键
+            int deletedCount = 0;
+            for (String key : keys) {
+                // 检查键是否已过期（实际上Redis会自动清理过期键，但为了保险起见）
+                if (redisTemplate.getExpire(key) == -2) {
+                    redisTemplate.delete(key);
+                    deletedCount++;
+                }
+            }
+
+            long endTime = System.currentTimeMillis();
+            log.info("【定时任务完成】{}，清理完成，共扫描{}个缓存键，删除{}个过期键，耗时{}ms", 
+                    taskName, keys.size(), deletedCount, (endTime - startTime));
+        } catch (Exception e) {
+            long endTime = System.currentTimeMillis();
+            log.error("【定时任务失败】{}，执行异常，耗时{}ms", 
+                    taskName, (endTime - startTime), e);
         }
     }
 }

@@ -46,6 +46,16 @@ public interface IFileService {
     String merge(HttpServletRequest request) throws IOException;
 
     /**
+     * 合并分片文件接口（直接接受参数）
+     *
+     * @param md5Value 整体文件的MD5值
+     * @param originalFilename 原始文件名
+     * @return 合并结果信息
+     * @throws IOException IO异常
+     */
+    String merge(String md5Value, String originalFilename) throws IOException;
+
+    /**
      * 文件下载接口
      *
      * @param fileName 文件名
