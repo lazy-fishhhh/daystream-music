@@ -1,10 +1,8 @@
 package com.future.music.controller;
 
-import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.future.login.util.SecurityUtil;
 import com.future.music.service.IUserTaskService;
 import com.future.music.service.ITaskConfigService;
-import entity.pojo.info.UserTask;
 import entity.pojo.info.TaskConfig;
 import entity.pojo.util.PageReq;
 import entity.pojo.util.PageResp;
@@ -16,8 +14,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.LocalDate;
-import java.util.List;
 
 @RestController
 @RequestMapping("/user/task")

@@ -2,6 +2,7 @@ package com.future.music.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import entity.pojo.info.UserTask;
 import entity.vo.UserTaskVO;
 import org.apache.ibatis.annotations.Insert;
@@ -44,7 +45,7 @@ public interface UserTaskMapper extends BaseMapper<UserTask> {
             "ORDER BY ut.create_time ASC")
     List<UserTaskVO> selectUserTaskVOByUserId(@Param("userId") Long userId);
 
-    // 连表查询用户任务列表（支持分页）
+
     @Select("SELECT ut.id, " +
             "ut.task_id, " +
             "tc.task_name, " +
@@ -58,5 +59,5 @@ public interface UserTaskMapper extends BaseMapper<UserTask> {
             "LEFT JOIN task_config tc ON ut.task_id = tc.id " +
             "WHERE ut.user_id = #{userId} " +
             "ORDER BY ut.create_time ASC")
-    List<UserTaskVO> selectUserTaskVOByUserIdWithPage(@Param("userId") Long userId, @Param("page") com.baomidou.mybatisplus.extension.plugins.pagination.Page<UserTaskVO> page);
+    List<UserTaskVO> selectUserTaskVOByUserIdWithPage(Page<UserTaskVO> page, @Param("userId") Long userId);
 }
