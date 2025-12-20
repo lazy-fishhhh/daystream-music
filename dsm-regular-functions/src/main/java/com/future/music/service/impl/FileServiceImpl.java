@@ -112,10 +112,8 @@ public class FileServiceImpl implements IFileService {
         return merge(md5Value, originalFilename);
     }
 
-    /**
-     * 合并分片实现方法（直接接受参数）
-     */
-    private String merge(String md5Value, String originalFilename) throws IOException {
+    @Override
+    public String merge(String md5Value, String originalFilename) throws IOException {
         // 校验所有切片是否己经上传完毕
         boolean flag = this.checkBeforeMerge(md5Value);
         if (!flag) {
