@@ -12,4 +12,7 @@ public class BasicOrderConstants {
 
     // 秒杀持续最高天数
     public static final int MAX_SECKILL_DAY = 7;
+
+    // 商品名称最高长度
+    public static final int MAX_PRODUCT_NAME_LENGTH = 20;
 }

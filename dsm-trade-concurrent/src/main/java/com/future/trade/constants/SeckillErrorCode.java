@@ -12,6 +12,7 @@ public enum SeckillErrorCode {
     // 通用错误
     PARAM_ERROR("SECKILL_400", "参数非法"),
     SYSTEM_ERROR("SECKILL_500", "系统异常，请稍后重试"),
+    PRODUCT_NAME_LENGTH_ERROR("SECKILL_501", "商品名称长度不能超过20个字符"),
 
     // 秒杀活动相关错误
     ACTIVITY_NAME_DUPLICATE("SECKILL_4001", "活动名称已存在，请更换"),

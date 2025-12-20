@@ -42,8 +42,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
-import static com.future.trade.constants.BasicOrderConstants.MAX_SECKILL_DAY;
-import static com.future.trade.constants.BasicOrderConstants.MAX_SECKILL_STOCK;
+import static com.future.trade.constants.BasicOrderConstants.*;
 import static com.future.trade.constants.SeckillConstants.*;
 import static constants.RedisCacheConstants.CACHE_NORMAL_TTL;
 import static constants.RedisCacheConstants.CACHE_SHORT_TTL;
@@ -143,6 +142,10 @@ public class SeckillActivityService implements ISeckillActivityService {
             throw new BusinessException(SeckillErrorCode.ACTIVITY_NAME_DUPLICATE.getCode(), SeckillErrorCode.ACTIVITY_NAME_DUPLICATE.getMessage());
         }
 
+        // 商品名称长度不可超过xxx字
+        if (dto.getActivityName().length() > MAX_PRODUCT_NAME_LENGTH) {
+            throw new BusinessException(SeckillErrorCode.PRODUCT_NAME_LENGTH_ERROR.getCode(), SeckillErrorCode.PRODUCT_NAME_LENGTH_ERROR.getMessage());
+        }
 
         // 商品ID非空
         if (dto.getProductId() == null || dto.getProductId() <= 0) {

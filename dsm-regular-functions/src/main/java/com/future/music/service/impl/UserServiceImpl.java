@@ -12,6 +12,7 @@ import com.future.login.mapper.UserMapper;
 import com.future.login.util.SecurityUtil;
 import com.future.music.domain.message.SignInMessage;
 import com.future.music.domain.vo.*;
+import com.future.music.entity.message.CreatePlaylistMessage;
 import com.future.music.mapper.*;
 import com.future.music.service.IMinIoService;
 import com.future.music.service.IMusicService;
@@ -22,6 +23,7 @@ import constants.RedisCacheConstants;
 import constants.SystemConstants;
 import entity.dto.PlayListDTO;
 import entity.dto.SearchDTO;
+import entity.pojo.info.TaskConfig;
 import entity.pojo.info.User;
 import entity.pojo.music.Playlist;
 import entity.pojo.music.PlaylistTagRelation;
@@ -69,14 +71,14 @@ import static com.future.music.code.PlaylistErrorCode.PLAYLIST_NAME_EXIST;
 import static com.future.music.constants.SignConstants.*;
 import static com.future.music.constants.SignConstants.SIGN_IN_DAYS_5_REWORD;
 import static com.future.music.util.constants.CHECK_IN_KEY;
-import static constants.RabbitConstants.ROUTING_KEY_SIGN_IN_SUCCESS;
-import static constants.RabbitConstants.SIGN_IN_SUCCESS_TOPIC_EXCHANGE;
+import static constants.RabbitConstants.*;
 
 
 @Slf4j
 @RequiredArgsConstructor
 @Service
 public class UserServiceImpl  implements IUserService {
+    private final TaskConfigMapper taskConfigMapper;
 
     @Resource
     private IMusicService musicService;
@@ -176,6 +178,22 @@ public class UserServiceImpl  implements IUserService {
             playlistVO.setCover(playList.getCover());
             playlistVO.setDescription(playList.getDescription());
             playlistVO.setTagIds(playListDTO.getTagIds());
+
+
+            // 消息队列 完成创建歌单后的异步任务
+            // 1.更新创建歌单任务完成状态 2. 发送奖励
+            CreatePlaylistMessage message = new CreatePlaylistMessage();
+            message.setUserId(userId);
+            LambdaQueryWrapper<TaskConfig> queryWrapper = new LambdaQueryWrapper<>();
+            queryWrapper.eq(TaskConfig::getTaskName, "创建歌单");
+            TaskConfig taskConfig = taskConfigMapper.selectOne(queryWrapper);
+            message.setTaskId(playList.getId());
+            message.setTaskId(taskConfig.getId());
+            rabbitTemplate.convertAndSend(
+                    CREATE_PLAYLIST_SUCCESS_TOPIC_EXCHANGE,
+                    ROUTING_KEY_CREATE_PLAYLIST_SUCCESS,
+                    message
+                    );
 
             return Result.ok(playlistVO);
         }catch (DataIntegrityViolationException e) {
