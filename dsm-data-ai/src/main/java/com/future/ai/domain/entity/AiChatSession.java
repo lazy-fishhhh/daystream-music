@@ -10,6 +10,7 @@ import java.time.LocalDateTime;
 public class AiChatSession {
     private Long id; // 对应memoryId
     private Long userId;
+    private String title; // 会话标题
     private Integer sessionType;        // 会话类型(1:咨询 2:创作)
     private LocalDateTime createTime;
     private LocalDateTime updateTime;

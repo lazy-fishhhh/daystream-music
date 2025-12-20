@@ -5,6 +5,7 @@ import com.future.ai.domain.entity.AiChatMessage;
 import com.future.ai.domain.entity.AiChatSession;
 import com.future.ai.mapper.AiChatMessageMapper;
 import com.future.ai.mapper.AiChatSessionMapper;
+import com.future.ai.service.TitleGeneratorService;
 import com.future.login.util.SecurityUtil;
 import constants.RedisCacheConstants;
 import dev.langchain4j.data.message.*;
@@ -16,6 +17,7 @@ import org.springframework.stereotype.Repository;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Repository
@@ -29,6 +31,9 @@ public class ConsultantChatMemoryStore implements ChatMemoryStore {
 
     @Resource
     private AiChatMessageMapper messageMapper;
+
+    @Resource
+    private TitleGeneratorService titleGeneratorService;
 
     @Override
     public List<ChatMessage> getMessages(Object memoryId) {
@@ -66,6 +71,34 @@ public class ConsultantChatMemoryStore implements ChatMemoryStore {
 
     @Override
     public void updateMessages(Object memoryId, List<ChatMessage> messages) {
+        Long sessionId = Long.valueOf(memoryId.toString());
+        // 确保会话记录存在
+        AiChatSession session = sessionMapper.selectById(sessionId);
+        if (session == null) {
+            AiChatSession newSession = new AiChatSession();
+            newSession.setId(sessionId);
+            newSession.setUserId(SecurityUtil.getCurrentUserId()); // 从SecurityContext获取当前用户ID
+            newSession.setSessionType(1); // 1=咨询，2=音乐创作
+
+            sessionMapper.insert(newSession);
+        }else {
+            if (Objects.equals(session.getTitle(), "新会话")){
+                for (ChatMessage message : messages) {
+                    if (message instanceof UserMessage) {
+                        String userQuestion = ((UserMessage) message).singleText();
+                        // 调用大模型生成标题
+                        String title = titleGeneratorService.generateTitle(userQuestion);
+                        session.setTitle(title);
+                        break;
+                    }
+                }
+            }
+
+            // 更新会话记录的更新时间
+            session.setUpdateTime(LocalDateTime.now());
+            sessionMapper.updateById(session);
+        }
+
         String key = RedisCacheConstants.AI_CHAT + memoryId;
 
         // 1. 写入Redis（实时缓存）
@@ -73,7 +106,6 @@ public class ConsultantChatMemoryStore implements ChatMemoryStore {
         stringRedisTemplate.opsForValue().set(key, json, Duration.ofDays(1));
 
         // 2. 写入MySQL（持久化，避免阻塞Redis操作）
-        Long sessionId = Long.valueOf(memoryId.toString());
         // 只保存最新的消息（避免重复写入）
         ChatMessage lastMessage = messages.get(messages.size() - 1);
 
@@ -85,20 +117,6 @@ public class ConsultantChatMemoryStore implements ChatMemoryStore {
             message.setMessageType(lastMessage instanceof UserMessage ? 1 : 2);// 1=用户消息 2=AI消息
             messageMapper.insert(message);
         }
-
-        // 确保会话记录存在
-        if (sessionMapper.selectById(sessionId) == null) {
-            AiChatSession session = new AiChatSession();
-            session.setId(sessionId);
-            session.setUserId(SecurityUtil.getCurrentUserId()); // 从SecurityContext获取当前用户ID
-            session.setSessionType(1); // 1=咨询，2=音乐创作
-            sessionMapper.insert(session);
-        }
-
-        // 更新会话记录的更新时间
-        AiChatSession session = sessionMapper.selectById(sessionId);
-        session.setUpdateTime(LocalDateTime.now());
-        sessionMapper.updateById(session);
     }
     /**
      * 适配 langchain4j 1.2.0-beta8：获取不同类型 ChatMessage 的文本内容
