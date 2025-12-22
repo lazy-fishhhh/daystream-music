@@ -4,6 +4,7 @@ import com.future.music.domain.vo.RankHomeVO;
 import com.future.music.service.IRankService;
 import entity.pojo.util.Result;
 import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiOperation;
 import jakarta.annotation.Resource;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -18,6 +19,7 @@ public class RankController {
     private IRankService rankService;
 
     // 进入榜单
+    @ApiOperation("进入榜单主页")
     @GetMapping("/home")
     public Result<RankHomeVO> getRankHome() {
         return rankService.getRankHome();

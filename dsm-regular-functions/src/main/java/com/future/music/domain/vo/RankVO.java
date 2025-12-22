@@ -5,6 +5,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 @Data
@@ -14,7 +15,7 @@ public class RankVO {
     private Long id;
     private String name;
     private String description;
-    private LocalDateTime updateTime;
+    private LocalDateTime updatedTime;
 
-    private List<MusicVO> musicList;
+    private List<MusicVO> musicList = new ArrayList<>();
 }

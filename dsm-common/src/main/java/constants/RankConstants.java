@@ -12,4 +12,11 @@ public class RankConstants {
 
     // VIP新歌榜ID
     public static final Long VIP_NEW_MUSIC_RANK_ID = 999999L;
+
+    /**
+     * 热歌榜缓存key
+     */
+    public static final String CACHE_KEY_RANK_HOME = "rank:home:";
+
+    public static final String LOCK_KEY_RANK_HOME = "lock:rank:home";
 }
