@@ -656,4 +656,11 @@ public class SeckillActivityService implements ISeckillActivityService {
         // updateTime 由数据库自动填充，无需手动设置
     }
 
+
+    @Override
+    public Result<Boolean> delete(Long activityId) {
+
+        int i = seckillActivityMapper.deleteById(activityId);
+        return Result.ok(i > 0);
+    }
 }
