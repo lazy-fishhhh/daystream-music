@@ -19,6 +19,7 @@ public class Order {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @com.baomidou.mybatisplus.annotation.TableId(type = com.baomidou.mybatisplus.annotation.IdType.AUTO)
     private Long id;
 
     @Column(name = "order_no", nullable = false, unique = true)
