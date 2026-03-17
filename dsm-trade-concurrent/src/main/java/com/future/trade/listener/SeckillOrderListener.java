@@ -78,12 +78,25 @@ public class SeckillOrderListener {
 //                return;
 //            }
             // ========== 数据库幂等校验 ==========
-            int count = Math.toIntExact(seckillOrderMapper.selectCount(
+            int seckillOrderCount = Math.toIntExact(seckillOrderMapper.selectCount(
                     new LambdaQueryWrapper<SeckillOrder>().eq(SeckillOrder::getOrderNo, message.getOrderNo())
             ));
-            if (count > 0) {
-                log.warn("【幂等拦截】订单{}已存在，跳过重复处理", message.getOrderNo());
-                return; // 不抛异常，消费成功
+            
+            if (seckillOrderCount > 0) {
+                // 检查OrderItem是否已存在
+                int orderItemCount = Math.toIntExact(orderItemMapper.selectCount(
+                        new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<OrderItem>()
+                                .eq(OrderItem::getOrderId, message.getOrderNo())
+                ));
+                
+                if (orderItemCount > 0) {
+                    log.warn("【幂等拦截】订单{}及详情已存在，跳过重复处理", message.getOrderNo());
+                    channel.basicAck(deliveryTag, false);
+                    return;
+                } else {
+                    log.warn("【幂等处理】订单{}已存在但订单详情不存在，继续处理", message.getOrderNo());
+                    // 不返回，继续执行后续逻辑
+                }
             }
 
 
@@ -110,43 +123,69 @@ public class SeckillOrderListener {
     @Transactional
     public void coreOrderHandler(SeckillOrderMsg message) {
 
-        // 2. 扣减用户余额
-        LambdaUpdateWrapper<User> balanceWrapper = new LambdaUpdateWrapper<>();
-        balanceWrapper.eq(User::getId, message.getUserId())
-                .ge(User::getWalletBalance, message.getPrice())
-                .setSql("wallet_balance = wallet_balance - " + message.getPrice());
-        int balanceUpdateCount = userMapper.update(null, balanceWrapper);
-        if (balanceUpdateCount == 0) {
-            throw new BusinessException(BALANCE_NOT_ENOUGH.getCode(), "用户余额不足");
+        // 检查SeckillOrder是否已存在
+        SeckillOrder existingSeckillOrder = seckillOrderMapper.selectOne(
+                new LambdaQueryWrapper<SeckillOrder>().eq(SeckillOrder::getOrderNo, message.getOrderNo())
+        );
+        
+        Order order = null;
+        
+        if (existingSeckillOrder == null) {
+            // 第一次处理：完整流程
+            log.info("【订单处理】第一次处理订单{}", message.getOrderNo());
+            
+            // 2. 扣减用户余额
+            LambdaUpdateWrapper<User> balanceWrapper = new LambdaUpdateWrapper<>();
+            balanceWrapper.eq(User::getId, message.getUserId())
+                    .ge(User::getWalletBalance, message.getPrice())
+                    .setSql("wallet_balance = wallet_balance - " + message.getPrice());
+            int balanceUpdateCount = userMapper.update(null, balanceWrapper);
+            if (balanceUpdateCount == 0) {
+                throw new BusinessException(BALANCE_NOT_ENOUGH.getCode(), "用户余额不足");
+            }
+
+            // 3. 扣减库存
+            int stockUpdateCount = seckillActivityMapper.decreaseStock(message.getActivityId());
+            if (stockUpdateCount == 0) {
+                throw new BusinessException("400", "数据库库存不足");
+            }
+
+            // 4.1 创建订单
+            SeckillOrder seckillOrder = new SeckillOrder();
+            seckillOrder.setOrderNo(String.valueOf(message.getOrderNo()));
+            seckillOrder.setUserId(message.getUserId());
+            seckillOrder.setActivityId(message.getActivityId());
+            seckillOrder.setProductId(message.getProductId());
+            seckillOrder.setSeckillPrice(Math.toIntExact(message.getPrice()));
+            seckillOrder.setOrderStatus(OrderStatusEnum.COMPLETED);
+            seckillOrder.setProductType(message.getProductType());
+            seckillOrderMapper.insert(seckillOrder);
+
+            // 4.2 秒杀订单写入普通订单
+            order = new Order();
+            order.setOrderNo(String.valueOf(message.getOrderNo()));
+            order.setUserId(message.getUserId());
+            order.setTotalAmount(Math.toIntExact(message.getPrice()));
+            order.setPayAmount(Math.toIntExact(message.getPrice()));
+            order.setOrderType(1);
+            order.setStatus(OrderStatusEnum.COMPLETED.getCode());
+            orderMapper.insert(order);
+            log.info("777777创建订单成功，订单号：{}", message.getOrderNo());
+        } else {
+            // 补单处理：只创建OrderItem
+            log.info("【订单处理】补单处理订单{}", message.getOrderNo());
+            
+            // 查询已存在的Order
+            order = orderMapper.selectOne(
+                    new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<Order>()
+                            .eq(Order::getOrderNo, String.valueOf(message.getOrderNo()))
+            );
+            
+            if (order == null) {
+                log.error("【订单处理】订单{}的Order不存在，无法补单", message.getOrderNo());
+                throw new BusinessException("400", "订单不存在");
+            }
         }
-
-        // 3. 扣减库存
-        int stockUpdateCount = seckillActivityMapper.decreaseStock(message.getActivityId());
-        if (stockUpdateCount == 0) {
-            throw new BusinessException("400", "数据库库存不足");
-        }
-
-        // 4.1 创建订单
-        SeckillOrder seckillOrder = new SeckillOrder();
-        seckillOrder.setOrderNo(String.valueOf(message.getOrderNo()));
-        seckillOrder.setUserId(message.getUserId());
-        seckillOrder.setActivityId(message.getActivityId());
-        seckillOrder.setProductId(message.getProductId());
-        seckillOrder.setSeckillPrice(Math.toIntExact(message.getPrice()));
-        seckillOrder.setOrderStatus(OrderStatusEnum.COMPLETED);
-        seckillOrder.setProductType(message.getProductType());
-        seckillOrderMapper.insert(seckillOrder);
-
-        // 4.2 秒杀订单写入普通订单
-        Order order = new Order();
-        order.setOrderNo(String.valueOf(message.getOrderNo()));
-        order.setUserId(message.getUserId());
-        order.setTotalAmount(Math.toIntExact(message.getPrice()));
-        order.setPayAmount(Math.toIntExact(message.getPrice()));
-        order.setOrderType(1);
-        order.setStatus(OrderStatusEnum.COMPLETED.getCode());
-        orderMapper.insert(order);
-        log.info("创建订单成功，订单号：{}", message.getOrderNo());
 
         // 4.3 order_item 订单详情同步
         OrderItem orderItem = new OrderItem();
@@ -176,9 +215,13 @@ public class SeckillOrderListener {
         orderItem.setPrice(Math.toIntExact(message.getPrice()));
         orderItem.setQuantity(1);
 
+        // 打印orderItem信息
+        log.info("【订单详情】准备插入orderItem: orderId={}, productType={}, productId={}, productName={}, price={}", 
+                orderItem.getOrderId(), orderItem.getProductType(), orderItem.getProductId(), 
+                orderItem.getProductName(), orderItem.getPrice());
 
         // 4. 保存订单详情
-        orderItemMapper.insert(orderItem);
-        log.info("保存订单详情成功，订单号：{}", message.getOrderNo());
+        int insertResult = orderItemMapper.insert(orderItem);
+        log.info("777777777保存订单详情成功，订单号：{}，插入结果：{}", message.getOrderNo(), insertResult);
     }
 }
