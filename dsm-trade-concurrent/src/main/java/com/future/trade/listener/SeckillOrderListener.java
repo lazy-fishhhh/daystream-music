@@ -146,7 +146,7 @@ public class SeckillOrderListener {
         order.setOrderType(1);
         order.setStatus(OrderStatusEnum.COMPLETED.getCode());
         orderMapper.insert(order);
-        log.info("66666【订单】创建成功，订单号：{}", order.getOrderNo());
+        log.info("777777创建订单成功，订单号：{}", message.getOrderNo());
 
         // 4.3 order_item 订单详情同步
         OrderItem orderItem = new OrderItem();
@@ -156,7 +156,6 @@ public class SeckillOrderListener {
 
         if (message.getProductType() == ProductTypeEnum.VIP_PACKAGE) {
             VipPackage vipPackage = vipPackageMapper.selectById(message.getProductId());
-            log.info(String.valueOf(vipPackage));
             if (vipPackage != null) {
                 orderItem.setProductName(vipPackage.getPackageName());
                 orderItem.setEffectiveTime(LocalDateTime.now().plusDays(vipPackage.getDurationDays()));
@@ -176,13 +175,9 @@ public class SeckillOrderListener {
         orderItem.setPrice(Math.toIntExact(message.getPrice()));
         orderItem.setQuantity(1);
 
-        // 打印orderItem信息
-        log.info("【订单详情】准备插入orderItem: orderId={}, productType={}, productId={}, productName={}, price={}", 
-                orderItem.getOrderId(), orderItem.getProductType(), orderItem.getProductId(), 
-                orderItem.getProductName(), orderItem.getPrice());
 
         // 4. 保存订单详情
-        int insertResult = orderItemMapper.insert(orderItem);
-        log.info("66666保存订单详情结果：{}, 订单号：{}", insertResult, message.getOrderNo());
+        orderItemMapper.insert(orderItem);
+        log.info("777777777保存订单详情成功，订单号：{}", message.getOrderNo());
     }
 }
