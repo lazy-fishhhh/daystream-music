@@ -64,6 +64,12 @@ public interface SeckillActivityMapper extends BaseMapper<SeckillActivity> {
             "sa.end_time," +
             "sa.status," +
             "sa.product_type," +
+            "CASE " +
+            "   WHEN sa.product_type = 1 THEN vp.package_name " +
+            "   WHEN sa.product_type = 2 THEN '实物商品' " +
+            "   WHEN sa.product_type = 3 THEN '虚拟商品' " +
+            "   ELSE '其他类型' " +
+            "END as product_name," +
             "sa.product_id" +
             ", " +
             "CASE " +
@@ -72,7 +78,7 @@ public interface SeckillActivityMapper extends BaseMapper<SeckillActivity> {
             "   ELSE vp.original_price " +
             "END as original_price " +
             "FROM seckill_activity sa " +
-            "LEFT JOIN vip_package vp ON sa.product_type = #{productTypeVip} AND sa.product_id = vp.id " +
+            "LEFT JOIN vip_package vp ON sa.product_type = 1 AND sa.product_id = vp.id " +
             "WHERE sa.status != 2 " +
             "ORDER BY sa.start_time ASC")
     IPage<SeckillActivityVO> selectAllSeckillActivities(Page<SeckillActivity> page,
@@ -96,6 +102,12 @@ public interface SeckillActivityMapper extends BaseMapper<SeckillActivity> {
             "sa.end_time," +
             "sa.status," +
             "sa.product_type," +
+            "CASE " +
+            "   WHEN sa.product_type = 1 THEN vp.package_name " +
+            "   WHEN sa.product_type = 2 THEN '实物商品' " +
+            "   WHEN sa.product_type = 3 THEN '虚拟商品' " +
+            "   ELSE '其他类型' " +
+            "END as product_name," +
             "sa.product_id" +
             ", " +
             "CASE " +
@@ -104,7 +116,7 @@ public interface SeckillActivityMapper extends BaseMapper<SeckillActivity> {
             "   ELSE vp.original_price " +
             "END as original_price " +
             "FROM seckill_activity sa " +
-            "LEFT JOIN vip_package vp ON sa.product_type = #{productTypeVip} AND sa.product_id = vp.id " +
+            "LEFT JOIN vip_package vp ON sa.product_type = 1 AND sa.product_id = vp.id " +
             "WHERE sa.start_time > #{currentTime} AND sa.status = 0 " +
             "ORDER BY sa.start_time ASC")
     IPage<SeckillActivityVO> selectUpcomingSeckillActivities(Page<SeckillActivity> page,
@@ -122,6 +134,7 @@ public interface SeckillActivityMapper extends BaseMapper<SeckillActivity> {
      */
     @Select("SELECT sa.id as activity_id," +
             "sa.activity_name," +
+
             "sa.total_stock," +
             "sa.remaining_stock," +
             "sa.seckill_price," +
@@ -129,6 +142,12 @@ public interface SeckillActivityMapper extends BaseMapper<SeckillActivity> {
             "sa.end_time," +
             "sa.status," +
             "sa.product_type," +
+            "CASE " +
+            "   WHEN sa.product_type = 1 THEN vp.package_name " +
+            "   WHEN sa.product_type = 2 THEN '实物商品' " +
+            "   WHEN sa.product_type = 3 THEN '虚拟商品' " +
+            "   ELSE '其他类型' " +
+            "END as product_name," +
             "sa.product_id" +
             ", " +
             "CASE " +
@@ -137,7 +156,7 @@ public interface SeckillActivityMapper extends BaseMapper<SeckillActivity> {
             "   ELSE vp.original_price " +
             "END as original_price " +
             "FROM seckill_activity sa " +
-            "LEFT JOIN vip_package vp ON sa.product_type = #{productTypeVip} AND sa.product_id = vp.id " +
+            "LEFT JOIN vip_package vp ON sa.product_type = 1 AND sa.product_id = vp.id " +
             "WHERE sa.start_time <= #{currentTime} AND sa.end_time >= #{currentTime}  " +
             "ORDER BY sa.start_time ASC")
     IPage<SeckillActivityVO> selectOngoingSeckillActivities(Page<SeckillActivity> page,

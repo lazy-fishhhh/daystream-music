@@ -444,7 +444,7 @@ public class SeckillActivityService implements ISeckillActivityService {
             log.info("开始查询所有秒杀商品，分页参数：pageNum={}, pageSize={}", pageReq.getPageNum(), pageReq.getPageSize());
 
             // 创建分页对象
-            Page<SeckillActivity> page = new com.baomidou.mybatisplus.extension.plugins.pagination.Page<>(pageReq.getPageNum(), pageReq.getPageSize());
+            Page<SeckillActivity> page = new Page<>(pageReq.getPageNum(), pageReq.getPageSize());
             
             // 执行连表分页查询
             IPage<SeckillActivityVO> activityVOPage = seckillActivityMapper.selectAllSeckillActivities(page, null);
