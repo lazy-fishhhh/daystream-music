@@ -8,6 +8,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.List;
 
 @Data
@@ -19,4 +20,6 @@ public class MusicDetailVO extends MusicVO {
     private String lyricUrl;            // 歌词文件地址
     private List<LyricLineDTO> syncLyric; // LRC/KRC同步歌词（带时间戳）
     private String rawLyricText; // TXT纯文本歌词（无时间戳，保留换行）
+
+    private List<MusicVO> recommendMusic = new ArrayList<>();   // 相关推荐
 }

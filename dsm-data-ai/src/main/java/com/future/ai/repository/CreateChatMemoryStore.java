@@ -74,21 +74,23 @@ public class CreateChatMemoryStore implements ChatMemoryStore {
         Long sessionId = Long.valueOf(memoryId.toString());
         // 确保会话记录存在
         AiChatSession session = sessionMapper.selectById(sessionId);
-        if (sessionMapper.selectById(sessionId) == null) {
+        if (session == null) {
             AiChatSession newSession = new AiChatSession();
             newSession.setId(sessionId);
             newSession.setUserId(SecurityUtil.getCurrentUserId()); // 从SecurityContext获取当前用户ID
-            newSession.setSessionType(1); // 1=咨询，2=音乐创作
+            newSession.setSessionType(2); // 1=咨询，2=音乐创作
 
             sessionMapper.insert(newSession);
         }else {
             if (Objects.equals(session.getTitle(), "新会话")){
                 for (ChatMessage message : messages) {
-                    String userQuestion = ((UserMessage) message).singleText();
-                    // 调用大模型生成标题
-                    String title = titleGeneratorService.generateTitle(userQuestion);
-                    session.setTitle(title);
-                    break;
+                    if (message instanceof UserMessage) {
+                        String userQuestion = ((UserMessage) message).singleText();
+                        // 调用大模型生成标题
+                        String title = titleGeneratorService.generateTitle(userQuestion);
+                        session.setTitle(title);
+                        break; // 取第一条用户消息生成标题后退出
+                    }
                 }
             }
 

@@ -88,4 +88,12 @@ public interface MusicMapper extends BaseMapper<Music> {
      * @return 分页的音乐作品列表
      */
     IPage<MusicDetailVO> selectMusicVOsByMusicianIdPage(IPage<MusicDetailVO> page, @Param("musicianId") Long musicianId);
+
+    /**
+     * 根据标签id查询音乐的相关推荐
+     * @param tagId 标签id
+     * @return 音乐列表
+     */
+    List<Long> selectMusicRecommendByTagId(@Param("tagId") Long tagId,
+                                           @Param("currentMusicId") Long currentMusicId);
 }

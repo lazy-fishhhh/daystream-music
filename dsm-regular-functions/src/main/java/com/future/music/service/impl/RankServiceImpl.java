@@ -299,7 +299,7 @@ public class RankServiceImpl implements IRankService {
     }
 
     /**
-     * 更新新歌榜
+     * 更新新歌榜(一个月内的)
      * 每日凌晨1点10分0秒执行（错开热歌榜更新时间，降低并发压力）
      */
     @Scheduled(cron = "0 54 23 * * ?")

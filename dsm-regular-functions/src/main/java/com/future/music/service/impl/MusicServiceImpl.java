@@ -936,6 +936,12 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
                 List<MusicTagVO> tags = musicTagMapper.getTagNamesByMusicId(musicId);
                 musicDetailVO.setTags(tags);
 
+                // 相关推荐
+                List<Long> musicIds = musicMapper.selectMusicRecommendByTagId(tags.get(0).getId(), musicVO.getId());
+                for (Long id : musicIds) {
+                    musicDetailVO.getRecommendMusic().add(getMusicVO(id));
+                }
+
                 // 查询歌词
                 QueryWrapper<MusicLyric> musicLyricWrapper = new QueryWrapper<>();
                 musicLyricWrapper.eq("music_id", musicId);

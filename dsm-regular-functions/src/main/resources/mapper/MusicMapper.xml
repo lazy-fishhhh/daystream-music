@@ -127,4 +127,14 @@
         GROUP BY m.id
     </select>
 
+    <select id="selectMusicRecommendByTagId" resultType="java.lang.Long">
+        SELECT m.id
+        FROM music_tag_relation t
+                 INNER JOIN music m ON t.music_id = m.id
+        WHERE t.tag_id = #{tagId}
+          AND m.id != #{currentMusicId}
+        ORDER BY m.like_count DESC
+            LIMIT 5
+    </select>
+
 </mapper>
