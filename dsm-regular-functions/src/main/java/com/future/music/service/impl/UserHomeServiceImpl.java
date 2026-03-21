@@ -25,6 +25,7 @@ import constants.RabbitConstants;
 import constants.SystemConstants;
 import entity.pojo.info.TaskConfig;
 import entity.pojo.info.User;
+import entity.pojo.info.UserTask;
 import entity.pojo.music.Album;
 import entity.pojo.music.Playlist;
 import entity.pojo.music.UserListenHistory;
@@ -54,10 +55,7 @@ import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.temporal.TemporalAdjusters;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -81,6 +79,7 @@ public class UserHomeServiceImpl implements IUserHomeService {
     private final StringRedisTemplate stringRedisTemplate;
     private final RabbitTemplate rabbitTemplate;
     private final TaskConfigMapper taskConfigMapper;
+    private final UserTaskMapper userTaskMapper;
 
     @Override
     public Result<String> updateUserInfo(UserDetailDTO dto) {
@@ -90,9 +89,11 @@ public class UserHomeServiceImpl implements IUserHomeService {
             log.warn("更新用户信息失败，用户未登录");
             return Result.fail("用户未登录，更新失败");
         }
+
         try {
             // 2. 业务逻辑校验
             User existUser = userMapper.selectById(userId);
+            log.info("更新用户信息开始，用户ID：{}", existUser);
             if (existUser == null) {
                 log.warn("更新用户信息失败，用户不存在，用户ID：{}", userId);
                 return Result.fail("用户不存在，更新失败");
@@ -155,8 +156,6 @@ public class UserHomeServiceImpl implements IUserHomeService {
                 }
             }
 
-            // 执行更新操作
-            userMapper.updateById(existUser);
 
             // 如果更新了头像，发送消息
             if (avatarUpdated) {
@@ -176,7 +175,12 @@ public class UserHomeServiceImpl implements IUserHomeService {
             }
             
             // 如果是首次绑定手机号，发送消息
-            if (existUser.getPhone() == null && dto.getPhone() != null) {
+
+            LambdaQueryWrapper<UserTask> queryWrapper3 = new LambdaQueryWrapper<>();
+            queryWrapper3.eq(UserTask::getUserId, userId)
+                    .eq(UserTask::getTaskId, 3);//任务3:绑定手机号
+            UserTask userTask = userTaskMapper.selectOne(queryWrapper3);
+            if (dto.getPhone() != null && userTask.getTaskStatus() == 0) {// 绑定了手机号 且 任务未完成状态
                 BindPhoneMessage bindPhoneMessage = new BindPhoneMessage();
                 bindPhoneMessage.setUserId(userId);
                 LambdaQueryWrapper<TaskConfig> queryWrapper = new LambdaQueryWrapper<>();
@@ -195,8 +199,8 @@ public class UserHomeServiceImpl implements IUserHomeService {
             // 如果是初次更新个人信息（判断条件：用户名、性别、个人简介从null变为有值）
             boolean isFirstUpdate = (existUser.getUsername() == null && dto.getUsername() != null) ||
                                    (existUser.getGender() == 0 && dto.getGender() != null && !"未知".equals(dto.getGender())) ||
-                                   (existUser.getIntroduction() == null && dto.getIntroduction() != null);
-            
+                                   (Objects.equals(existUser.getIntroduction(), "这个人很懒，暂时还没有设置个人简介~") && !Objects.equals(dto.getIntroduction(), "这个人很懒，暂时还没有设置个人简介~"));
+
             if (isFirstUpdate) {
                 UpdateUserInfoFirstTimeMessage message = new UpdateUserInfoFirstTimeMessage();
                 message.setUserId(userId);
@@ -212,6 +216,10 @@ public class UserHomeServiceImpl implements IUserHomeService {
                 );
                 log.info("发送初次更新个人信息成功消息，用户ID：{}", userId);
             }
+
+
+            // 执行更新操作
+            userMapper.updateById(existUser);
 
             // 日志记录
             log.info("更新用户信息成功，用户ID：{}，更新内容：{}", userId, StrUtil.hide(dto.toString(), 0, 50));

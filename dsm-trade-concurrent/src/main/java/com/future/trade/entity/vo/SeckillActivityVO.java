@@ -29,6 +29,11 @@ public class SeckillActivityVO {
     private Integer productType;
 
     /**
+     * 商品名称
+     */
+    private String productName;
+
+    /**
      * 商品ID
      */
     private Long productId;

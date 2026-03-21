@@ -5,7 +5,10 @@ import com.future.music.mapper.TaskConfigMapper;
 import com.future.music.service.ITaskConfigService;
 import entity.pojo.info.TaskConfig;
 import entity.pojo.util.Result;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -19,7 +22,26 @@ import java.util.List;
  */
 @Service
 @Slf4j
+@RequiredArgsConstructor
 public class TaskConfigServiceImpl extends ServiceImpl<TaskConfigMapper, TaskConfig> implements ITaskConfigService {
+
+    private final TaskConfigMapper userTaskMapper;
+    @Scheduled(cron = "0 0 0 * * ?")
+    public void updateEveryDayTasks() {
+        log.info("【每日任务清理】开始执行...");
+
+        try {
+            // 执行删除
+            int deleteCount = userTaskMapper.deleteByTargetType3();
+
+            log.info("【每日任务清理】执行成功 ，删除记录数：{}", deleteCount);
+        } catch (Exception e) {
+            log.error("【每日任务清理】执行失败！", e);
+            throw e; // 触发事务回滚
+        }
+    }
+
+
 
     @Override
     public Result<Long> addTaskConfig(TaskConfig taskConfig) {

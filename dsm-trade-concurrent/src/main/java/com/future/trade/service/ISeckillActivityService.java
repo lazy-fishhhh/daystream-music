@@ -64,4 +64,6 @@ public interface ISeckillActivityService {
      * @return 结果
      */
     Result<String> deleteSeckillActivity(Long activityId);
+
+    Result<Boolean> delete(Long activityId);
 }
