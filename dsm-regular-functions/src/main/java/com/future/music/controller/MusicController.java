@@ -98,10 +98,12 @@ public class MusicController {
 
     @ApiOperation(value = "下载音乐")
     @GetMapping("/downloadMusic")
-    public Result<Void> downloadMusic(@RequestBody MusicPlayDTO dto,
+    public Result<Void> downloadMusic(
+                            @RequestParam("musicId") Long musicId,
+                            @RequestParam("quality") Integer quality,
                             HttpServletResponse response) {
         try {
-            iMusicService.downloadMusic(dto, response);
+            iMusicService.downloadMusic(musicId, quality, response);
             return Result.ok();
         } catch (Exception e) {
             return Result.fail("下载失败：" + e.getMessage());
