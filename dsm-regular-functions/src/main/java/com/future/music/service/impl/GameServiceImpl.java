@@ -87,7 +87,6 @@ public class GameServiceImpl implements IGameService {
 
         return Result.ok();
     }
-    public
 
     /**
      * 结束游戏（清理会话）
