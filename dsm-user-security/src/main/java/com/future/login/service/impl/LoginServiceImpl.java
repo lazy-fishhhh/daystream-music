@@ -8,7 +8,6 @@ import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.future.login.domain.LoginUserDetails;
-import com.future.login.domain.dto.BindEmail;
 import com.future.login.domain.dto.FogetDTO;
 import com.future.login.domain.dto.LoginEmailDTO;
 import com.future.login.exception.AccountDisabledException;
@@ -32,7 +31,6 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.authentication.*;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
-import org.springframework.security.core.parameters.P;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import util.JwtUtil;
@@ -68,12 +66,12 @@ public class LoginServiceImpl implements LoginService {
     private RoleMapper roleMapper;
     @Autowired
     private PermissionMapper permissionMapper;
-    public Result LoginByEmail(LoginEmailDTO emailDTO) {
+    public Result<HashMap<String,String>> LoginByEmail(LoginEmailDTO emailDTO) {
         return authenticateAndGenerateToken(emailDTO);
     }
 
     @Override
-    public Result LoginOut() {
+    public Result<String> LoginOut() {
         Long currentUserId = SecurityUtil.getCurrentUserId();
         stringRedisTemplate.delete(USER_INFO_PREFIX+currentUserId);
         stringRedisTemplate.delete(TOKEN_USER_PREFIX+currentUserId);
@@ -133,7 +131,7 @@ public class LoginServiceImpl implements LoginService {
             //老用户：检查状态
             checkUserStatus(user);
             // 更新最后登录时间和头像
-            updateUserLoginInfo(user, userInfo);
+            updateUserLoginInfo(user);
         }
 
         //公共流程：生成令牌和缓存
@@ -224,7 +222,7 @@ public class LoginServiceImpl implements LoginService {
     /**
      * 更新用户登录信息
      */
-    private void updateUserLoginInfo(User user, Map<String, String> userInfo) {
+    private void updateUserLoginInfo(User user) {
         UpdateWrapper<User> wrapper = new UpdateWrapper<>();
         wrapper.eq("qq_open_id", user.getQqOpenId())
                 .set("last_login_time", LocalDateTime.now());
@@ -300,7 +298,7 @@ public class LoginServiceImpl implements LoginService {
         }
     }
 
-    private  Result authenticateAndGenerateToken(LoginEmailDTO emailDTO) {
+    private  Result<HashMap<String,String>> authenticateAndGenerateToken(LoginEmailDTO emailDTO) {
       String email=emailDTO.getEmail();
       String password=emailDTO.getPassword();
       if(StringUtils.isBlank(email))
