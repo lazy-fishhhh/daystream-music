@@ -112,8 +112,13 @@ public class FileServiceImpl implements IFileService {
         return merge(md5Value, originalFilename);
     }
 
+
+
+
     @Override
     public String merge(String md5Value, String originalFilename) throws IOException {
+
+
         // 校验所有切片是否己经上传完毕
         boolean flag = this.checkBeforeMerge(md5Value);
         if (!flag) {
@@ -139,9 +144,13 @@ public class FileServiceImpl implements IFileService {
         try {
             for (int i = 0; i < file_chunks; i++) {
                 String chunkPath = redisTemplate.opsForHash().get(md5Value, REDIS_CHUNK_LOCATION_PREFIX + i).toString();
+
+
+                // 从URL中提取MinIO对象名称
+                String objectName = extractObjectNameFromUrl(chunkPath);
                 // 从MinIO获取分片文件的输入流
                 // 从 MinIO 下载单个分片文件的字节流，供写入本地临时文件使用
-                inputStream = minIoService.getObjectStream(chunkPath);
+                inputStream = minIoService.getObjectStream(objectName);
 
                 byte[] bytes = new byte[1024 * 1024];
                 int len;
@@ -177,6 +186,28 @@ public class FileServiceImpl implements IFileService {
         return "分片合并成功";
     }
 
+
+    /**
+     * 从URL中提取MinIO对象名称
+     * 自动截取 /file/ 后面的所有内容
+     */
+    private String extractObjectNameFromUrl(String url) {
+        if (url == null || url.isEmpty()) {
+            return null;
+        }
+        // 1. 去掉Redis里的双引号
+        url = url.replace("\"", "");
+
+        // 2. 定位 /file/ 的位置
+        String key = "/file/";
+        int index = url.indexOf(key);
+        if (index == -1) {
+            return url;
+        }
+
+        // 3. 只取 /file/ 后面的内容 → chunks/xxx_0
+        return url.substring(index + key.length());
+    }
     @Override
     public void download(String fileName, HttpServletResponse response) throws IOException {
         response.setContentType(FILE_CONTENT_TYPE);
@@ -256,6 +287,7 @@ public class FileServiceImpl implements IFileService {
      * @param md5Value 文件MD5值
      * @throws IOException IO异常
      */
+
     private void delTmpFile(String md5Value) throws IOException {
         Map map = redisTemplate.opsForHash().entries(md5Value);
         List<String> list = new ArrayList<>();
@@ -264,7 +296,9 @@ public class FileServiceImpl implements IFileService {
         for (Object hashKey : map.keySet()) {
             if (hashKey.toString().startsWith(REDIS_CHUNK_LOCATION_PREFIX.substring(0, REDIS_CHUNK_LOCATION_PREFIX.length() - 1))) {
                 String chunkPath = map.get(hashKey).toString();
-                chunkPaths.add(chunkPath);
+                // 这里统一提取真实路径，修复删除失败问题
+                String realObjectName = extractObjectNameFromUrl(chunkPath);
+                chunkPaths.add(realObjectName);
                 list.add(hashKey.toString());
             }
             if (hashKey.toString().startsWith(REDIS_CHUNK_START_END_PREFIX)) {
