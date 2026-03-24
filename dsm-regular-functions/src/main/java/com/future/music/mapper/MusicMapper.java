@@ -6,6 +6,7 @@ import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.future.music.domain.vo.MusicVO;
+import com.future.music.entity.vo.GameMusicVO;
 import entity.pojo.music.Music;
 import com.future.music.entity.vo.MusicDetailVO;
 import entity.vo.MusicRecommendVO;
@@ -14,6 +15,7 @@ import org.apache.ibatis.annotations.Select;
 import org.mapstruct.Mapper;
 
 import java.util.List;
+import java.util.Set;
 
 
 @Mapper
@@ -96,4 +98,30 @@ public interface MusicMapper extends BaseMapper<Music> {
      */
     List<Long> selectMusicRecommendByTagId(@Param("tagId") Long tagId,
                                            @Param("currentMusicId") Long currentMusicId);
+
+    /**
+     * 从music表随机查询10条音乐数据（MySQL版本）
+     * @return 随机的10首音乐列表
+     */
+    @Select("SELECT id, music_name FROM music ORDER BY RAND() LIMIT 10")
+    List<GameMusicVO> selectRandom10Music();
+
+    /**
+     * 查询未使用的随机歌曲
+     * @param excludeIds 排除的歌曲ID
+     * @return 随机歌曲
+     */
+    @Select("SELECT id, music_name FROM music WHERE id NOT IN " +
+            "<foreach collection='excludeIds' item='id' open='(' separator=',' close=')'>#{id}</foreach> " +
+            "ORDER BY RAND() LIMIT 1")
+    GameMusicVO selectRandomMusic(@Param("excludeIds") Set<Long> excludeIds);
+
+    /**
+     * 查询随机歌曲选项（包含正确答案）
+     * @param correctMusicId 正确音乐ID
+     * @param count 选项数量
+     * @return 选项列表
+     */
+    @Select("SELECT id, music_name FROM music WHERE id != #{correctMusicId} ORDER BY RAND() LIMIT #{count}")
+    List<GameMusicVO> selectRandomOptions(@Param("correctMusicId") Long correctMusicId, @Param("count") Integer count);
 }

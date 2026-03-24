@@ -507,14 +507,13 @@ public class MusicServiceImpl extends ServiceImpl<MusicMapper, Music> implements
 
     /**
      * 根据音乐ID和音质类型，从MinIO下载音频文件并返回给前端，同时更新下载量
-     * @param dto 音乐播放DTO，包含音乐ID和音质参数（必填）
+     * @param musicId 音乐ID
+     * @param quality 音乐质量音质类型
      * @param response HTTP响应对象，用于返回文件流和状态信息
      */
     @Override
-    public void downloadMusic(MusicPlayDTO dto, HttpServletResponse response) {
+    public void downloadMusic(Long musicId, Integer quality, HttpServletResponse response) {
         try {
-            Long musicId = Long.parseLong(dto.getMusicId());
-            Integer quality = dto.getQuality();
             // 1. 校验参数有效性
             if (quality == null) {
                 response.setStatus(400); // 参数错误状态码
