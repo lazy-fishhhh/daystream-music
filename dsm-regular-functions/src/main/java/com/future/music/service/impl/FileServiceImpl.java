@@ -113,8 +113,6 @@ public class FileServiceImpl implements IFileService {
     }
 
 
-
-
     @Override
     public String merge(String md5Value, String originalFilename) throws IOException {
 
@@ -143,14 +141,32 @@ public class FileServiceImpl implements IFileService {
 
         try {
             for (int i = 0; i < file_chunks; i++) {
-                String chunkPath = redisTemplate.opsForHash().get(md5Value, REDIS_CHUNK_LOCATION_PREFIX + i).toString();
-
+                Object chunkPathObj = redisTemplate.opsForHash().get(md5Value, REDIS_CHUNK_LOCATION_PREFIX + i);
+                if (chunkPathObj == null) {
+                    throw new IOException("分片 " + i + " 路径信息缺失");
+                }
+                String chunkPath = chunkPathObj.toString();
+                if (chunkPath.isEmpty()) {
+                    throw new IOException("分片 " + i + " 路径信息为空");
+                }
 
                 // 从URL中提取MinIO对象名称
                 String objectName = extractObjectNameFromUrl(chunkPath);
+                if (objectName == null) {
+                    throw new IOException("分片 " + i + " 对象名称提取失败，路径: " + chunkPath);
+                }
+                if (objectName.isEmpty()) {
+                    throw new IOException("分片 " + i + " 对象名称为空，路径: " + chunkPath);
+                }
+                
+                log.debug("处理分片 {}，对象名称: {}", i, objectName);
+                
                 // 从MinIO获取分片文件的输入流
                 // 从 MinIO 下载单个分片文件的字节流，供写入本地临时文件使用
                 inputStream = minIoService.getObjectStream(objectName);
+                if (inputStream == null) {
+                    throw new IOException("获取分片 " + i + " 文件流失败: The specified key does not exist");
+                }
 
                 byte[] bytes = new byte[1024 * 1024];
                 int len;
@@ -160,8 +176,20 @@ public class FileServiceImpl implements IFileService {
                 }
 
                 inputStream.close();
+                inputStream = null;
+                log.debug("分片 {} 处理完成", i);
             }
+        } catch (IOException e) {
+            log.error("合并分片失败: {}", e.getMessage(), e);
+            throw e;
         } finally {
+            if (inputStream != null) {
+                try {
+                    inputStream.close();
+                } catch (IOException e) {
+                    log.error("关闭输入流失败", e);
+                }
+            }
             outputStream.close();
         }
 
@@ -189,7 +217,7 @@ public class FileServiceImpl implements IFileService {
 
     /**
      * 从URL中提取MinIO对象名称
-     * 自动截取 /file/ 后面的所有内容
+     * 支持多种路径格式
      */
     private String extractObjectNameFromUrl(String url) {
         if (url == null || url.isEmpty()) {
@@ -198,15 +226,34 @@ public class FileServiceImpl implements IFileService {
         // 1. 去掉Redis里的双引号
         url = url.replace("\"", "");
 
-        // 2. 定位 /file/ 的位置
+        // 2. 如果是完整URL，提取路径部分
+        if (url.startsWith("http://") || url.startsWith("https://")) {
+            try {
+                java.net.URL uri = new java.net.URL(url);
+                String path = uri.getPath();
+                // 移除开头的 /bucket/ 部分
+                if (path.startsWith("/")) {
+                    path = path.substring(1);
+                }
+                int firstSlash = path.indexOf("/");
+                if (firstSlash != -1) {
+                    return path.substring(firstSlash + 1);
+                }
+            } catch (java.net.MalformedURLException e) {
+                log.warn("URL格式错误: {}", url, e);
+            }
+        }
+        
+        // 3. 尝试定位 /file/ 的位置
         String key = "/file/";
         int index = url.indexOf(key);
-        if (index == -1) {
-            return url;
+        if (index != -1) {
+            // 只取 /file/ 后面的内容 → chunks/xxx_0
+            return url.substring(index + key.length());
         }
 
-        // 3. 只取 /file/ 后面的内容 → chunks/xxx_0
-        return url.substring(index + key.length());
+        // 4. 如果是直接的对象名称，直接返回
+        return url;
     }
     @Override
     public void download(String fileName, HttpServletResponse response) throws IOException {
@@ -348,18 +395,35 @@ public class FileServiceImpl implements IFileService {
     private boolean checkBeforeMerge(String key) {
         Map map = redisTemplate.opsForHash().entries(key);
         Object file_chunks = map.get(REDIS_FILE_CHUNKS);
-        int i = 0;
-        // 统计文件的Redis中的分片数量
+        if (file_chunks == null) {
+            log.warn("文件分片总数信息缺失，key: {}", key);
+            return false;
+        }
+        
+        int totalChunks = Integer.parseInt(file_chunks.toString());
+        int md5Count = 0;
+        int locationCount = 0;
+        
         for (Object hashKey : map.keySet()) {
-            if (hashKey.toString().startsWith(REDIS_CHUNK_MD5_PREFIX)) {
-                ++i;
+            String keyStr = hashKey.toString();
+            if (keyStr.startsWith(REDIS_CHUNK_MD5_PREFIX)) {
+                md5Count++;
+            }
+            if (keyStr.startsWith(REDIS_CHUNK_LOCATION_PREFIX)) {
+                Object location = map.get(hashKey);
+                if (location != null && !location.toString().isEmpty()) {
+                    locationCount++;
+                }
             }
         }
-
-        // 判断Redis中的 分片个数 是否与 总数 相等
-        if (Integer.valueOf(file_chunks.toString()) == (i)) {
-            return true;
+        
+        log.debug("合并前检查：totalChunks={}, md5Count={}, locationCount={}", totalChunks, md5Count, locationCount);
+        
+        // 判断Redis中的分片个数是否与总数相等，且所有分片都有路径信息
+        boolean result = totalChunks == md5Count && totalChunks == locationCount;
+        if (!result) {
+            log.warn("分片信息不完整，totalChunks={}, md5Count={}, locationCount={}", totalChunks, md5Count, locationCount);
         }
-        return false;
+        return result;
     }
 }
