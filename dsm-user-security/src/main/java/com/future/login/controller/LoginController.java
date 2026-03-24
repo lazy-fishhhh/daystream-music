@@ -17,6 +17,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import java.awt.*;
+import java.util.HashMap;
 import java.util.Map;
 
 @Api(tags = "登录管理")
@@ -72,4 +73,11 @@ public class LoginController {
     {
         return loginService.bindEmail(bindEmail);
     }*/
+
+    @ApiOperation("使用临时code获取qq登录的token")
+    @GetMapping("/getToken")
+    public Result<HashMap<String,String>> getToken(@RequestParam(value = "tempCode",required = true)String tempCode)
+    {
+        return qqAuthService.getToken(tempCode);
+    }
 }

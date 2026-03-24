@@ -3,6 +3,7 @@ package com.future.login.service.impl;
 import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.JSONObject;
 import com.future.login.service.LoginService;
+import com.future.login.service.QQAuthService;
 import entity.pojo.util.Result;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
@@ -12,6 +13,7 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
@@ -20,7 +22,7 @@ import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 @Slf4j
 @Service
-public class QQAuthServiceImpl {
+public class QQAuthServiceImpl implements QQAuthService {
 
     @Value("${qq.auth.app-id}")
     private String appId;
@@ -55,6 +57,7 @@ public class QQAuthServiceImpl {
     /**
      * 第一步：生成QQ登录URL
      */
+    @Override
     public Result<String> getAuthorizationUrl() {
         try {
             // 1. 生成随机state参数防止CSRF攻击
@@ -74,42 +77,77 @@ public class QQAuthServiceImpl {
             return Result.fail("生成QQ登录链接失败：" + e.getMessage());
         }
     }
-
+ @Override
     /**
      * 第二步：处理QQ回调，获取用户信息
      */
     public void handleCallback(String code, String state, HttpServletResponse response) {
-        try {
-            // 1. 验证state参数（防CSRF攻击）
-            String stateKey = "qq:state:" + state;
-            String cachedState = stringRedisTemplate.opsForValue().get(stateKey);
+     try {
+         // 1. 验证state参数（防CSRF攻击）
+         String stateKey = "qq:state:" + state;
+         String cachedState = stringRedisTemplate.opsForValue().get(stateKey);
 
-            if (cachedState == null || !cachedState.equals("valid")) {
-               log.warn("无效的state参数，可能已过期或被篡改");
-            }
+         if (cachedState == null || !cachedState.equals("valid")) {
+             log.warn("无效的state参数，可能已过期或被篡改");
+         }
 
-            // 2. 验证通过后删除state
-            stringRedisTemplate.delete(stateKey);
+         // 2. 验证通过后删除state
+         stringRedisTemplate.delete(stateKey);
 
-            // 3. 使用code换取access_token
-            String accessToken = getAccessToken(code);
+         // 3. 使用code换取access_token
+         String accessToken = getAccessToken(code);
 
-            // 4. 使用access_token获取openid
-            String openid = getOpenId(accessToken);
+         // 4. 使用access_token获取openid
+         String openid = getOpenId(accessToken);
 
-            // 5. 使用access_token和openid获取用户信息
-            Map<String, String> userInfo = getUserInfo(accessToken, openid);
+         // 5. 使用access_token和openid获取用户信息
+         Map<String, String> userInfo = getUserInfo(accessToken, openid);
 
-            // 6. 处理本地用户（创建或更新）
-            String token = loginService.loginByQQ(openid,userInfo);
+         // 6. 处理本地用户（创建或更新）
+         String token = loginService.loginByQQ(openid, userInfo);
 
-            // 7. 组装返回数据
-            String frontendRedirectUrl = "https://www.histweilai.top/?token=" + token + "&openid=" + openid;
-            response.sendRedirect(frontendRedirectUrl); // 跳转到首页
-        } catch (Exception e) {
-            // 捕获所有异常，返回失败结果
-            log.error("QQ登录回调处理失败：" + e.getMessage());
+         //生成随机code
+         String tempCode = UUID.randomUUID().toString().replace("-", "");
+
+         // 把token放入redis(一分钟有效)，使用code换取token
+         stringRedisTemplate.opsForValue().set(
+                 "qq:temp:" + tempCode,
+                 token,
+                 60,
+                 TimeUnit.SECONDS
+         );
+         // 7. 重定向
+         response.sendRedirect("https://www.histweilai.top/?tempCode=" + tempCode);
+     } catch (Exception e) {
+         // 捕获所有异常，返回失败结果
+         log.error("QQ登录回调处理失败：" + e.getMessage());
+         try {
+             response.sendRedirect("https://www.histweilai.top/UserAuth");
+         } catch (IOException ex) {
+             throw new RuntimeException(ex);
+         }
+     }
+ }
+
+    /**
+     * 使用tempCode换取token
+     */
+    @Override
+    public Result<HashMap<String,String>> getToken(String code)
+    {
+        String key="qq:temp:"+code;
+        String token=stringRedisTemplate.opsForValue().get(key);
+        if(token==null)
+        {
+            return Result.fail("临时码过期或无效");
+        }else
+        {
+            //用后即删
+            stringRedisTemplate.delete(key);
         }
+        HashMap<String,String> result=new HashMap<>();
+        result.put("token",token);
+        return Result.ok(result);
     }
 
     /**
