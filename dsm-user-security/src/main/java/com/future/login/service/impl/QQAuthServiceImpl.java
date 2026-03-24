@@ -77,10 +77,11 @@ public class QQAuthServiceImpl implements QQAuthService {
             return Result.fail("生成QQ登录链接失败：" + e.getMessage());
         }
     }
- @Override
+
     /**
      * 第二步：处理QQ回调，获取用户信息
      */
+    @Override
     public void handleCallback(String code, String state, HttpServletResponse response) {
      try {
          // 1. 验证state参数（防CSRF攻击）
@@ -153,7 +154,7 @@ public class QQAuthServiceImpl implements QQAuthService {
     /**
      * 使用授权码换取access_token
      */
-    private String getAccessToken(String code) throws Exception {
+    private String getAccessToken(String code){
         String encodedRedirectUri = URLEncoder.encode(redirectUri, StandardCharsets.UTF_8);
         String url = String.format("%s?grant_type=authorization_code&client_id=%s&client_secret=%s&code=%s&redirect_uri=%s",
                 accessTokenUrl, appId, appKey, code, encodedRedirectUri);
@@ -172,7 +173,7 @@ public class QQAuthServiceImpl implements QQAuthService {
     /**
      * 使用access_token获取openid
      */
-    private String getOpenId(String accessToken) throws Exception {
+    private String getOpenId(String accessToken){
         String url = openidUrl + "?access_token=" + accessToken;
         String response = restTemplate.getForObject(url, String.class);
 
@@ -196,7 +197,7 @@ public class QQAuthServiceImpl implements QQAuthService {
     /**
      * 获取QQ用户信息
      */
-    private Map<String, String> getUserInfo(String accessToken, String openid) throws Exception {
+    private Map<String, String> getUserInfo(String accessToken, String openid){
         String url = String.format("%s?access_token=%s&oauth_consumer_key=%s&openid=%s",
                 userInfoUrl, accessToken, appId, openid);
 

@@ -68,12 +68,12 @@ public class LoginServiceImpl implements LoginService {
     private RoleMapper roleMapper;
     @Autowired
     private PermissionMapper permissionMapper;
-    public Result LoginByEmail(LoginEmailDTO emailDTO) {
+    public Result<HashMap<String,String>> LoginByEmail(LoginEmailDTO emailDTO) {
         return authenticateAndGenerateToken(emailDTO);
     }
 
     @Override
-    public Result LoginOut() {
+    public Result<String> LoginOut() {
         Long currentUserId = SecurityUtil.getCurrentUserId();
         stringRedisTemplate.delete(USER_INFO_PREFIX+currentUserId);
         stringRedisTemplate.delete(TOKEN_USER_PREFIX+currentUserId);
@@ -300,7 +300,7 @@ public class LoginServiceImpl implements LoginService {
         }
     }
 
-    private  Result authenticateAndGenerateToken(LoginEmailDTO emailDTO) {
+    private  Result<HashMap<String,String>> authenticateAndGenerateToken(LoginEmailDTO emailDTO) {
       String email=emailDTO.getEmail();
       String password=emailDTO.getPassword();
       if(StringUtils.isBlank(email))
