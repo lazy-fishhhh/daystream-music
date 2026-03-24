@@ -94,7 +94,7 @@ public class ChatController {
         }
 
         // 3. 权限和参数校验通过
-        return consultantService.chat(message.getMessage(), message.getMemoryId())
+        return musicCreationService.createMusic(message.getMessage(), message.getMemoryId())
                 // 3. 对每个流式返回的内容封装成SSE格式
                 .map(content -> "data: " + content + "\n\n")
                 // 兜底：捕获流式处理中的异常，封装成SSE格式
