@@ -1,12 +1,10 @@
 package com.future.login.controller;
 
-import com.future.login.domain.dto.BindEmail;
 import com.future.login.domain.dto.FogetDTO;
 import com.future.login.domain.dto.LoginEmailDTO;
 import com.future.login.domain.vo.CaptchaVO;
 import com.future.login.service.CaptchaService;
 import com.future.login.service.LoginService;
-import com.future.login.service.QQAuthService;
 import com.future.login.service.impl.QQAuthServiceImpl;
 import entity.pojo.util.Result;
 import io.swagger.annotations.Api;
@@ -16,8 +14,7 @@ import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
-import java.awt.*;
-import java.util.Map;
+import java.util.HashMap;
 
 @Api(tags = "登录管理")
 @RestController
@@ -31,7 +28,7 @@ public class LoginController {
     private QQAuthServiceImpl qqAuthService;
     @ApiOperation("通过邮箱密码登录")
     @PostMapping("/loginByemail")
-    public Result loginByEmail(@Valid @RequestBody LoginEmailDTO loginEmailDTO)
+    public Result<HashMap<String,String>> loginByEmail(@Valid @RequestBody LoginEmailDTO loginEmailDTO)
     {
         return loginService.LoginByEmail(loginEmailDTO);
     }
@@ -43,7 +40,7 @@ public class LoginController {
     }
     @ApiOperation("退出登录")
     @GetMapping("/loginout")
-    public Result loginOut()
+    public Result<String> loginOut()
     {
         return loginService.LoginOut();
     }
@@ -62,7 +59,7 @@ public class LoginController {
     @ApiOperation("QQ登录回调接口")
     @GetMapping("/callback")
     public void qqCallback(@RequestParam("code") String code,
-                                     @RequestParam(value = "state", required = false) String state,
+                                     @RequestParam(value = "state") String state,
                                 HttpServletResponse response) {
         qqAuthService.handleCallback(code, state,response);
     }
@@ -72,4 +69,11 @@ public class LoginController {
     {
         return loginService.bindEmail(bindEmail);
     }*/
+
+    @ApiOperation("使用临时code获取qq登录的token")
+    @GetMapping("/getToken")
+    public Result<HashMap<String,String>> getToken(@RequestParam(value = "tempCode")String tempCode)
+    {
+        return qqAuthService.getToken(tempCode);
+    }
 }

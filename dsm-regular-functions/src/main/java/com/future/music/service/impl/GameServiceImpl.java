@@ -1,22 +1,25 @@
 package com.future.music.service.impl;
 
 import com.alibaba.fastjson2.JSON;
-import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.future.music.entity.dto.StartGameDTO;
 import com.future.music.entity.message.GameSession;
 import com.future.music.entity.vo.GameMusicVO;
+import com.future.music.entity.vo.GameOneVO;
+import com.future.music.entity.vo.GameQuestionVO;
+import com.future.music.mapper.MusicAudioMapper;
 import com.future.music.mapper.MusicMapper;
 import com.future.music.service.IGameService;
-import constants.GameConstants;
-import entity.pojo.music.Music;
+import com.future.music.service.IMinIoService;
+import entity.pojo.music.MusicAudio;
 import entity.pojo.util.Result;
 import jakarta.annotation.Resource;
+import org.springframework.beans.BeanUtils;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Objects;
-import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 @Service
@@ -29,6 +32,10 @@ public class GameServiceImpl implements IGameService {
 
     @Resource
     private StringRedisTemplate stringRedisTemplate;
+    @Autowired
+    private MusicAudioMapper musicAudioMapper;
+    @Autowired
+    private IMinIoService iMinIoService;
 
     public GameServiceImpl(MusicMapper musicMapper) {
         this.musicMapper = musicMapper;
@@ -38,9 +45,10 @@ public class GameServiceImpl implements IGameService {
     public Result<Void> startGame(StartGameDTO startGameDTO) {
 
         // 生成唯一会话ID
-        String sessionId = UUID.randomUUID().toString().replace("-", "");
+//        String sessionId = UUID.randomUUID().toString().replace("-", "");
+        String sessionId ="123456";
 
-        // 创建游戏会话
+                // 创建游戏会话
         GameSession session = new GameSession();
         session.setSessionId(sessionId);
         session.setDifficulty(startGameDTO.getDifficulty());
@@ -61,7 +69,7 @@ public class GameServiceImpl implements IGameService {
     /**
      * 获取下一题（单轮答题）
      */
-    public Result<Void> getNextQuestion(String sessionId) {
+    public Result<GameOneVO> getNextQuestion(String sessionId) {
         String cacheJson = stringRedisTemplate.opsForValue().get(REDIS_KEY_GAME_SESSION + sessionId);
         if (Objects.isNull(cacheJson)) {
             return Result.fail("游戏会话不存在");
@@ -74,16 +82,50 @@ public class GameServiceImpl implements IGameService {
             return Result.fail("游戏已完成");
         }
 
-        // 题目：随机选择一首音乐
-        GameMusicVO correctMusic = musicMapper.selectRandomMusic(session.getUsedSongIds());
-        session.getUsedSongIds().add(correctMusic.getMusicId());
+        // 题目：随机选择一首音乐并生成播放链接
+        MusicAudio correctMusic = musicAudioMapper.selectRandomAudio(session.getUsedSongIds());
+        String playUrl = iMinIoService.generatePresignedUrl(correctMusic.getAudioUrl(), 1800); // 30分钟有效
+        if (playUrl == null) {
+            return Result.fail("播放链接生成失败");
+        }
+        GameQuestionVO gameQuestionVO = new GameQuestionVO();
+        gameQuestionVO.setMusicId(correctMusic.getMusicId());
+        gameQuestionVO.setAudioUrl(playUrl);
+
+        // 题目：获取音乐详情
+        GameMusicVO gameMusicVO = new GameMusicVO();
+        BeanUtils.copyProperties(musicMapper.selectById(gameQuestionVO.getMusicId()), gameMusicVO);
 
         // 选项：随机选择3首音乐
-        List<GameMusicVO> options = musicMapper.selectRandomOptions(correctMusic.getMusicId(), 3);
+        List<GameMusicVO> options = musicMapper.selectRandomOptions(gameMusicVO.getId(), 3);
 
         // 添加正确答案并随机打乱选项
-        options.add(correctMusic);
+        options.add(gameMusicVO);
         java.util.Collections.shuffle(options);
+
+        session.getUsedSongIds().add(correctMusic.getMusicId());
+
+        GameOneVO gameOneVO = new GameOneVO();
+        gameOneVO.setGameQuestionVO(gameQuestionVO);
+        gameOneVO.setOptions(options);
+
+        // 更新Redis
+        session.setCurrentRound(session.getCurrentRound() + 1);
+        String jsonStr = JSON.toJSONString(session);
+        stringRedisTemplate.opsForValue().set(
+                REDIS_KEY_GAME_SESSION + sessionId,
+                jsonStr,
+                GAME_SESSION_EXPIRE,
+                TimeUnit.MINUTES
+        );
+
+        return Result.ok(gameOneVO);
+    }
+
+    /**
+     * 检查答案
+     */
+    public Result<Void> checkAnswer(String sessionId, Long musicId, String answer) {
 
         return Result.ok();
     }
