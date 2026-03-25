@@ -2,11 +2,19 @@ package social.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+
+import org.springframework.context.annotation.Lazy;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.messaging.simp.SimpMessageSendingOperations;
 import org.springframework.stereotype.Service;
+import entity.pojo.social.GroupMessage;
+import entity.pojo.social.PrivateMessage;
+import social.domain.vo.OfflineMessageSummaryVO;
 import social.domain.vo.OnlineStatusVO;
+import social.service.ChatService;
 
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
@@ -21,7 +29,6 @@ import java.util.stream.Collectors;
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class OnlineUserService {
 
     // Redis 存储【所有在线用户ID】的集合 key
@@ -33,6 +40,18 @@ public class OnlineUserService {
     private final StringRedisTemplate stringRedisTemplate;
     // WebSocket 消息发送模板（用于推送在线用户列表）
     private final SimpMessageSendingOperations messagingTemplate;
+    
+    // 聊天服务，用于获取离线消息
+    private final ChatService chatService;
+    
+    @Autowired
+    public OnlineUserService(StringRedisTemplate stringRedisTemplate, 
+                            SimpMessageSendingOperations messagingTemplate, 
+                            @Lazy ChatService chatService) {
+        this.stringRedisTemplate = stringRedisTemplate;
+        this.messagingTemplate = messagingTemplate;
+        this.chatService = chatService;
+    }
 
     // 本地缓存：用户ID -> WebSocket 会话ID，高并发安全
     private final ConcurrentHashMap<Long, String> userSessionMap = new ConcurrentHashMap<>();
@@ -63,6 +82,9 @@ public class OnlineUserService {
 
         // 4. 异步增量广播上线状态
         asyncBroadcastOnlineStatus(userId, 1);
+        
+        // 5. 异步获取并推送离线消息
+        asyncPushOfflineMessages(userId);
     }
 
     /**
@@ -117,6 +139,60 @@ public class OnlineUserService {
                 log.debug("增量广播在线状态成功，userId: {}, status: {}", userId, status);
             } catch (Exception e) {
                 log.error("增量广播在线状态失败，userId: {}, status: {}", userId, status, e);
+            }
+        });
+    }
+    
+    /**
+     * 异步获取并推送离线消息
+     * @param userId 用户ID
+     */
+    private void asyncPushOfflineMessages(Long userId) {
+        MESSAGE_PUSH_EXECUTOR.execute(() -> {
+            try {
+                log.info("开始获取用户离线消息，userId: {}", userId);
+                
+                // 1. 推送离线消息摘要
+                List<OfflineMessageSummaryVO> offlineSummary = chatService.getOfflineMessageSummary(userId);
+                if (!offlineSummary.isEmpty()) {
+                    messagingTemplate.convertAndSendToUser(
+                        userId.toString(),
+                        "/queue/offline-summary",
+                        offlineSummary
+                    );
+                    log.info("推送离线消息摘要成功，userId: {}, 摘要数: {}", userId, offlineSummary.size());
+                }
+
+//                //这些不应该在上线时立刻推送,而是等用户点击离线消息时主动前端调用接口获取
+//                // 2. 获取私聊离线消息
+//                List<PrivateMessage> privateMessages = chatService.getOfflineMessages(userId);
+//                if (!privateMessages.isEmpty()) {
+//                    for (PrivateMessage message : privateMessages) {
+//                        messagingTemplate.convertAndSendToUser(
+//                            userId.toString(),
+//                            "/queue/private",
+//                            message
+//                        );
+//                    }
+//                    log.info("推送私聊离线消息成功，userId: {}, 消息数: {}", userId, privateMessages.size());
+//                }
+//
+//                // 3. 获取群聊离线消息
+//                List<GroupMessage> groupMessages = chatService.getGroupOfflineMessages(userId);
+//                if (!groupMessages.isEmpty()) {
+//                    for (GroupMessage message : groupMessages) {
+//                        messagingTemplate.convertAndSendToUser(
+//                            userId.toString(),
+//                            "/queue/group",
+//                            message
+//                        );
+//                    }
+//                    log.info("推送群聊离线消息成功，userId: {}, 消息数: {}", userId, groupMessages.size());
+//                }
+                
+                log.info("离线消息处理完成，userId: {}", userId);
+            } catch (Exception e) {
+                log.error("获取并推送离线消息失败，userId: {}", userId, e);
             }
         });
     }

@@ -10,6 +10,12 @@ import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerCo
 @EnableWebSocketMessageBroker // 【核心】开启WebSocket消息代理功能（开启聊天功能）
 public class WebSocketStompConfig implements WebSocketMessageBrokerConfigurer {
 
+    private final AuthHandshakeInterceptor authHandshakeInterceptor;
+    
+    public WebSocketStompConfig(AuthHandshakeInterceptor authHandshakeInterceptor) {
+        this.authHandshakeInterceptor = authHandshakeInterceptor;
+    }
+
     @Override
     public void configureMessageBroker(MessageBrokerRegistry config) {
         // 1. 启用简单消息代理，设置【订阅推送】的通道前缀
@@ -25,6 +31,7 @@ public class WebSocketStompConfig implements WebSocketMessageBrokerConfigurer {
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
         registry.addEndpoint("/ws/chat")       // 连接地址：ws://localhost:端口/ws/chat
+                .addInterceptors(authHandshakeInterceptor) // 添加握手拦截器
                 .setAllowedOriginPatterns("*") // 允许所有前端跨域访问
                 .withSockJS();                 // 支持SockJS（兼容不支持WebSocket的浏览器）
     }

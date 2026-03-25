@@ -6,6 +6,8 @@ import entity.pojo.social.PrivateMessage;
 import social.domain.dto.GroupMessageDTO;
 import social.domain.dto.PrivateMessageDTO;
 import social.domain.vo.ChatGroupVO;
+import social.domain.vo.OfflineMessageSummaryVO;
+import social.domain.vo.PrivateChatUserVO;
 
 import java.util.List;
 
@@ -102,4 +104,18 @@ public interface ChatService {
      * @param userId 当前用户ID
      */
     void clearPrivateUnreadMessages(Long targetUserId, Long userId);
+    
+    /**
+     * 获取用户的私聊对象列表
+     * @param userId 用户ID
+     * @return 私聊对象列表
+     */
+    List<PrivateChatUserVO> getPrivateChatUsers(Long userId);
+    
+    /**
+     * 获取用户的离线消息摘要
+     * @param userId 用户ID
+     * @return 离线消息摘要列表
+     */
+    List<OfflineMessageSummaryVO> getOfflineMessageSummary(Long userId);
 }

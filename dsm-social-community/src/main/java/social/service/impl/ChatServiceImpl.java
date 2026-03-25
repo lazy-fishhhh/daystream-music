@@ -4,16 +4,17 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.future.login.util.SecurityUtil;
 import entity.pojo.social.*;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
+import org.springframework.beans.factory.annotation.Autowired;
+
+import org.springframework.context.annotation.Lazy;
 import org.springframework.messaging.simp.SimpMessageSendingOperations;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import social.domain.dto.GroupMessageDTO;
 import social.domain.dto.PrivateMessageDTO;
-import social.domain.vo.ChatGroupVO;
-import social.domain.vo.UnreadCountVO;
+import social.domain.vo.*;
 import social.mapper.*;
 import social.service.ChatService;
 import social.service.OnlineUserService;
@@ -32,7 +33,6 @@ import java.util.stream.Collectors;
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class ChatServiceImpl implements ChatService {
     
     private final PrivateSessionMapper privateSessionMapper;
@@ -40,8 +40,28 @@ public class ChatServiceImpl implements ChatService {
     private final ChatGroupMapper chatGroupMapper;
     private final GroupMemberMapper groupMemberMapper;
     private final GroupMessageMapper groupMessageMapper;
+    private final User2Mapper user2Mapper;
     private final SimpMessageSendingOperations messagingTemplate;
     private final OnlineUserService onlineUserService;
+    
+    @Autowired
+    public ChatServiceImpl(PrivateSessionMapper privateSessionMapper,
+                          PrivateMessageMapper privateMessageMapper,
+                          ChatGroupMapper chatGroupMapper,
+                          GroupMemberMapper groupMemberMapper,
+                          GroupMessageMapper groupMessageMapper,
+                          User2Mapper user2Mapper,
+                          SimpMessageSendingOperations messagingTemplate,
+                          @Lazy OnlineUserService onlineUserService) {
+        this.privateSessionMapper = privateSessionMapper;
+        this.privateMessageMapper = privateMessageMapper;
+        this.chatGroupMapper = chatGroupMapper;
+        this.groupMemberMapper = groupMemberMapper;
+        this.groupMessageMapper = groupMessageMapper;
+        this.user2Mapper = user2Mapper;
+        this.messagingTemplate = messagingTemplate;
+        this.onlineUserService = onlineUserService;
+    }
     
     /**
      * 发送私聊消息
@@ -470,6 +490,151 @@ public class ChatServiceImpl implements ChatService {
         
         // 推送未读消息数量更新
         asyncPushUnreadCount(userId, "private", targetUserId, 0, "");
+    }
+    
+    /**
+     * 获取用户的私聊对象列表
+     * @param userId 用户ID
+     * @return 私聊对象列表
+     */
+    @Override
+    public List<PrivateChatUserVO> getPrivateChatUsers(Long userId) {
+        // 查询用户参与的所有私聊会话
+        List<PrivateSession> sessions = privateSessionMapper.selectList(
+            new LambdaQueryWrapper<PrivateSession>()
+                .and(wrapper -> wrapper
+                    .eq(PrivateSession::getUser1Id, userId)
+                    .or()
+                    .eq(PrivateSession::getUser2Id, userId)
+                )
+                .orderByDesc(PrivateSession::getUpdatedAt)
+        );
+        
+        List<PrivateChatUserVO> result = new ArrayList<>();
+        
+        for (PrivateSession session : sessions) {
+            // 确定对方用户ID
+            Long otherUserId = session.getUser1Id().equals(userId) ? session.getUser2Id() : session.getUser1Id();
+            
+            // 获取对方用户信息
+            OtherUserVO userInfo = user2Mapper.otherUserInfo(otherUserId);
+            if (userInfo == null) {
+                continue;
+            }
+            
+            // 计算未读消息数量
+            int unreadCount = session.getUser1Id().equals(userId) ? session.getUnreadCount1() : session.getUnreadCount2();
+            
+            // 构造私聊对象VO
+            PrivateChatUserVO vo = new PrivateChatUserVO();
+            vo.setUserId(otherUserId);
+            vo.setNickname(userInfo.getUsername());
+            vo.setAvatar(userInfo.getAvatar());
+            vo.setLastMessage(session.getLastMessage());
+            vo.setLastMessageTime(session.getLastMsgTime());
+            vo.setUnreadCount(unreadCount);
+            vo.setSessionId(session.getId());
+            
+            result.add(vo);
+        }
+        
+        log.info("获取用户私聊对象列表成功，userId: {}, 私聊对象数: {}", userId, result.size());
+        return result;
+    }
+    
+    /**
+     * 获取用户的离线消息摘要
+     * @param userId 用户ID
+     * @return 离线消息摘要列表
+     */
+    @Override
+    public List<OfflineMessageSummaryVO> getOfflineMessageSummary(Long userId) {
+        List<OfflineMessageSummaryVO> result = new ArrayList<>();
+        
+        // 1. 获取私聊离线消息摘要
+        List<PrivateSession> privateSessions = privateSessionMapper.selectList(
+            new LambdaQueryWrapper<PrivateSession>()
+                .and(wrapper -> wrapper
+                    .eq(PrivateSession::getUser1Id, userId)
+                    .or()
+                    .eq(PrivateSession::getUser2Id, userId)
+                )
+        );
+        
+        for (PrivateSession session : privateSessions) {
+            // 确定对方用户ID
+            Long otherUserId = session.getUser1Id().equals(userId) ? session.getUser2Id() : session.getUser1Id();
+            
+            // 计算未读消息数量
+            int unreadCount = session.getUser1Id().equals(userId) ? session.getUnreadCount1() : session.getUnreadCount2();
+            
+            // 只有有未读消息时才添加到摘要
+            if (unreadCount > 0) {
+                // 获取对方用户信息
+                OtherUserVO userInfo = user2Mapper.otherUserInfo(otherUserId);
+                if (userInfo == null) {
+                    continue;
+                }
+                
+                // 构造私聊离线消息摘要
+                OfflineMessageSummaryVO vo = new OfflineMessageSummaryVO();
+                vo.setType("private");
+                vo.setSessionId(otherUserId);
+                vo.setOfflineCount(unreadCount);
+                vo.setLastMessage(session.getLastMessage());
+                vo.setLastMessageTime(session.getLastMsgTime());
+                vo.setOtherUserId(otherUserId);
+                vo.setOtherUserName(userInfo.getUsername());
+                vo.setOtherUserAvatar(userInfo.getAvatar());
+                
+                result.add(vo);
+            }
+        }
+        
+        // 2. 获取群聊离线消息摘要
+        List<GroupMember> userGroups = groupMemberMapper.selectUserGroups(userId);
+        
+        for (GroupMember member : userGroups) {
+            Long groupId = member.getGroupId();
+            
+            // 计算群聊未读消息数量
+            int unreadCount = getGroupUnreadCount(groupId, userId);
+            
+            // 只有有未读消息时才添加到摘要
+            if (unreadCount > 0) {
+                // 获取群聊信息
+                ChatGroup group = chatGroupMapper.selectById(groupId);
+                if (group == null) {
+                    continue;
+                }
+                
+                // 获取群聊最新一条消息
+                GroupMessage latestMessage = groupMessageMapper.selectOne(
+                    new LambdaQueryWrapper<GroupMessage>()
+                        .eq(GroupMessage::getGroupId, groupId)
+                        .eq(GroupMessage::getIsRecalled, 0)
+                        .orderByDesc(GroupMessage::getSendTime)
+                        .last("LIMIT 1")
+                );
+                
+                // 构造群聊离线消息摘要
+                OfflineMessageSummaryVO vo = new OfflineMessageSummaryVO();
+                vo.setType("group");
+                vo.setSessionId(groupId);
+                vo.setOfflineCount(unreadCount);
+                if (latestMessage != null) {
+                    vo.setLastMessage(latestMessage.getContent());
+                    vo.setLastMessageTime(latestMessage.getSendTime());
+                }
+                vo.setGroupName(group.getName());
+                vo.setGroupAvatar(group.getAvatar());
+                
+                result.add(vo);
+            }
+        }
+        
+        log.info("获取用户离线消息摘要成功，userId: {}, 摘要数: {}", userId, result.size());
+        return result;
     }
     
     /**

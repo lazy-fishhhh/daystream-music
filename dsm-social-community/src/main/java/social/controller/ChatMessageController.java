@@ -12,6 +12,8 @@ import org.springframework.web.bind.annotation.*;
 import social.domain.dto.GroupMessageDTO;
 import social.domain.dto.PrivateMessageDTO;
 import social.domain.vo.ChatGroupVO;
+import social.domain.vo.OfflineMessageSummaryVO;
+import social.domain.vo.PrivateChatUserVO;
 import social.service.ChatService;
 
 import java.util.List;
@@ -188,5 +190,29 @@ public class ChatMessageController {
         Long userId = SecurityUtil.getCurrentUserId();
         chatService.clearPrivateUnreadMessages(targetUserId, userId);
         return Result.ok();
+    }
+
+    /**
+     * 获取用户的私聊对象列表
+     * @return 私聊对象列表
+     */
+    @ApiOperation(value = "获取用户的私聊对象列表")
+    @GetMapping("/private/users")
+    public Result<List<PrivateChatUserVO>> getPrivateChatUsers() {
+        Long userId = SecurityUtil.getCurrentUserId();
+        List<PrivateChatUserVO> users = chatService.getPrivateChatUsers(userId);
+        return Result.ok(users);
+    }
+
+    /**
+     * 获取用户的离线消息摘要
+     * @return 离线消息摘要列表
+     */
+    @ApiOperation(value = "获取用户的离线消息摘要")
+    @GetMapping("/offline/summary")
+    public Result<List<OfflineMessageSummaryVO>> getOfflineMessageSummary() {
+        Long userId = SecurityUtil.getCurrentUserId();
+        List<OfflineMessageSummaryVO> summary = chatService.getOfflineMessageSummary(userId);
+        return Result.ok(summary);
     }
 }
