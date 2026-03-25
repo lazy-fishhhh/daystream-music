@@ -43,6 +43,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 
+import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 
@@ -93,9 +94,6 @@ public class MusicMvServiceImpl extends ServiceImpl<MusicMvMapper, MusicMv> impl
             return Result.ok(mvUrl);
         } catch (IllegalArgumentException e) {
             log.error("MV文件上传参数异常: {}", e.getMessage(), e);
-            return Result.fail("MV文件上传失败: " + e.getMessage());
-        } catch (IOException e) {
-            log.error("MV文件上传IO异常: {}", e.getMessage(), e);
             return Result.fail("MV文件上传失败: " + e.getMessage());
         } catch (Exception e) {
             log.error("MV文件上传异常: {}", e.getMessage(), e);

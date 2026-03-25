@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 import social.domain.dto.GroupMessageDTO;
 import social.domain.dto.PrivateMessageDTO;
 import social.domain.vo.ChatGroupVO;
+import social.domain.vo.UnreadCountVO;
 import social.mapper.*;
 import social.service.ChatService;
 import social.service.OnlineUserService;
@@ -72,6 +73,10 @@ public class ChatServiceImpl implements ChatService {
             asyncSendPrivateMessage(toUserId, message);
             message.setDelivered(1);
             privateMessageMapper.updateById(message);
+            
+            // 计算并推送未读消息数量
+            int unreadCount = getPrivateUnreadCount(toUserId, fromUserId);
+            asyncPushUnreadCount(toUserId, "private", fromUserId, unreadCount, message.getContent());
         }
         
         log.info("私聊消息发送成功，from: {}, to: {}, msgId: {}", fromUserId, toUserId, message.getId());
@@ -182,6 +187,12 @@ public class ChatServiceImpl implements ChatService {
             .collect(Collectors.toList());
         
         asyncBatchSendGroupMessages(onlineMemberIds, message);
+        
+        // 为每个在线成员推送未读消息数量
+        for (Long userId : onlineMemberIds) {
+            int unreadCount = getGroupUnreadCount(groupId, userId);
+            asyncPushUnreadCount(userId, "group", groupId, unreadCount, message.getContent());
+        }
         
         log.info("群聊消息发送成功，groupId: {}, from: {}, msgId: {}, 推送人数: {}", 
             groupId, fromUserId, message.getId(), onlineMemberIds.size());
@@ -390,6 +401,8 @@ public class ChatServiceImpl implements ChatService {
         
         if (latestMessage != null) {
             groupMemberMapper.updateLastReadMsgId(groupId, userId, latestMessage.getId());
+            // 推送未读消息数量更新
+            asyncPushUnreadCount(userId, "group", groupId, 0, "");
         }
     }
     
@@ -454,5 +467,67 @@ public class ChatServiceImpl implements ChatService {
         
         session.setUpdatedAt(LocalDateTime.now());
         privateSessionMapper.updateById(session);
+        
+        // 推送未读消息数量更新
+        asyncPushUnreadCount(userId, "private", targetUserId, 0, "");
+    }
+    
+    /**
+     * 获取私聊未读消息数量
+     * @param userId 当前用户ID
+     * @param targetUserId 对方用户ID
+     * @return 未读消息数量
+     */
+    private int getPrivateUnreadCount(Long userId, Long targetUserId) {
+        Long smallUserId = Math.min(userId, targetUserId);
+        Long largeUserId = Math.max(userId, targetUserId);
+        
+        PrivateSession session = privateSessionMapper.selectOne(
+            new LambdaQueryWrapper<PrivateSession>()
+                .eq(PrivateSession::getUser1Id, smallUserId)
+                .eq(PrivateSession::getUser2Id, largeUserId)
+        );
+        
+        if (session == null) {
+            return 0;
+        }
+        
+        if (userId.equals(session.getUser1Id())) {
+            return session.getUnreadCount1();
+        } else {
+            return session.getUnreadCount2();
+        }
+    }
+    
+    /**
+     * 异步推送未读消息数量
+     * @param userId 接收用户ID
+     * @param type 消息类型：private-私聊，group-群聊
+     * @param sessionId 会话ID：私聊为对方用户ID，群聊为群ID
+     * @param unreadCount 未读消息数量
+     * @param lastMessage 最后一条消息内容
+     */
+    private void asyncPushUnreadCount(Long userId, String type, Long sessionId, int unreadCount, String lastMessage) {
+        OnlineUserService.getMessagePushExecutor().execute(() -> {
+            try {
+                UnreadCountVO vo = new UnreadCountVO();
+                vo.setType(type);
+                vo.setSessionId(sessionId);
+                vo.setUnreadCount(unreadCount);
+                vo.setLastMessage(lastMessage);
+                vo.setTimestamp(System.currentTimeMillis());
+                
+                messagingTemplate.convertAndSendToUser(
+                    userId.toString(),
+                    "/queue/unread-count",
+                    vo
+                );
+                log.debug("未读消息数量推送成功，userId: {}, type: {}, sessionId: {}, count: {}", 
+                    userId, type, sessionId, unreadCount);
+            } catch (Exception e) {
+                log.error("未读消息数量推送失败，userId: {}, type: {}, sessionId: {}", 
+                    userId, type, sessionId, e);
+            }
+        });
     }
 }
