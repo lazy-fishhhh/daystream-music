@@ -30,7 +30,27 @@ public class MusicMvController {
     @ApiOperation(value = "上传MV文件")
     @PostMapping("/uploadMv")
     public Result<String> uploadMv(FileUploadDTO fileUploadDTO, @RequestParam(required = false) MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            return Result.fail("上传文件不能为空");
+        }
         fileUploadDTO.setFile(file);
+        
+        if (fileUploadDTO.getMd5Value() == null || fileUploadDTO.getMd5Value().isEmpty()) {
+            return Result.fail("文件MD5值不能为空");
+        }
+        if (fileUploadDTO.getChunk() == null) {
+            return Result.fail("分片索引不能为空");
+        }
+        if (fileUploadDTO.getChunks() == null) {
+            return Result.fail("总分片数不能为空");
+        }
+        if (fileUploadDTO.getChunkMd5() == null || fileUploadDTO.getChunkMd5().isEmpty()) {
+            return Result.fail("分片MD5值不能为空");
+        }
+        if (fileUploadDTO.getOperation() == null || fileUploadDTO.getOperation().isEmpty()) {
+            return Result.fail("操作类型不能为空");
+        }
+        
         return musicMvService.uploadMv(fileUploadDTO);
     }
 

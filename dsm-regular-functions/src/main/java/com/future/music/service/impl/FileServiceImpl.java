@@ -289,26 +289,55 @@ public class FileServiceImpl implements IFileService {
             MultipartFile multipartFile = fileUploadDTO.getFile();
             String operation = fileUploadDTO.getOperation();
 
+            log.info("开始大文件上传，md5Value={}, chunk={}, chunks={}, operation={}, originalFilename={}", 
+                    md5Value, chunk, chunks, operation, originalFilename);
+
             // 验证必要参数
-            if (md5Value == null || chunk == null || chunks == null || chunkMd5 == null) {
-                return "参数不完整";
+            if (md5Value == null || md5Value.isEmpty()) {
+                log.error("参数验证失败：md5Value为空");
+                throw new IllegalArgumentException("文件MD5值不能为空");
+            }
+            if (chunk == null || chunk.isEmpty()) {
+                log.error("参数验证失败：chunk为空");
+                throw new IllegalArgumentException("分片索引不能为空");
+            }
+            if (chunks == null || chunks.isEmpty()) {
+                log.error("参数验证失败：chunks为空");
+                throw new IllegalArgumentException("总分片数不能为空");
+            }
+            if (chunkMd5 == null || chunkMd5.isEmpty()) {
+                log.error("参数验证失败：chunkMd5为空");
+                throw new IllegalArgumentException("分片MD5值不能为空");
+            }
+            if (multipartFile == null || multipartFile.isEmpty()) {
+                log.error("参数验证失败：multipartFile为空");
+                throw new IllegalArgumentException("上传文件不能为空");
+            }
+            if (operation == null || operation.isEmpty()) {
+                log.error("参数验证失败：operation为空");
+                throw new IllegalArgumentException("操作类型不能为空");
             }
 
             // 如果是上传分片操作
             if (OPERATION_UPLOAD.equals(operation)) {
+                log.info("执行分片上传操作，chunk={}/{}, md5Value={}", chunk, chunks, md5Value);
                 // 检查分片是否已存在
                 boolean isChunkExists = check(md5Value, chunk, chunkMd5);
                 // 如果分片已存在，直接返回成功
                 if (isChunkExists) {
+                    log.info("分片已存在，跳过上传，chunk={}", chunk);
                     return "分片已存在";
                 }
                 // 上传新分片
                 String uploadResult = upload(md5Value, chunk, start, end, chunks, fileSize, chunkMd5, multipartFile);
                 // 检查是否上传成功
                 if (uploadResult.contains("失败")) {
+                    log.error("分片上传失败，chunk={}, result={}", chunk, uploadResult);
                     return uploadResult;
                 }
+                log.info("分片上传成功，chunk={}/{}, md5Value={}", chunk, chunks, md5Value);
             } else if (OPERATION_MERGE.equals(operation)) {
+                log.info("执行分片合并操作，md5Value={}, originalFilename={}", md5Value, originalFilename);
                 // 直接执行合并操作
                 return merge(md5Value, originalFilename);
             }
@@ -317,14 +346,22 @@ public class FileServiceImpl implements IFileService {
             int currentChunk = Integer.parseInt(chunk);
             int totalChunks = Integer.parseInt(chunks);
             if (currentChunk == totalChunks - 1) {
+                log.info("最后一个分片上传完成，自动执行合并操作，chunk={}/{}, md5Value={}", chunk, chunks, md5Value);
                 // 最后一个分片上传完成，执行合并操作
                 return merge(md5Value, originalFilename);
             }
 
+            log.info("大文件上传操作成功，chunk={}/{}, md5Value={}", chunk, chunks, md5Value);
             return "操作成功";
+        } catch (NumberFormatException e) {
+            log.error("参数格式错误: {}", e.getMessage(), e);
+            throw new IllegalArgumentException("参数格式错误: " + e.getMessage());
+        } catch (IllegalArgumentException e) {
+            log.error("参数验证失败: {}", e.getMessage(), e);
+            throw e;
         } catch (Exception e) {
-            log.error("大文件上传失败: {}", e.getMessage());
-            throw new BusinessException("文件上传异常10001", "大文件上传失败");
+            log.error("大文件上传异常: {}", e.getMessage(), e);
+            throw new RuntimeException("大文件上传失败: " + e.getMessage(), e);
         }
     }
 

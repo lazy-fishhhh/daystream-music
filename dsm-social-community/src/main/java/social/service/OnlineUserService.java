@@ -5,18 +5,23 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.messaging.simp.SimpMessageSendingOperations;
 import org.springframework.stereotype.Service;
+import social.domain.vo.OnlineStatusVO;
 
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 /**
  * 在线用户管理服务
- * 功能：记录用户上下线、查询在线状态、全局广播在线用户列表
+ * 功能：记录用户上下线、查询在线状态、增量广播在线状态变更
  */
-@Slf4j          // 日志注解
-@Service        // Spring 服务类
-@RequiredArgsConstructor // 构造器注入依赖
+@Slf4j
+@Service
+@RequiredArgsConstructor
 public class OnlineUserService {
 
     // Redis 存储【所有在线用户ID】的集合 key
@@ -31,6 +36,16 @@ public class OnlineUserService {
 
     // 本地缓存：用户ID -> WebSocket 会话ID，高并发安全
     private final ConcurrentHashMap<Long, String> userSessionMap = new ConcurrentHashMap<>();
+    
+    // 异步推送线程池
+    private static final ExecutorService MESSAGE_PUSH_EXECUTOR = new ThreadPoolExecutor(
+        5,                      // 核心线程数
+        20,                     // 最大线程数
+        60L,                    // 空闲线程存活时间
+        TimeUnit.SECONDS,        // 时间单位
+        new LinkedBlockingQueue<>(1000),  // 任务队列
+        new ThreadPoolExecutor.CallerRunsPolicy()  // 拒绝策略：调用者线程执行
+    );
 
     /**
      * 用户上线
@@ -46,8 +61,8 @@ public class OnlineUserService {
         stringRedisTemplate.opsForValue().set(REDIS_USER_SESSION_PREFIX + userId, sessionId);
         log.info("用户上线，userId: {}, sessionId: {}", userId, sessionId);
 
-        // 4. 向所有客户端广播最新的在线用户列表
-        broadcastOnlineStatus();
+        // 4. 异步增量广播上线状态
+        asyncBroadcastOnlineStatus(userId, 1);
     }
 
     /**
@@ -63,8 +78,8 @@ public class OnlineUserService {
         stringRedisTemplate.delete(REDIS_USER_SESSION_PREFIX + userId);
         log.info("用户下线，userId: {}", userId);
 
-        // 4. 广播最新在线列表
-        broadcastOnlineStatus();
+        // 4. 异步增量广播下线状态
+        asyncBroadcastOnlineStatus(userId, 0);
     }
 
     /**
@@ -88,13 +103,44 @@ public class OnlineUserService {
                 onlineUserIds.stream().map(Long::parseLong).collect(Collectors.toSet()) :
                 java.util.Collections.emptySet();
     }
-
+    
     /**
-     * 向所有客户端【广播最新在线用户列表】
-     * 前端可以实时展示谁在线
+     * 异步增量广播在线状态变更
+     * @param userId 用户ID
+     * @param status 状态：0-离线，1-在线
      */
-    private void broadcastOnlineStatus() {
-        Set<Long> onlineUsers = getOnlineUsers();
-        messagingTemplate.convertAndSend("/topic/online-users", onlineUsers);
+    private void asyncBroadcastOnlineStatus(Long userId, Integer status) {
+        MESSAGE_PUSH_EXECUTOR.execute(() -> {
+            try {
+                OnlineStatusVO vo = new OnlineStatusVO(userId, status, System.currentTimeMillis());
+                messagingTemplate.convertAndSend("/topic/online-status", vo);
+                log.debug("增量广播在线状态成功，userId: {}, status: {}", userId, status);
+            } catch (Exception e) {
+                log.error("增量广播在线状态失败，userId: {}, status: {}", userId, status, e);
+            }
+        });
+    }
+    
+    /**
+     * 获取消息推送线程池
+     * @return 线程池
+     */
+    public static ExecutorService getMessagePushExecutor() {
+        return MESSAGE_PUSH_EXECUTOR;
+    }
+    
+    /**
+     * 关闭线程池（应用关闭时调用）
+     */
+    public static void shutdownExecutor() {
+        MESSAGE_PUSH_EXECUTOR.shutdown();
+        try {
+            if (!MESSAGE_PUSH_EXECUTOR.awaitTermination(60, TimeUnit.SECONDS)) {
+                MESSAGE_PUSH_EXECUTOR.shutdownNow();
+            }
+        } catch (InterruptedException e) {
+            MESSAGE_PUSH_EXECUTOR.shutdownNow();
+            Thread.currentThread().interrupt();
+        }
     }
 }

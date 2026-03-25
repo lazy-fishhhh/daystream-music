@@ -80,10 +80,25 @@ public class MusicMvServiceImpl extends ServiceImpl<MusicMvMapper, MusicMv> impl
     @Override
     public Result<String> uploadMv(FileUploadDTO fileUploadDTO) {
         try {
-            // 调用文件服务的大文件上传方法
+            log.info("开始上传MV文件，md5Value={}, chunk={}, chunks={}, operation={}", 
+                fileUploadDTO.getMd5Value(), fileUploadDTO.getChunk(), fileUploadDTO.getChunks(), fileUploadDTO.getOperation());
+            
+            if (fileUploadDTO.getFile() == null || fileUploadDTO.getFile().isEmpty()) {
+                log.error("上传文件为空");
+                return Result.fail("上传文件不能为空");
+            }
+            
             String mvUrl = fileService.uploadLargeFile(fileUploadDTO);
+            log.info("MV文件上传成功，mvUrl={}", mvUrl);
             return Result.ok(mvUrl);
+        } catch (IllegalArgumentException e) {
+            log.error("MV文件上传参数异常: {}", e.getMessage(), e);
+            return Result.fail("MV文件上传失败: " + e.getMessage());
+        } catch (IOException e) {
+            log.error("MV文件上传IO异常: {}", e.getMessage(), e);
+            return Result.fail("MV文件上传失败: " + e.getMessage());
         } catch (Exception e) {
+            log.error("MV文件上传异常: {}", e.getMessage(), e);
             return Result.fail("MV文件上传失败: " + e.getMessage());
         }
     }
