@@ -33,6 +33,7 @@ import social.domain.dto.PageDTO;
 import social.domain.pojo.UserFollow;
 import social.domain.vo.*;
 import social.mapper.*;
+import social.service.NotificationService;
 import social.service.UserBaseService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -82,6 +83,8 @@ public class UserBaseServiceImpl implements UserBaseService {
     private CommunityPostMapper communityPostMapper;
     @Autowired
     private MusicMvPlayerMapper musicMvMapper;
+    @Autowired
+    private NotificationService notificationService;
     //点赞/取消点赞功能
     @Transactional(rollbackFor = Exception.class)
     @Override
@@ -197,7 +200,45 @@ public class UserBaseServiceImpl implements UserBaseService {
                         Long epochSecond=likeMusicVO.getUpdatedTime().atZone(ZoneId.systemDefault()).toInstant().getEpochSecond();
                         stringRedisTemplate.expire(key, 7, TimeUnit.DAYS); // 先设过期
                         Boolean addResult = stringRedisTemplate.opsForZSet().add(key, objectMapper.writeValueAsString(likeMusicVO), epochSecond);
+                        
+                        // 发送点赞通知
+                        Music music = music2Mapper.selectById(targetId);
+                        if (music != null && !currentUserId.equals(music.getMusicianId())) {
+                            String content = "有人点赞了你的音乐《" + music.getMusicName() + "》";
+                            notificationService.sendLikeNotification(currentUserId, music.getMusicianId(), targetId, targetType, music.getMusicName(), null, content);
+                        }
+                    } else if (targetType == LikeEnum.COMMENT.getValue()) {
+                        // 发送点赞通知
+                        Comment comment = commentMapper.selectById(targetId);
+                        if (comment != null && !currentUserId.equals(comment.getUserId())) {
+                            String commentContent = comment.getContent();
+                            if (commentContent.length() > 20) {
+                                commentContent = commentContent.substring(0, 20) + "...";
+                            }
+                            String content = "有人点赞了你的评论：\"" + commentContent + "\"";
+                            notificationService.sendLikeNotification(currentUserId, comment.getUserId(), targetId, targetType, null, commentContent, content);
+                        }
+                    } else if (targetType == LikeEnum.COMMUNITY.getValue()) {
+                        // 发送点赞通知
+                        CommunityPost post = communityPostMapper.selectById(targetId);
+                        if (post != null && !currentUserId.equals(post.getUserId())) {
+                            String postContent = post.getContent();
+                            if (postContent.length() > 20) {
+                                postContent = postContent.substring(0, 20) + "...";
+                            }
+                            String content = "有人点赞了你的动态：\"" + postContent + "\"";
+                            notificationService.sendLikeNotification(currentUserId, post.getUserId(), targetId, targetType, null, postContent, content);
+                        }
                     }
+                    // MV点赞就不通知了。 表没有持有人id , 因此非要通知的话 要查一下
+//                    else if (targetType == LikeEnum.MV.getValue()) {
+//                        // 发送点赞通知
+//                        MusicMv mv = musicMvMapper.selectById(targetId);
+//                        if (mv != null && !currentUserId.equals(mv.getMusicianId())) {
+//                            String content = "有人点赞了你的MV《" + mv.getMvName() + "》";
+//                            notificationService.sendLikeNotification(currentUserId, mv.getUserId(), targetId, targetType, content);
+//                        }
+//                    }
                     //  在"我的喜欢"歌单中添加这首歌
                     LambdaQueryWrapper<Playlist> playlistWrapper = new LambdaQueryWrapper<>();
                     playlistWrapper.eq(Playlist::getUserId,currentUserId)
@@ -232,7 +273,45 @@ public class UserBaseServiceImpl implements UserBaseService {
                 Long epochSecond=likeMusicVO.getUpdatedTime().atZone(ZoneId.systemDefault()).toInstant().getEpochSecond();
                 stringRedisTemplate.opsForZSet().add(key,objectMapper.writeValueAsString(likeMusicVO),epochSecond);
                 stringRedisTemplate.expire(key,7, TimeUnit.DAYS);
+                
+                // 发送点赞通知
+                Music music = music2Mapper.selectById(targetId);
+                if (music != null && !currentUserId.equals(music.getMusicianId())) {
+                    String content = "有人点赞了你的音乐《" + music.getMusicName() + "》";
+                    notificationService.sendLikeNotification(currentUserId, music.getMusicianId(), targetId, targetType, music.getMusicName(), null, content);
+                }
+            } else if (targetType == LikeEnum.COMMENT.getValue()) {
+                // 发送点赞通知
+                Comment comment = commentMapper.selectById(targetId);
+                if (comment != null && !currentUserId.equals(comment.getUserId())) {
+                    String commentContent = comment.getContent();
+                    if (commentContent.length() > 20) {
+                        commentContent = commentContent.substring(0, 20) + "...";
+                    }
+                    String content = "有人点赞了你的评论：\"" + commentContent + "\"";
+                    notificationService.sendLikeNotification(currentUserId, comment.getUserId(), targetId, targetType, null, commentContent, content);
+                }
+            } else if (targetType == LikeEnum.COMMUNITY.getValue()) {
+                // 发送点赞通知
+                CommunityPost post = communityPostMapper.selectById(targetId);
+                if (post != null && !currentUserId.equals(post.getUserId())) {
+                    String postContent = post.getContent();
+                    if (postContent.length() > 20) {
+                        postContent = postContent.substring(0, 20) + "...";
+                    }
+                    String content = "有人点赞了你的动态：\"" + postContent + "\"";
+                    notificationService.sendLikeNotification(currentUserId, post.getUserId(), targetId, targetType, null, postContent, content);
+                }
             }
+            // MV点赞就不通知了。 表没有持有人id , 因此非要通知的话 要查一下
+//            else if (targetType == LikeEnum.MV.getValue()) {
+//                // 发送点赞通知
+//                MusicMv mv = musicMvMapper.selectById(targetId);
+//                if (mv != null && !currentUserId.equals(mv.getMusicianId())) {
+//                    String content = "有人点赞了你的MV《" + mv.getMvName() + "》";
+//                    notificationService.sendLikeNotification(currentUserId, mv.getUserId(), targetId, targetType, content);
+//                }
+//            }
             // 在"我的喜欢"歌单中添加这首歌
             LambdaQueryWrapper<Playlist> playlistWrapper = new LambdaQueryWrapper<>();
             playlistWrapper.eq(Playlist::getUserId,currentUserId)
@@ -904,6 +983,10 @@ public class UserBaseServiceImpl implements UserBaseService {
         followMapper.updateFollowCountUp(currentUserId);
         //更新关注数
         followMapper.updateFansCountUp(userId);
+        
+        // 发送粉丝通知
+        String content = "有人关注了你";
+        notificationService.sendFollowNotification(currentUserId, userId, content);
         LambdaQueryWrapper<UserRole> lambdaQueryWrapper=new LambdaQueryWrapper<>();
         lambdaQueryWrapper.eq(UserRole::getUserId,userId);
         List<UserRole> userRole = userRoleMapper.selectList(lambdaQueryWrapper);

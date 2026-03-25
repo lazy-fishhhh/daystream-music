@@ -12,7 +12,9 @@ import entity.pojo.social.GroupMessage;
 import entity.pojo.social.PrivateMessage;
 import social.domain.vo.OfflineMessageSummaryVO;
 import social.domain.vo.OnlineStatusVO;
+import social.domain.vo.UnreadNotificationCountVO;
 import social.service.ChatService;
+import social.service.NotificationService;
 
 import java.util.List;
 import java.util.Set;
@@ -44,13 +46,17 @@ public class OnlineUserService {
     // 聊天服务，用于获取离线消息
     private final ChatService chatService;
     
+    private final NotificationService notificationService;
+    
     @Autowired
     public OnlineUserService(StringRedisTemplate stringRedisTemplate, 
                             SimpMessageSendingOperations messagingTemplate, 
-                            @Lazy ChatService chatService) {
+                            @Lazy ChatService chatService,
+                            @Lazy NotificationService notificationService) {
         this.stringRedisTemplate = stringRedisTemplate;
         this.messagingTemplate = messagingTemplate;
         this.chatService = chatService;
+        this.notificationService = notificationService;
     }
 
     // 本地缓存：用户ID -> WebSocket 会话ID，高并发安全
@@ -152,7 +158,36 @@ public class OnlineUserService {
             try {
                 log.info("开始获取用户离线消息，userId: {}", userId);
                 
-                // 1. 推送离线消息摘要
+                // 1. 推送未读通知数量
+                Integer likeUnread = notificationService.getUnreadCountByType(userId, 1);
+                Integer commentUnread = notificationService.getUnreadCountByType(userId, 2);
+                Integer followUnread = notificationService.getUnreadCountByType(userId, 3);
+                Integer privateMessageUnread = chatService.getPrivateMessageUnreadCount(userId);
+                
+                UnreadNotificationCountVO unreadCount = new UnreadNotificationCountVO(
+                    likeUnread, commentUnread, followUnread, privateMessageUnread
+                );
+                
+                messagingTemplate.convertAndSendToUser(
+                    userId.toString(),
+                    "/queue/notification/unread-count",
+                    unreadCount
+                );
+                log.info("推送未读通知数量成功，userId: {}, 点赞: {}, 评论: {}, 粉丝: {}, 私信: {}", 
+                    userId, likeUnread, commentUnread, followUnread, privateMessageUnread);
+                
+                // 2. 推送未读通知
+                List<social.domain.vo.NotificationVO> unreadNotifications = notificationService.getUnreadNotifications(userId);
+                if (!unreadNotifications.isEmpty()) {
+                    messagingTemplate.convertAndSendToUser(
+                        userId.toString(),
+                        "/queue/notification/unread",
+                        unreadNotifications
+                    );
+                    log.info("推送未读通知成功，userId: {}, 通知数: {}", userId, unreadNotifications.size());
+                }
+                
+                // 3. 推送离线消息摘要
                 List<OfflineMessageSummaryVO> offlineSummary = chatService.getOfflineMessageSummary(userId);
                 if (!offlineSummary.isEmpty()) {
                     messagingTemplate.convertAndSendToUser(
@@ -218,5 +253,14 @@ public class OnlineUserService {
             MESSAGE_PUSH_EXECUTOR.shutdownNow();
             Thread.currentThread().interrupt();
         }
+    }
+    
+    /**
+     * 获取用户未读私信数量
+     * @param userId 用户ID
+     * @return 未读私信数量
+     */
+    public Integer getPrivateMessageUnreadCount(Long userId) {
+        return chatService.getPrivateMessageUnreadCount(userId);
     }
 }

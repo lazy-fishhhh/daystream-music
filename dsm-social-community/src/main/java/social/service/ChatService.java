@@ -118,4 +118,11 @@ public interface ChatService {
      * @return 离线消息摘要列表
      */
     List<OfflineMessageSummaryVO> getOfflineMessageSummary(Long userId);
+    
+    /**
+     * 获取用户未读私信数量
+     * @param userId 用户ID
+     * @return 未读私信数量
+     */
+    Integer getPrivateMessageUnreadCount(Long userId);
 }

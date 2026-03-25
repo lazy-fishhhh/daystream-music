@@ -27,6 +27,7 @@ import social.domain.dto.*;
 import social.domain.vo.*;
 import social.mapper.*;
 import social.service.CommentService;
+import social.service.NotificationService;
 
 import java.time.ZoneId;
 import java.util.*;
@@ -46,6 +47,8 @@ public class CommentServiceImpl implements CommentService {
     private CommentMapper commentMapper;
     @Autowired
     private LikeRecord1Mapper likeRecord1Mapper;
+    @Autowired
+    private NotificationService notificationService;
     @Autowired
     private CommunityPostMapper communityPostMapper;
     @Autowired
@@ -157,6 +160,34 @@ public class CommentServiceImpl implements CommentService {
             }else{
                 commentListVO.setIsSelf(false);
             }
+            
+            // 发送评论通知
+            if (targetType == CommentEnum.MUSIC.getValue()) {
+                Music music = music2Mapper.selectById(targetId);
+                if (music != null && !currentUserId.equals(music.getMusicianId())) {
+                    String content2 = "有人评论了你的音乐《" + music.getMusicName() + "》：\"" + content + "\"";
+                    notificationService.sendCommentNotification(currentUserId, music.getMusicianId(), targetId, targetType, music.getMusicName(), content, content2);
+                }
+            } else if (targetType == CommentEnum.PLAYLIST.getValue()) {
+                Playlist playlist = playList2Mapper.selectById(targetId);
+                if (playlist != null && !currentUserId.equals(playlist.getUserId())) {
+                    String content2 = "有人评论了你的歌单《" + playlist.getPlaylistName() + "》：\"" + content + "\"";
+                    notificationService.sendCommentNotification(currentUserId, playlist.getUserId(), targetId, targetType, playlist.getPlaylistName(), content, content2);
+                }
+            } else if (targetType == CommentEnum.ALBUM.getValue()) {
+                Album album = album2Mapper.selectById(targetId);
+                if (album != null && !currentUserId.equals(album.getMusicianId())) {
+                    String content2 = "有人评论了你的专辑《" + album.getAlbumName() + "》：\"" + content + "\"";
+                    notificationService.sendCommentNotification(currentUserId, album.getMusicianId(), targetId, targetType, album.getAlbumName(), content, content2);
+                }
+            } else if (targetType == CommentEnum.COMMUNITY.getValue()) {
+                CommunityPost post = communityPostMapper.selectById(targetId);
+                if (post != null && !currentUserId.equals(post.getUserId())) {
+                    String content2 = "有人评论了你的动态：\"" + content + "\"";
+                    notificationService.sendCommentNotification(currentUserId, post.getUserId(), targetId, targetType, null, content, content2);
+                }
+            }
+            
             CommentVO commentVO = new CommentVO();
             commentVO.setMsg("发布成功");
             commentVO.setTargetCommentCount(count);
@@ -225,6 +256,13 @@ public class CommentServiceImpl implements CommentService {
                 communityPostMapper.communityCommentCountup(parentTargetId);
                 targetCount++;
             }
+            
+            // 发送回复通知
+            if (!currentUserId.equals(comment.getUserId())) {
+                String content2 = "有人回复了你的评论：\"" + content + "\"";
+                notificationService.sendCommentNotification(currentUserId, comment.getUserId(), targetId, targetType, null, content, content2);
+            }
+            
             ReplyCommentListVO ReplyCommentListVO= commentMapper.ReplyCommentVO(replyComment.getId());
             //返回视图
             ReplyCommentVO replyCommentVO=new ReplyCommentVO();

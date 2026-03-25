@@ -17,6 +17,7 @@ import social.domain.dto.PrivateMessageDTO;
 import social.domain.vo.*;
 import social.mapper.*;
 import social.service.ChatService;
+import social.service.NotificationService;
 import social.service.OnlineUserService;
 
 import java.time.LocalDateTime;
@@ -43,6 +44,7 @@ public class ChatServiceImpl implements ChatService {
     private final User2Mapper user2Mapper;
     private final SimpMessageSendingOperations messagingTemplate;
     private final OnlineUserService onlineUserService;
+    private final NotificationService notificationService;
     
     @Autowired
     public ChatServiceImpl(PrivateSessionMapper privateSessionMapper,
@@ -52,7 +54,8 @@ public class ChatServiceImpl implements ChatService {
                           GroupMessageMapper groupMessageMapper,
                           User2Mapper user2Mapper,
                           SimpMessageSendingOperations messagingTemplate,
-                          @Lazy OnlineUserService onlineUserService) {
+                          @Lazy OnlineUserService onlineUserService,
+                          NotificationService notificationService) {
         this.privateSessionMapper = privateSessionMapper;
         this.privateMessageMapper = privateMessageMapper;
         this.chatGroupMapper = chatGroupMapper;
@@ -61,6 +64,7 @@ public class ChatServiceImpl implements ChatService {
         this.user2Mapper = user2Mapper;
         this.messagingTemplate = messagingTemplate;
         this.onlineUserService = onlineUserService;
+        this.notificationService = notificationService;
     }
     
     /**
@@ -97,9 +101,41 @@ public class ChatServiceImpl implements ChatService {
             // 计算并推送未读消息数量
             int unreadCount = getPrivateUnreadCount(toUserId, fromUserId);
             asyncPushUnreadCount(toUserId, "private", fromUserId, unreadCount, message.getContent());
+            
+            // 推送未读通知数量（包括私信数量）
+            asyncPushUnreadNotificationCount(toUserId);
         }
         
         log.info("私聊消息发送成功，from: {}, to: {}, msgId: {}", fromUserId, toUserId, message.getId());
+    }
+    
+    /**
+     * 异步推送未读通知数量
+     * @param userId 用户ID
+     */
+    private void asyncPushUnreadNotificationCount(Long userId) {
+        OnlineUserService.getMessagePushExecutor().execute(() -> {
+            try {
+                Integer likeUnread = notificationService.getUnreadCountByType(userId, 1);
+                Integer commentUnread = notificationService.getUnreadCountByType(userId, 2);
+                Integer followUnread = notificationService.getUnreadCountByType(userId, 3);
+                Integer privateMessageUnread = getPrivateMessageUnreadCount(userId);
+                
+                social.domain.vo.UnreadNotificationCountVO unreadCount = new social.domain.vo.UnreadNotificationCountVO(
+                    likeUnread, commentUnread, followUnread, privateMessageUnread
+                );
+                
+                messagingTemplate.convertAndSendToUser(
+                    userId.toString(),
+                    "/queue/notification/unread-count",
+                    unreadCount
+                );
+                log.debug("推送未读通知数量成功，userId: {}, 点赞: {}, 评论: {}, 粉丝: {}, 私信: {}", 
+                    userId, likeUnread, commentUnread, followUnread, privateMessageUnread);
+            } catch (Exception e) {
+                log.error("推送未读通知数量失败，userId: {}", userId, e);
+            }
+        });
     }
     
     /**
@@ -212,6 +248,9 @@ public class ChatServiceImpl implements ChatService {
         for (Long userId : onlineMemberIds) {
             int unreadCount = getGroupUnreadCount(groupId, userId);
             asyncPushUnreadCount(userId, "group", groupId, unreadCount, message.getContent());
+            
+            // 推送未读通知数量（包括私信数量）
+            asyncPushUnreadNotificationCount(userId);
         }
         
         log.info("群聊消息发送成功，groupId: {}, from: {}, msgId: {}, 推送人数: {}", 
@@ -270,6 +309,9 @@ public class ChatServiceImpl implements ChatService {
         int updated = privateMessageMapper.markAsRead(msgId, userId);
         if (updated > 0) {
             log.info("标记私聊消息已读成功，msgId: {}, userId: {}", msgId, userId);
+            
+            // 推送未读通知数量更新
+            asyncPushUnreadNotificationCount(userId);
         } else {
             log.warn("标记私聊消息已读失败，msgId: {}, userId: {}", msgId, userId);
         }
@@ -286,6 +328,9 @@ public class ChatServiceImpl implements ChatService {
         int updated = groupMemberMapper.updateLastReadMsgId(groupId, userId, msgId);
         if (updated > 0) {
             log.info("标记群聊消息已读成功，groupId: {}, userId: {}, msgId: {}", groupId, userId, msgId);
+            
+            // 推送未读通知数量更新
+            asyncPushUnreadNotificationCount(userId);
         } else {
             log.warn("标记群聊消息已读失败，groupId: {}, userId: {}, msgId: {}", groupId, userId, msgId);
         }
@@ -694,5 +739,10 @@ public class ChatServiceImpl implements ChatService {
                     userId, type, sessionId, e);
             }
         });
+    }
+    
+    @Override
+    public Integer getPrivateMessageUnreadCount(Long userId) {
+        return privateMessageMapper.countUnread(userId);
     }
 }

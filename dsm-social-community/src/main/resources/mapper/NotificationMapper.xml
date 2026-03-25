@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="social.mapper.NotificationMapper">
+    
+    <select id="selectNotifications" resultType="entity.pojo.social.Notification">
+        SELECT * FROM notification 
+        WHERE user_id = #{userId} 
+        ORDER BY create_time DESC 
+        LIMIT #{offset}, #{limit}
+    </select>
+    
+    <select id="selectNotificationsByType" resultType="entity.pojo.social.Notification">
+        SELECT * FROM notification 
+        WHERE user_id = #{userId} AND type = #{type}
+        ORDER BY create_time DESC 
+        LIMIT #{offset}, #{limit}
+    </select>
+    
+    <update id="markBatchAsRead">
+        UPDATE notification 
+        SET is_read = 1, read_time = NOW() 
+        WHERE id IN (
+            <foreach collection="ids" item="id" separator=",">
+                #{id}
+            </foreach>
+        )
+    </update>
+    
+</mapper>
