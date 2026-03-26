@@ -1,200 +1,128 @@
 package social.service;
 
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.future.login.util.SecurityUtil;
-import entity.pojo.social.*;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.messaging.simp.SimpMessageSendingOperations;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import entity.pojo.social.ChatGroup;
+import entity.pojo.social.GroupMessage;
+import entity.pojo.social.PrivateMessage;
 import social.domain.dto.GroupMessageDTO;
 import social.domain.dto.PrivateMessageDTO;
-import social.mapper.*;
+import social.domain.vo.ChatGroupVO;
+import social.domain.vo.OfflineMessageSummaryVO;
+import social.domain.vo.PrivateChatUserVO;
 
-import java.time.LocalDateTime;
 import java.util.List;
-import java.util.stream.Collectors;
 
-@Slf4j
-@Service
-@RequiredArgsConstructor
-public class ChatService {
+/**
+ * 聊天服务接口
+ * 提供私聊和群聊相关的核心业务功能
+ */
+public interface ChatService {
     
-    private final PrivateSessionMapper privateSessionMapper;
-    private final PrivateMessageMapper privateMessageMapper;
-    private final ChatGroupMapper chatGroupMapper;
-    private final GroupMemberMapper groupMemberMapper;
-    private final GroupMessageMapper groupMessageMapper;
-    private final SimpMessageSendingOperations messagingTemplate;
-    private final OnlineUserService onlineUserService;
-    
-    @Transactional(rollbackFor = Exception.class)
-    public void sendPrivateMessage(PrivateMessageDTO dto) {
-        Long fromUserId = SecurityUtil.getCurrentUserId();
-        Long toUserId = dto.getToUser();
-        
-        Long sessionId = getOrCreatePrivateSession(fromUserId, toUserId);
-        
-        PrivateMessage message = new PrivateMessage();
-        message.setSessionId(sessionId);
-        message.setFromUser(fromUserId);
-        message.setToUser(toUserId);
-        message.setContent(dto.getContent());
-        message.setType(dto.getType());
-        message.setSendTime(LocalDateTime.now());
-        message.setDelivered(0);
-        message.setIsRecalled(0);
-        
-        privateMessageMapper.insert(message);
-        
-        updatePrivateSession(sessionId, fromUserId, toUserId, dto.getContent(), message.getId());
-
-        // 1. 判断【接收消息的用户】当前是否在线（websocket在线状态）
-        if (onlineUserService.isUserOnline(toUserId)) {
-
-            // 2. 如果在线 → 立刻通过WebSocket把消息【实时推送给对方】
-            messagingTemplate.convertAndSendToUser(
-                    toUserId.toString(),   // 推送给谁（接收方ID）
-                    "/queue/private",      // 私聊消息的通道
-                    message                // 要发送的消息内容
-            );
-
-            // 3. 推送成功 → 把消息状态改成【已送达】(1=已送达)
-            message.setDelivered(1);
-
-            // 4. 把“已送达”状态更新到数据库
-            privateMessageMapper.updateById(message);
-        }
-        
-        log.info("私聊消息发送成功，from: {}, to: {}, msgId: {}", fromUserId, toUserId, message.getId());
-    }
-    
-    private Long getOrCreatePrivateSession(Long user1Id, Long user2Id) {
-        Long smallUserId = Math.min(user1Id, user2Id);
-        Long largeUserId = Math.max(user1Id, user2Id);
-        
-        LambdaQueryWrapper<PrivateSession> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(PrivateSession::getUser1Id, smallUserId)
-               .eq(PrivateSession::getUser2Id, largeUserId);
-        
-        PrivateSession session = privateSessionMapper.selectOne(wrapper);
-        
-        if (session == null) {
-            session = new PrivateSession();
-            session.setUser1Id(smallUserId);
-            session.setUser2Id(largeUserId);
-            session.setUnreadCount1(0);
-            session.setUnreadCount2(0);
-            session.setCreatedAt(LocalDateTime.now());
-            session.setUpdatedAt(LocalDateTime.now());
-            privateSessionMapper.insert(session);
-        }
-        
-        return session.getId();
-    }
-    
-    private void updatePrivateSession(Long sessionId, Long fromUserId, Long toUserId, 
-                                      String content, Long msgId) {
-        PrivateSession session = privateSessionMapper.selectById(sessionId);
-        session.setLastMessage(content);
-        session.setLastMsgTime(LocalDateTime.now());
-        session.setLastMsgId(msgId);
-        session.setUpdatedAt(LocalDateTime.now());
-
-
-        // 核心逻辑：判断是谁发的消息，给【对方】未读数量 + 1;
-        if (fromUserId.equals(session.getUser1Id())) {
-            // 发送者是 user1 → 给 user2 的未读数 +1
-            session.setUnreadCount2(session.getUnreadCount2() + 1);
-        } else {
-            // 发送者是 user2 → 给 user1 的未读数 +1
-            session.setUnreadCount1(session.getUnreadCount1() + 1);
-        }
-        
-        privateSessionMapper.updateById(session);
-    }
-    
-    @Transactional(rollbackFor = Exception.class)
-    public void sendGroupMessage(GroupMessageDTO dto) {
-        Long fromUserId = SecurityUtil.getCurrentUserId();
-        Long groupId = dto.getGroupId();
-        
-        GroupMessage message = new GroupMessage();
-        message.setGroupId(groupId);
-        message.setFromUser(fromUserId);
-        message.setContent(dto.getContent());
-        message.setType(dto.getType());
-        message.setMentionedUserIds(dto.getMentionedUserIds());
-        message.setSendTime(LocalDateTime.now());
-        message.setIsRecalled(0);
-        
-        groupMessageMapper.insert(message);
-        
-        List<GroupMember> members = groupMemberMapper.selectGroupMembers(groupId);
-
-        // 遍历【这个群里的所有成员】
-        for (GroupMember member : members) {
-
-            // 判断条件：
-            // 1. 不是消息发送者本人（跳过自己）
-            // 2. 这个群成员当前在线
-            if (!member.getUserId().equals(fromUserId) && onlineUserService.isUserOnline(member.getUserId())) {
-
-                // 满足条件 → 给这个群成员【实时推送群消息】
-                messagingTemplate.convertAndSendToUser(
-                        member.getUserId().toString(),  // 推送给这个群成员
-                        "/queue/group",                 // 群消息通道
-                        message                         // 发送的群消息
-                );
-            }
-        }
-        
-        log.info("群聊消息发送成功，groupId: {}, from: {}, msgId: {}", groupId, fromUserId, message.getId());
-    }
-    
-    public List<PrivateMessage> getOfflineMessages(Long userId) {
-        List<PrivateMessage> messages = privateMessageMapper.selectUndeliveredMessages(userId);
-        
-        if (!messages.isEmpty()) {
-            List<Long> msgIds = messages.stream().map(PrivateMessage::getId).collect(Collectors.toList());
-            privateMessageMapper.batchMarkAsDelivered(msgIds);
-        }
-        
-        return messages;
-    }
-
     /**
-     * 获取用户【所有群组】的离线未读消息
-     * 作用：用户上线后，拉取他加入的所有群里，未读的群消息
-     * @param userId 用户ID
-     * @return 该用户所有群的未读群消息列表
+     * 发送私聊消息
+     * @param dto 私聊消息DTO
      */
-    public List<GroupMessage> getGroupOfflineMessages(Long userId) {
-        // 1. 查询该用户加入的【所有群组】（获取用户所在的全部群列表）
-        List<GroupMember> userGroups = groupMemberMapper.selectUserGroups(userId);
-
-        // 2. 遍历用户所有群，分别拉取每个群的未读消息，最后合并成一个大列表返回
-        return userGroups.stream()
-                .flatMap(member -> {
-                    // 3. 根据【群ID】和【最后已读消息ID】，查询该群里【未读的消息】
-                    // 即：比 lastReadMsgId 大的消息都是未读
-                    List<GroupMessage> messages = groupMessageMapper.selectUnreadMessages(
-                            member.getGroupId(),    // 当前群ID
-                            member.getLastReadMsgId() // 用户在这个群最后一次已读的消息ID
-                    );
-                    // 4. 把每个群的消息流，flatMap 打平合并（最终所有消息在一个列表）
-                    return messages.stream();
-                })
-                // 5. 把所有未读消息收集成 List 返回给前端
-                .collect(Collectors.toList());
-    }
+    void sendPrivateMessage(PrivateMessageDTO dto);
     
-    public void markPrivateMessageRead(Long msgId, Long userId) {
-        privateMessageMapper.markAsRead(msgId, userId);
-    }
+    /**
+     * 发送群聊消息
+     * @param dto 群聊消息DTO
+     */
+    void sendGroupMessage(GroupMessageDTO dto);
     
-    public void markGroupMessageRead(Long groupId, Long userId, Long msgId) {
-        groupMemberMapper.updateLastReadMsgId(groupId, userId, msgId);
-    }
+    /**
+     * 获取用户的私聊离线消息
+     * @param userId 用户ID
+     * @return 离线消息列表
+     */
+    List<PrivateMessage> getOfflineMessages(Long userId);
+    
+    /**
+     * 获取用户的群聊离线消息
+     * @param userId 用户ID
+     * @return 离线消息列表
+     */
+    List<GroupMessage> getGroupOfflineMessages(Long userId);
+    
+    /**
+     * 标记私聊消息为已读
+     * @param msgId 消息ID
+     * @param userId 用户ID
+     */
+    void markPrivateMessageRead(Long msgId, Long userId);
+    
+    /**
+     * 标记群聊消息为已读
+     * @param groupId 群组ID
+     * @param userId 用户ID
+     * @param msgId 消息ID
+     */
+    void markGroupMessageRead(Long groupId, Long userId, Long msgId);
+    
+    /**
+     * 获取用户加入的所有群聊
+     * @param userId 用户ID
+     * @return 群聊列表
+     */
+    List<ChatGroupVO> getUserGroups(Long userId);
+    
+    /**
+     * 获取群聊历史消息
+     * @param groupId 群组ID
+     * @param pageNum 页码
+     * @param pageSize 每页大小
+     * @return 历史消息列表
+     */
+    List<GroupMessage> getGroupHistoryMessages(Long groupId, Integer pageNum, Integer pageSize);
+    
+    /**
+     * 获取群聊未读消息条数
+     * @param groupId 群组ID
+     * @param userId 用户ID
+     * @return 未读消息条数
+     */
+    Integer getGroupUnreadCount(Long groupId, Long userId);
+    
+    /**
+     * 群聊未读消息清零（设为已读）
+     * @param groupId 群组ID
+     * @param userId 用户ID
+     */
+    void clearGroupUnreadMessages(Long groupId, Long userId);
+    
+    /**
+     * 获取私聊历史消息
+     * @param targetUserId 对方用户ID
+     * @param pageNum 页码
+     * @param pageSize 每页大小
+     * @return 历史消息列表
+     */
+    List<PrivateMessage> getPrivateHistoryMessages(Long targetUserId, Integer pageNum, Integer pageSize);
+    
+    /**
+     * 未读私聊消息清零
+     * @param targetUserId 对方用户ID
+     * @param userId 当前用户ID
+     */
+    void clearPrivateUnreadMessages(Long targetUserId, Long userId);
+    
+    /**
+     * 获取用户的私聊对象列表
+     * @param userId 用户ID
+     * @return 私聊对象列表
+     */
+    List<PrivateChatUserVO> getPrivateChatUsers(Long userId);
+    
+    /**
+     * 获取用户的离线消息摘要
+     * @param userId 用户ID
+     * @return 离线消息摘要列表
+     */
+    List<OfflineMessageSummaryVO> getOfflineMessageSummary(Long userId);
+    
+    /**
+     * 获取用户未读私信数量
+     * @param userId 用户ID
+     * @return 未读私信数量
+     */
+    Integer getPrivateMessageUnreadCount(Long userId);
 }

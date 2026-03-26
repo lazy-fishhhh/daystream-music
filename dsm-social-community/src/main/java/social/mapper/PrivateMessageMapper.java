@@ -25,4 +25,7 @@ public interface PrivateMessageMapper extends BaseMapper<PrivateMessage> {
     
     @Update("UPDATE private_message SET read_time = NOW() WHERE id = #{msgId} AND to_user = #{userId}")
     int markAsRead(@Param("msgId") Long msgId, @Param("userId") Long userId);
+    
+    @Select("SELECT COUNT(*) FROM private_message WHERE to_user = #{userId} AND read_time IS NULL")
+    int countUnread(@Param("userId") Long userId);
 }
