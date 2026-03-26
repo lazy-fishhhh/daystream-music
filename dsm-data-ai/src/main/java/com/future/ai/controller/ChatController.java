@@ -2,6 +2,7 @@ package com.future.ai.controller;
 
 import com.baomidou.mybatisplus.core.toolkit.IdWorker;
 import com.future.ai.domain.entity.AiChatMessage;
+import com.future.ai.domain.entity.AiChatSession;
 import com.future.ai.domain.entity.Message;
 import com.future.ai.service.ConsultantService;
 import com.future.ai.service.MessageService;
@@ -33,12 +34,21 @@ public class ChatController {
     @Resource
     private MessageService messageService;
 
+    @ApiOperation("查询用户会话列表")
+    @GetMapping("/sessions")
+    public Result<List<AiChatSession>> getSessions(
+            @RequestParam String sessionType,
+            @RequestParam(defaultValue = "1") Integer pageNum,
+            @RequestParam(defaultValue = "10") Integer pageSize) {
+        return messageService.getSessions(sessionType, pageNum, pageSize);
+    }
+
     @ApiOperation("根据会话id查询消息记录")
     @GetMapping("/messages")
     public Result<List<AiChatMessage>> getMessages(
             @RequestParam String memoryId,
-            @RequestParam Integer pageNum,
-            @RequestParam Integer pageSize) {
+            @RequestParam(defaultValue = "1") Integer pageNum,
+            @RequestParam(defaultValue = "10") Integer pageSize) {
         return messageService.getMessage(memoryId, pageNum, pageSize);
     }
 
