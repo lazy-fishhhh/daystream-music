@@ -29,6 +29,28 @@ public class MessageServiceImpl implements MessageService {
     private StringRedisTemplate stringRedisTemplate;
 
     /**
+     * 查询用户会话列表
+     * @return 会话列表
+     */
+    @Override
+    public Result<List<AiChatSession>> getSessions(String sessionType, Integer pageNum, Integer pageSize) {
+        Long userId = SecurityUtil.getCurrentUserId();
+        if (userId == null) {
+            return Result.fail("用户未登录");
+        }
+        QueryWrapper<AiChatSession> sessionQueryWrapper = new QueryWrapper<AiChatSession>()
+                .eq("user_id",userId)
+                .eq("session_type",Integer.parseInt(sessionType))
+                .orderByDesc("update_time");
+        Page<AiChatSession> page = new Page<>(pageNum,pageSize);
+        aiChatSessionMapper.selectPage(page,sessionQueryWrapper);
+        if (page.getRecords().isEmpty()) {
+            return Result.ok(List.of());
+        }
+        return Result.ok(page.getRecords());
+    }
+
+    /**
      * 根据会话id查询消息记录
      * @param memoryId 消息ID
      * @return 消息内容
@@ -48,7 +70,7 @@ public class MessageServiceImpl implements MessageService {
         }
         QueryWrapper<AiChatMessage> messageQueryWrapper = new QueryWrapper<AiChatMessage>()
                 .eq("session_id",mId)
-                .orderByAsc("send_time");
+                .orderByDesc("send_time");
         Page<AiChatMessage> page = new Page<>(pageNum,pageSize);
         aiChatMessageMapper.selectPage(page,messageQueryWrapper);
         if (page.getRecords().isEmpty()) {
