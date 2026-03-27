@@ -745,4 +745,49 @@ public class ChatServiceImpl implements ChatService {
     public Integer getPrivateMessageUnreadCount(Long userId) {
         return privateMessageMapper.countUnread(userId);
     }
+    
+    @Override
+    public CreatePrivateSessionResultVO createPrivateSession(Long targetUserId, Long userId) {
+        if (userId.equals(targetUserId)) {
+            throw new IllegalArgumentException("不能与自己创建私聊会话");
+        }
+        
+        Long sessionId = getOrCreatePrivateSession(userId, targetUserId);
+        
+        // 获取对方用户信息
+        OtherUserVO otherUser = user2Mapper.otherUserInfo(targetUserId);
+        
+        return new CreatePrivateSessionResultVO(true, sessionId, otherUser);
+    }
+    
+    @Override
+    public boolean deletePrivateSession(Long targetUserId, Long userId) {
+        if (userId.equals(targetUserId)) {
+            throw new IllegalArgumentException("不能删除与自己的会话");
+        }
+        
+        Long smallUserId = Math.min(userId, targetUserId);
+        Long largeUserId = Math.max(userId, targetUserId);
+        
+        com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<PrivateSession> wrapper = new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<>();
+        wrapper.eq(PrivateSession::getUser1Id, smallUserId)
+               .eq(PrivateSession::getUser2Id, largeUserId);
+        
+        PrivateSession session = privateSessionMapper.selectOne(wrapper);
+        if (session != null) {
+            // 先删除相关的私信消息
+            int delete = privateMessageMapper.delete(
+                    new LambdaQueryWrapper<PrivateMessage>()
+                            .eq(PrivateMessage::getSessionId, session.getId())
+            );
+
+            // 再删除会话
+            privateSessionMapper.deleteById(session.getId());
+            log.info("删除私聊会话成功，userId: {}, targetUserId: {}, sessionId: {}", userId, targetUserId, session.getId());
+            return true;
+        }
+        
+        log.warn("删除私聊会话失败，会话不存在，userId: {}, targetUserId: {}", userId, targetUserId);
+        return false;
+    }
 }

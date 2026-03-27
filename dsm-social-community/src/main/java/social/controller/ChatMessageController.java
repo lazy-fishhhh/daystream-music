@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.*;
 import social.domain.dto.GroupMessageDTO;
 import social.domain.dto.PrivateMessageDTO;
 import social.domain.vo.ChatGroupVO;
+import social.domain.vo.CreatePrivateSessionResultVO;
 import social.domain.vo.OfflineMessageSummaryVO;
 import social.domain.vo.PrivateChatUserVO;
 import social.service.ChatService;
@@ -214,5 +215,31 @@ public class ChatMessageController {
         Long userId = SecurityUtil.getCurrentUserId();
         List<OfflineMessageSummaryVO> summary = chatService.getOfflineMessageSummary(userId);
         return Result.ok(summary);
+    }
+    
+    /**
+     * 创建私聊会话
+     * @param targetUserId 目标用户ID
+     * @return 创建结果，包含成功状态、会话ID和对方用户信息
+     */
+    @ApiOperation(value = "创建私聊会话")
+    @PostMapping("/private/session/create/{targetUserId}")
+    public Result<CreatePrivateSessionResultVO> createPrivateSession(@PathVariable @ApiParam("目标用户ID") Long targetUserId) {
+        Long userId = SecurityUtil.getCurrentUserId();
+        CreatePrivateSessionResultVO result = chatService.createPrivateSession(targetUserId, userId);
+        return Result.ok(result);
+    }
+    
+    /**
+     * 删除私聊会话
+     * @param targetUserId 目标用户ID
+     * @return 操作结果
+     */
+    @ApiOperation(value = "删除私聊会话")
+    @DeleteMapping("/private/session/delete/{targetUserId}")
+    public Result<Boolean> deletePrivateSession(@PathVariable @ApiParam("目标用户ID") Long targetUserId) {
+        Long userId = SecurityUtil.getCurrentUserId();
+        boolean success = chatService.deletePrivateSession(targetUserId, userId);
+        return Result.ok(success);
     }
 }

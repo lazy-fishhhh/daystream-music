@@ -6,6 +6,7 @@ import entity.pojo.social.PrivateMessage;
 import social.domain.dto.GroupMessageDTO;
 import social.domain.dto.PrivateMessageDTO;
 import social.domain.vo.ChatGroupVO;
+import social.domain.vo.CreatePrivateSessionResultVO;
 import social.domain.vo.OfflineMessageSummaryVO;
 import social.domain.vo.PrivateChatUserVO;
 
@@ -125,4 +126,20 @@ public interface ChatService {
      * @return 未读私信数量
      */
     Integer getPrivateMessageUnreadCount(Long userId);
+    
+    /**
+     * 创建私聊会话
+     * @param targetUserId 目标用户ID
+     * @param userId 当前用户ID
+     * @return 创建结果，包含成功状态、会话ID和对方用户信息
+     */
+    CreatePrivateSessionResultVO createPrivateSession(Long targetUserId, Long userId);
+    
+    /**
+     * 删除私聊会话
+     * @param targetUserId 目标用户ID
+     * @param userId 当前用户ID
+     * @return 删除是否成功
+     */
+    boolean deletePrivateSession(Long targetUserId, Long userId);
 }
