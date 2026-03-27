@@ -10,6 +10,8 @@ import com.future.music.mapper.MusicAudioMapper;
 import com.future.music.mapper.MusicMapper;
 import com.future.music.service.IGameService;
 import com.future.music.service.IMinIoService;
+import constants.GameConstants;
+import entity.pojo.music.Music;
 import entity.pojo.music.MusicAudio;
 import entity.pojo.util.Result;
 import jakarta.annotation.Resource;
@@ -20,6 +22,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 @Service
@@ -32,9 +35,9 @@ public class GameServiceImpl implements IGameService {
 
     @Resource
     private StringRedisTemplate stringRedisTemplate;
-    @Autowired
+    @Resource
     private MusicAudioMapper musicAudioMapper;
-    @Autowired
+    @Resource
     private IMinIoService iMinIoService;
 
     public GameServiceImpl(MusicMapper musicMapper) {
@@ -42,17 +45,25 @@ public class GameServiceImpl implements IGameService {
     }
 
     @Override
-    public Result<Void> startGame(StartGameDTO startGameDTO) {
+    public Result<GameSession> startGame(StartGameDTO startGameDTO) {
 
         // 生成唯一会话ID
-//        String sessionId = UUID.randomUUID().toString().replace("-", "");
-        String sessionId ="123456";
+        String sessionId = UUID.randomUUID().toString().replace("-", "");
+//        String sessionId ="123456";
 
-                // 创建游戏会话
+        // 创建游戏会话
         GameSession session = new GameSession();
         session.setSessionId(sessionId);
         session.setDifficulty(startGameDTO.getDifficulty());
         session.setGameTypeId(startGameDTO.getGameTypeId());
+
+        if(Objects.equals(startGameDTO.getDifficulty(), GameConstants.SIMPLICITY)){
+            session.setTimeLimit(GameConstants.SIMPLICITY_TIME_LIMIT);
+        }else if(Objects.equals(startGameDTO.getDifficulty(), GameConstants.MEDIUM)){
+            session.setTimeLimit(GameConstants.MEDIUM_TIME_LIMIT);
+        }else if(Objects.equals(startGameDTO.getDifficulty(), GameConstants.HARD)){
+            session.setTimeLimit(GameConstants.HARD_TIME_LIMIT);
+        }
 
         // 存入Redis
         String jsonStr = JSON.toJSONString(session);
@@ -63,7 +74,7 @@ public class GameServiceImpl implements IGameService {
                 TimeUnit.MINUTES
         );
 
-        return Result.ok();
+        return Result.ok(session);
     }
 
     /**
@@ -125,9 +136,41 @@ public class GameServiceImpl implements IGameService {
     /**
      * 检查答案
      */
-    public Result<Void> checkAnswer(String sessionId, Long musicId, String answer) {
+    public Result<Object> checkAnswer(String sessionId, Long musicId, String answer) {
+        String cacheJson = stringRedisTemplate.opsForValue().get(REDIS_KEY_GAME_SESSION + sessionId);
+        if (Objects.isNull(cacheJson)) {
+            return Result.fail("游戏会话不存在");
+        }
 
-        return Result.ok();
+        GameSession session = JSON.parseObject(cacheJson, GameSession.class);
+
+        Music m = musicMapper.selectById(musicId);
+        // 答对
+        if(m.getMusicName().equals(answer)){
+            // 更新分数
+            session.setScore(session.getScore() + GameConstants.SCORE_PER_QUESTION);
+            // 更新连击数
+            session.setCombo(session.getCombo() + 1);
+            // 更新最高连击数
+            session.setMaxCombo(Math.max(session.getMaxCombo(), session.getCombo()));
+        }else{
+            session.setCombo(0);
+        }
+
+        if (session.getCurrentRound() >= 10) {
+            return Result.ok(session);
+        }
+
+        // 更新Redis
+        String jsonStr = JSON.toJSONString(session);
+        stringRedisTemplate.opsForValue().set(
+                REDIS_KEY_GAME_SESSION + sessionId,
+                jsonStr,
+                GAME_SESSION_EXPIRE,
+                TimeUnit.MINUTES
+        );
+
+        return Result.ok(true);
     }
 
     /**

@@ -33,10 +33,10 @@ import java.util.Map;
 @RequestMapping("/music")
 public class MusicController {
 
-    @Autowired
+    @Resource
     private IMusicService iMusicService;
 
-    @Autowired
+    @Resource
     private AlbumMapper albumMapper;
 
     @Resource
