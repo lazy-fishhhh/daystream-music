@@ -157,7 +157,7 @@ class MinIoServiceImpl implements IMinIoService {
             minioClient.statObject(
                     StatObjectArgs.builder()
                             .bucket(bucketName)
-                            .object(objectName.substring(objectName.lastIndexOf("/") + 1))
+                            .object(objectName)
                             .build()
             );
             // 没有抛出异常，说明文件存在

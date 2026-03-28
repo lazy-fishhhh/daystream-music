@@ -164,7 +164,7 @@ public class FileServiceImpl implements IFileService {
         //检查是否已经有相同md5值的文件上传；主要是对名字不同，而实际文件相同的文件，直接返回成功
         Object file_location = redisTemplate.opsForHash().get(md5Value, REDIS_FILE_LOCATION);
         if (file_location != null) {
-            return "success";
+            return file_location.toString();
         }
 
         //这里要特别注意，合并分片的时候一定要按照分片的索引顺序进行合并，否则文件无法使用；
@@ -275,49 +275,42 @@ public class FileServiceImpl implements IFileService {
         // 删除MinIO中的分片文件
         this.delTmpFile(md5Value);
 
-        return "分片合并成功";
+        return filePath;
     }
 
 
     /**
      * 从URL中提取MinIO对象名称
-     * 支持多种路径格式
+     * 自动适配任意域名/桶名/前缀，只提取 chunks/ 开头的真实路径
      */
     private String extractObjectNameFromUrl(String url) {
         if (url == null || url.isEmpty()) {
             return null;
         }
-        // 1. 去掉Redis里的双引号
-        url = url.replace("\"", "");
 
-        // 2. 如果是完整URL，提取路径部分
-        if (url.startsWith("http://") || url.startsWith("https://")) {
-            try {
-                java.net.URL uri = new java.net.URL(url);
-                String path = uri.getPath();
-                // 移除开头的 /bucket/ 部分
-                if (path.startsWith("/")) {
-                    path = path.substring(1);
-                }
-                int firstSlash = path.indexOf("/");
-                if (firstSlash != -1) {
-                    return path.substring(firstSlash + 1);
-                }
-            } catch (java.net.MalformedURLException e) {
-                log.warn("URL格式错误: {}", url, e);
+        // 1. 清理格式：去掉双引号、首尾空格
+        String cleanUrl = url.replace("\"", "").trim();
+
+        try {
+            // 2. 如果是完整HTTP链接，只提取 路径部分（丢弃域名/端口）
+            if (cleanUrl.startsWith("http://") || cleanUrl.startsWith("https://")) {
+                java.net.URL uri = new java.net.URL(cleanUrl);
+                cleanUrl = uri.getPath();
             }
-        }
-        
-        // 3. 尝试定位 /file/ 的位置
-        String key = "/file/";
-        int index = url.indexOf(key);
-        if (index != -1) {
-            // 只取 /file/ 后面的内容 → chunks/xxx_0
-            return url.substring(index + key.length());
+
+            // 3. 通用核心：查找 chunks/ 的位置（唯一业务固定目录）
+            int chunksIndex = cleanUrl.indexOf("chunks/");
+            if (chunksIndex != -1) {
+                // 直接从 chunks/ 开始返回，前面所有冗余路径全部丢弃
+                return cleanUrl.substring(chunksIndex);
+            }
+
+        } catch (Exception e) {
+            log.warn("URL解析异常，原始URL：{}", url, e);
         }
 
-        // 4. 如果是直接的对象名称，直接返回
-        return url;
+        // 兜底：没有找到chunks，直接返回清理后的路径
+        return cleanUrl;
     }
     @Override
     public void download(String fileName, HttpServletResponse response) throws IOException {
@@ -494,52 +487,83 @@ public class FileServiceImpl implements IFileService {
      * @param key 文件MD5值
      * @return 是否全部上传
      */
+    /**
+     * 合并分片之前的【预检方法】
+     * 作用：检查当前文件的【所有分片】是否都已经上传完成、有效、可合并
+     * 返回 true = 可以合并
+     * 返回 false = 不能合并（缺片/文件丢失/信息不完整）
+     */
     private boolean checkBeforeMerge(String key) {
+        // 1. 获取当前文件 MD5 对应的【所有 Redis 哈希数据】
         Map map = redisTemplate.opsForHash().entries(key);
+
+        // 2. 获取【总分片数】（比如 3）
         Object file_chunks = map.get(REDIS_FILE_CHUNKS);
+        // 如果连总分片数都没有 → 信息缺失 → 不能合并
         if (file_chunks == null) {
             log.warn("文件分片总数信息缺失，key: {}", key);
             return false;
         }
-        
+
+        // 把总分片数转成 int
         int totalChunks = Integer.parseInt(file_chunks.toString());
-        int md5Count = 0;
-        int locationCount = 0;
-        int fileExistsCount = 0;
-        
+
+        // 三个统计计数器
+        int md5Count = 0;         // 计数：有多少个分片存了 MD5
+        int locationCount = 0;    // 计数：有多少个分片存了路径
+        int fileExistsCount = 0;  // 计数：有多少个分片【真实存在于 MinIO】
+
+        // 3. 遍历 Redis 里所有的字段（chunk_md5_0、chunk_location_1...）
         for (Object hashKey : map.keySet()) {
             String keyStr = hashKey.toString();
+
+            // 如果这个key是分片MD5 → 计数+1
             if (keyStr.startsWith(REDIS_CHUNK_MD5_PREFIX)) {
                 md5Count++;
             }
+
+            // 如果这个key是分片路径 → 检查路径是否有效、文件是否真实存在
             if (keyStr.startsWith(REDIS_CHUNK_LOCATION_PREFIX)) {
                 Object location = map.get(hashKey);
+
+                // 路径不为空 → 计数+1
                 if (location != null && !location.toString().isEmpty()) {
                     locationCount++;
-                    
-                    // 检查MinIO中文件是否存在
+
+                    // 从路径中解析出 MinIO 中的真实文件名
                     String chunkPath = location.toString();
                     String objectName = extractObjectNameFromUrl(chunkPath);
+
+                    // 检查这个分片文件【真的在 MinIO 里存在】
                     if (objectName != null && !objectName.isEmpty()) {
                         if (minIoService.isObjectExists(objectName)) {
+                            // 真实存在 → 有效分片计数+1
                             fileExistsCount++;
                         } else {
+                            // Redis里有记录，但MinIO里文件没了 → 异常
                             log.warn("分片文件在MinIO中不存在: {}", objectName);
                         }
                     }
                 }
             }
         }
-        
-        log.info("合并前检查：totalChunks={}, md5Count={}, locationCount={}, fileExistsCount={}", 
-                 totalChunks, md5Count, locationCount, fileExistsCount);
-        
-        // 判断Redis中的分片个数是否与总数相等，且所有分片都有路径信息，且MinIO中文件都存在
-        boolean result = totalChunks == md5Count && totalChunks == locationCount && totalChunks == fileExistsCount;
+
+        // 打印最终检查结果
+        log.info("合并前检查：totalChunks={}, md5Count={}, locationCount={}, fileExistsCount={}",
+                totalChunks, md5Count, locationCount, fileExistsCount);
+
+        // ✅ 最终判断条件（必须全部满足才能合并）
+        // 1. 分片MD5数量 = 总分片数
+        // 2. 分片路径数量 = 总分片数
+        // 3. MinIO真实存在的分片 = 总分片数
+        boolean result = totalChunks == md5Count
+                && totalChunks == locationCount
+                && totalChunks == fileExistsCount;
+
         if (!result) {
-            log.warn("分片信息不完整或文件不存在，totalChunks={}, md5Count={}, locationCount={}, fileExistsCount={}", 
-                     totalChunks, md5Count, locationCount, fileExistsCount);
+            log.warn("分片信息不完整或文件不存在，无法合并");
         }
+
         return result;
     }
 }
