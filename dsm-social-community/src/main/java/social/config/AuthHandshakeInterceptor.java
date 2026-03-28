@@ -24,23 +24,14 @@ public class AuthHandshakeInterceptor implements HandshakeInterceptor {
             ServletServerHttpRequest servletRequest = (ServletServerHttpRequest) request;
             HttpSession session = servletRequest.getServletRequest().getSession();
             
-            String token = servletRequest.getServletRequest().getHeader("Authorization");
-            if (token != null && token.startsWith("Bearer ")) {
-                token = token.substring(7);
-            }
-            
+            // 从Sec-WebSocket-Protocol请求头获取token
+            String token = String.valueOf((request.getHeaders().get("Sec-WebSocket-Protocol")));
+
+            // 如果Sec-WebSocket-Protocol没有token，尝试从Authorization请求头获取
             if (token == null) {
-                token = servletRequest.getServletRequest().getParameter("token");
-            }
-            
-            if (token == null) {
-                // 从请求路径中获取token（格式：/ws/chat/token=xxx）
-                String path = servletRequest.getServletRequest().getRequestURI();
-                if (path != null && path.contains("token=")) {
-                    int tokenIndex = path.indexOf("token=");
-                    if (tokenIndex != -1) {
-                        token = path.substring(tokenIndex + 6);
-                    }
+                token = servletRequest.getServletRequest().getHeader("Authorization");
+                if (token != null && token.startsWith("Bearer ")) {
+                    token = token.substring(7);
                 }
             }
             

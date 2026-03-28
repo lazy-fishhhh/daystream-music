@@ -6,7 +6,6 @@ import entity.pojo.util.WebSocketMessage;
 import entity.pojo.util.WebSocketMessageUtils;
 import io.jsonwebtoken.Claims;
 import jakarta.websocket.*;
-import jakarta.websocket.server.PathParam;
 import jakarta.websocket.server.ServerEndpoint;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -31,7 +30,7 @@ import static constants.RedisCacheConstants.TOKEN_USER_PREFIX;
  *
  * 用户登录成功后，直接发起 WebSocket 连接，用户id立即被添加
  */
-@ServerEndpoint("/chat/{token}")
+@ServerEndpoint("/chat")
 @Component
 @RequiredArgsConstructor
 @Slf4j
@@ -75,8 +74,30 @@ public class ChatEndPoint {
      * 建立websocket连接后调用
      */
     @OnOpen
-    public void onOpen(Session session, @PathParam("token") String token) throws EncodeException, IOException {
+    public void onOpen(Session session, EndpointConfig config) throws EncodeException, IOException {
         // 鉴权
+        String token = null;
+        
+        // 从EndpointConfig中获取请求头信息
+        Map<String, Object> userProperties = config.getUserProperties();
+        if (userProperties.containsKey("Sec-WebSocket-Protocol")) {
+            token = (String) userProperties.get("Sec-WebSocket-Protocol");
+        }
+        
+        // 如果没有token，尝试从查询参数中获取（作为备份方案）
+        if (token == null) {
+            Map<String, List<String>> params = session.getRequestParameterMap();
+            if (params.containsKey("token")) {
+                token = params.get("token").get(0);
+            }
+        }
+
+        if (token == null) {
+            // 鉴权失败，关闭连接
+            session.close(new CloseReason(CloseReason.CloseCodes.VIOLATED_POLICY, "token无效/未登录"));
+            log.warn("未提供token,无法建立WebSocket连接");
+            throw new RuntimeException("未提供token,无法建立WebSocket连接");
+        }
 
         Claims claims = JwtUtil.parseJWT(token);
         Long userId = claims.getSubject() != null ? Long.parseLong(claims.getSubject()) : null;
