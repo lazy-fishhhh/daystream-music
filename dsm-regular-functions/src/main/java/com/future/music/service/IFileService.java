@@ -37,6 +37,23 @@ public interface IFileService {
     String upload(HttpServletRequest request, MultipartFile multipartFile) throws IOException;
 
     /**
+     * 分片上传接口（直接接受参数）
+     *
+     * @param md5Value 整体文件md5值
+     * @param chunk 当前上传分片在所有分片文件中索引位置
+     * @param start 当前分片在整个数据文件中的开始位置
+     * @param end 当前分片在整个数据文件中的结束位置
+     * @param chunks 整体文件总共被分了多少片
+     * @param fileSize 整体文件大小
+     * @param chunkMd5 分片文件的md5值
+     * @param multipartFile 分片文件
+     * @return 上传结果信息
+     * @throws IOException IO异常
+     */
+    String upload(String md5Value, String chunk, String start, String end, 
+                 String chunks, String fileSize, String chunkMd5, MultipartFile multipartFile) throws IOException;
+
+    /**
      * 合并分片文件接口
      *
      * @param request HttpServletRequest

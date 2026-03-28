@@ -74,30 +74,41 @@ public class MusicMvServiceImpl extends ServiceImpl<MusicMvMapper, MusicMv> impl
     private final UserCollectionMapper userCollectionMapper;
 
     /**
-     * 上传MV文件
+     * 上传MV分片文件（不参与合并）
      * @param fileUploadDTO 文件上传参数
      * @return 上传结果
      */
     @Override
     public Result<String> uploadMv(FileUploadDTO fileUploadDTO) {
         try {
-            log.info("开始上传MV文件，md5Value={}, chunk={}, chunks={}, operation={}", 
-                fileUploadDTO.getMd5Value(), fileUploadDTO.getChunk(), fileUploadDTO.getChunks(), fileUploadDTO.getOperation());
+            log.info("开始上传MV分片文件，md5Value={}, chunk={}, chunks={}", 
+                fileUploadDTO.getMd5Value(), fileUploadDTO.getChunk(), fileUploadDTO.getChunks());
             
             if (fileUploadDTO.getFile() == null || fileUploadDTO.getFile().isEmpty()) {
                 log.error("上传文件为空");
                 return Result.fail("上传文件不能为空");
             }
             
-            String mvUrl = fileService.uploadLargeFile(fileUploadDTO);
-            log.info("MV文件上传成功，mvUrl={}", mvUrl);
-            return Result.ok(mvUrl);
+            // 直接调用分片上传方法，不参与合并
+            String uploadResult = fileService.upload(
+                fileUploadDTO.getMd5Value(),
+                fileUploadDTO.getChunk(),
+                fileUploadDTO.getStart(),
+                fileUploadDTO.getEnd(),
+                fileUploadDTO.getChunks(),
+                fileUploadDTO.getSize(),
+                fileUploadDTO.getChunkMd5(),
+                fileUploadDTO.getFile()
+            );
+            
+            log.info("MV分片文件上传成功，chunk={}/{}", fileUploadDTO.getChunk(), fileUploadDTO.getChunks());
+            return Result.ok(uploadResult);
         } catch (IllegalArgumentException e) {
-            log.error("MV文件上传参数异常: {}", e.getMessage(), e);
-            return Result.fail("MV文件上传失败: " + e.getMessage());
+            log.error("MV分片文件上传参数异常: {}", e.getMessage(), e);
+            return Result.fail("MV分片文件上传失败: " + e.getMessage());
         } catch (Exception e) {
-            log.error("MV文件上传异常: {}", e.getMessage(), e);
-            return Result.fail("MV文件上传失败: " + e.getMessage());
+            log.error("MV分片文件上传异常: {}", e.getMessage(), e);
+            return Result.fail("MV分片文件上传失败: " + e.getMessage());
         }
     }
 

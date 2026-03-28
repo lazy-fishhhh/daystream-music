@@ -106,7 +106,8 @@ public class FileServiceImpl implements IFileService {
     /**
      * 分片上传实现方法（直接接受参数）
      */
-    private String upload(String md5Value, String chunkIndex, String start, String end, 
+    @Override
+    public String upload(String md5Value, String chunkIndex, String start, String end, 
                          String chunks, String fileSize, String chunkMd5, MultipartFile multipartFile) throws IOException {
 
         // 使用MinIO存储分片文件
