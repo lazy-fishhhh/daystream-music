@@ -117,16 +117,15 @@ public class FileServiceImpl implements IFileService {
             // 所以自定义一个uploadChunkFile，不用原来自动生成路径名的uploadFile了
             String storedPath = minIoService.uploadChunkFile(multipartFile, chunkPath);
 
-            // 分片信息存入Redis
-            Map<String, String> map = new HashMap<>();
-            map.put(REDIS_CHUNK_LOCATION_PREFIX + chunkIndex, storedPath);//分片在MinIO中的存储路径
-            map.put(REDIS_CHUNK_START_END_PREFIX + chunkIndex, start + "_" + end);
-            map.put(REDIS_FILE_SIZE, fileSize);
-            map.put(REDIS_FILE_CHUNKS, chunks);
-            map.put(REDIS_CHUNK_MD5_PREFIX + chunkIndex, chunkMd5);
-
-            // 缓存键名为文件的md5值
-            redisTemplate.opsForHash().putAll(md5Value, map);
+            // 分片信息存入Redis，使用单个put操作避免覆盖其他分片信息
+            redisTemplate.opsForHash().put(md5Value, REDIS_CHUNK_LOCATION_PREFIX + chunkIndex, storedPath);//分片在MinIO中的存储路径
+            redisTemplate.opsForHash().put(md5Value, REDIS_CHUNK_START_END_PREFIX + chunkIndex, start + "_" + end);
+            redisTemplate.opsForHash().put(md5Value, REDIS_CHUNK_MD5_PREFIX + chunkIndex, chunkMd5);
+            // 只在上传第一个分片时存储文件基本信息
+            if ("0".equals(chunkIndex)) {
+                redisTemplate.opsForHash().put(md5Value, REDIS_FILE_SIZE, fileSize);
+                redisTemplate.opsForHash().put(md5Value, REDIS_FILE_CHUNKS, chunks);
+            }
             log.info("分片信息已存入Redis，md5Value={}, chunkIndex={}, storedPath={}", md5Value, chunkIndex, storedPath);
             log.info("Redis中当前的所有键值对: {}", redisTemplate.opsForHash().entries(md5Value));
             return "分片上传成功";
