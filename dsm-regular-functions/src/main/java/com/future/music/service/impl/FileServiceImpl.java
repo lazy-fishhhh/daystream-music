@@ -117,20 +117,32 @@ public class FileServiceImpl implements IFileService {
             // 所以自定义一个uploadChunkFile，不用原来自动生成路径名的uploadFile了
             String storedPath = minIoService.uploadChunkFile(multipartFile, chunkPath);
 
+            // 前端使用1-based索引，但传入的chunkIndex可能是0-based或1-based
+            // 统一转换为1-based索引存储
+            int oneBasedIndex = Integer.parseInt(chunkIndex);
+            if (oneBasedIndex == 0) {
+                // 如果传入的是0，说明是0-based索引，转换为1-based
+                oneBasedIndex = 1;
+            }
+            String oneBasedChunkIndex = String.valueOf(oneBasedIndex);
+            
             // 分片信息存入Redis，使用单个put操作避免覆盖其他分片信息
-            redisTemplate.opsForHash().put(md5Value, REDIS_CHUNK_LOCATION_PREFIX + chunkIndex, storedPath);//分片在MinIO中的存储路径
-            redisTemplate.opsForHash().put(md5Value, REDIS_CHUNK_START_END_PREFIX + chunkIndex, start + "_" + end);
-            redisTemplate.opsForHash().put(md5Value, REDIS_CHUNK_MD5_PREFIX + chunkIndex, chunkMd5);
+            redisTemplate.opsForHash().put(md5Value, REDIS_CHUNK_LOCATION_PREFIX + oneBasedChunkIndex, storedPath);//分片在MinIO中的存储路径
+            redisTemplate.opsForHash().put(md5Value, REDIS_CHUNK_START_END_PREFIX + oneBasedChunkIndex, start + "_" + end);
+            redisTemplate.opsForHash().put(md5Value, REDIS_CHUNK_MD5_PREFIX + oneBasedChunkIndex, chunkMd5);
             // 只在上传第一个分片时存储文件基本信息
-            if ("0".equals(chunkIndex)) {
+            if (oneBasedIndex == 1) {
                 redisTemplate.opsForHash().put(md5Value, REDIS_FILE_SIZE, fileSize);
                 redisTemplate.opsForHash().put(md5Value, REDIS_FILE_CHUNKS, chunks);
             }
             log.info("分片信息已存入Redis，md5Value={}, chunkIndex={}, storedPath={}", md5Value, chunkIndex, storedPath);
             log.info("Redis中当前的所有键值对: {}", redisTemplate.opsForHash().entries(md5Value));
             return "分片上传成功";
-        } catch (IllegalStateException e) {
-            e.printStackTrace();
+        } catch (RuntimeException e) {
+            log.error("分片 {} 上传到MinIO失败: {}", chunkIndex, e.getMessage(), e);
+            throw new IOException("分片上传失败：" + e.getMessage());
+        } catch (Exception e) {
+            log.error("分片 {} 上传过程中发生未知错误: {}", chunkIndex, e.getMessage(), e);
             throw new IOException("分片上传失败：" + e.getMessage());
         }
     }
@@ -172,9 +184,15 @@ public class FileServiceImpl implements IFileService {
         InputStream inputStream = null;
 
         try {
-            for (int i = 0; i < file_chunks; i++) {
-                Object chunkPathObj = redisTemplate.opsForHash().get(md5Value, REDIS_CHUNK_LOCATION_PREFIX + i);
+            // 前端使用1-based索引（分片1, 2, 3...），后端需要适配
+            for (int i = 1; i <= file_chunks; i++) {
+                String redisKey = REDIS_CHUNK_LOCATION_PREFIX + i;
+                Object chunkPathObj = redisTemplate.opsForHash().get(md5Value, redisKey);
+                log.info("合并分片 {}，Redis键: {}，值: {}", i, redisKey, chunkPathObj);
                 if (chunkPathObj == null) {
+                    // 打印所有Redis键值对，帮助调试
+                    Map<Object, Object> allEntries = redisTemplate.opsForHash().entries(md5Value);
+                    log.error("分片 {} 路径信息缺失，Redis中所有键值对: {}", i, allEntries);
                     throw new IOException("分片 " + i + " 路径信息缺失");
                 }
                 String chunkPath = chunkPathObj.toString();
@@ -184,6 +202,7 @@ public class FileServiceImpl implements IFileService {
 
                 // 从URL中提取MinIO对象名称
                 String objectName = extractObjectNameFromUrl(chunkPath);
+                log.info("分片 {}，原始路径: {}，提取的对象名称: {}", i, chunkPath, objectName);
                 if (objectName == null) {
                     throw new IOException("分片 " + i + " 对象名称提取失败，路径: " + chunkPath);
                 }
@@ -394,9 +413,10 @@ public class FileServiceImpl implements IFileService {
             }
 
             // 如果是最后一个分片，则自动合并
+            // 前端使用1-based索引（分片1, 2, 3...），所以最后一个分片是 chunk == chunks
             int currentChunk = Integer.parseInt(chunk);
             int totalChunks = Integer.parseInt(chunks);
-            if (currentChunk == totalChunks - 1) {
+            if (currentChunk == totalChunks) {
                 log.info("最后一个分片上传完成，自动执行合并操作，chunk={}/{}, md5Value={}", chunk, chunks, md5Value);
                 // 最后一个分片上传完成，执行合并操作
                 return merge(md5Value, originalFilename);
@@ -491,6 +511,7 @@ public class FileServiceImpl implements IFileService {
         int totalChunks = Integer.parseInt(file_chunks.toString());
         int md5Count = 0;
         int locationCount = 0;
+        int fileExistsCount = 0;
         
         for (Object hashKey : map.keySet()) {
             String keyStr = hashKey.toString();
@@ -501,16 +522,29 @@ public class FileServiceImpl implements IFileService {
                 Object location = map.get(hashKey);
                 if (location != null && !location.toString().isEmpty()) {
                     locationCount++;
+                    
+                    // 检查MinIO中文件是否存在
+                    String chunkPath = location.toString();
+                    String objectName = extractObjectNameFromUrl(chunkPath);
+                    if (objectName != null && !objectName.isEmpty()) {
+                        if (minIoService.isObjectExists(objectName)) {
+                            fileExistsCount++;
+                        } else {
+                            log.warn("分片文件在MinIO中不存在: {}", objectName);
+                        }
+                    }
                 }
             }
         }
         
-        log.debug("合并前检查：totalChunks={}, md5Count={}, locationCount={}", totalChunks, md5Count, locationCount);
+        log.info("合并前检查：totalChunks={}, md5Count={}, locationCount={}, fileExistsCount={}", 
+                 totalChunks, md5Count, locationCount, fileExistsCount);
         
-        // 判断Redis中的分片个数是否与总数相等，且所有分片都有路径信息
-        boolean result = totalChunks == md5Count && totalChunks == locationCount;
+        // 判断Redis中的分片个数是否与总数相等，且所有分片都有路径信息，且MinIO中文件都存在
+        boolean result = totalChunks == md5Count && totalChunks == locationCount && totalChunks == fileExistsCount;
         if (!result) {
-            log.warn("分片信息不完整，totalChunks={}, md5Count={}, locationCount={}", totalChunks, md5Count, locationCount);
+            log.warn("分片信息不完整或文件不存在，totalChunks={}, md5Count={}, locationCount={}, fileExistsCount={}", 
+                     totalChunks, md5Count, locationCount, fileExistsCount);
         }
         return result;
     }
