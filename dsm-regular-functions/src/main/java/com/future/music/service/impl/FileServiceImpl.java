@@ -140,32 +140,34 @@ public class FileServiceImpl implements IFileService {
         InputStream inputStream = null;
 
         try {
-            for (int i = 0; i < file_chunks; i++) {
-                Object chunkPathObj = redisTemplate.opsForHash().get(md5Value, REDIS_CHUNK_LOCATION_PREFIX + i);
+             for (int i = 0; i < file_chunks; i++) {
+                // 前端分片索引从1开始，所以Redis中存储的是1-based的索引
+                int oneBasedChunk = i + 1;
+                Object chunkPathObj = redisTemplate.opsForHash().get(md5Value, REDIS_CHUNK_LOCATION_PREFIX + oneBasedChunk);
                 if (chunkPathObj == null) {
-                    throw new IOException("分片 " + i + " 路径信息缺失");
+                    throw new IOException("分片 " + oneBasedChunk + " 路径信息缺失");
                 }
                 String chunkPath = chunkPathObj.toString();
                 if (chunkPath.isEmpty()) {
-                    throw new IOException("分片 " + i + " 路径信息为空");
+                    throw new IOException("分片 " + oneBasedChunk + " 路径信息为空");
                 }
 
                 // 从URL中提取MinIO对象名称
                 String objectName = extractObjectNameFromUrl(chunkPath);
                 if (objectName == null) {
-                    throw new IOException("分片 " + i + " 对象名称提取失败，路径: " + chunkPath);
+                    throw new IOException("分片 " + oneBasedChunk + " 对象名称提取失败，路径: " + chunkPath);
                 }
                 if (objectName.isEmpty()) {
-                    throw new IOException("分片 " + i + " 对象名称为空，路径: " + chunkPath);
+                    throw new IOException("分片 " + oneBasedChunk + " 对象名称为空，路径: " + chunkPath);
                 }
                 
-                log.debug("处理分片 {}，对象名称: {}", i, objectName);
+                log.debug("处理分片 {} (0-based: {}), 对象名称: {}", oneBasedChunk, i, objectName);
                 
                 // 从MinIO获取分片文件的输入流
                 // 从 MinIO 下载单个分片文件的字节流，供写入本地临时文件使用
                 inputStream = minIoService.getObjectStream(objectName);
                 if (inputStream == null) {
-                    throw new IOException("获取分片 " + i + " 文件流失败: The specified key does not exist");
+                    throw new IOException("获取分片 " + oneBasedChunk + " 文件流失败: The specified key does not exist");
                 }
 
                 byte[] bytes = new byte[1024 * 1024];
@@ -177,7 +179,7 @@ public class FileServiceImpl implements IFileService {
 
                 inputStream.close();
                 inputStream = null;
-                log.debug("分片 {} 处理完成", i);
+                log.debug("分片 {} 处理完成", oneBasedChunk);
             }
         } catch (IOException e) {
             log.error("合并分片失败: {}", e.getMessage(), e);
@@ -345,7 +347,10 @@ public class FileServiceImpl implements IFileService {
             // 如果是最后一个分片，则自动合并
             int currentChunk = Integer.parseInt(chunk);
             int totalChunks = Integer.parseInt(chunks);
-            if (currentChunk == totalChunks - 1) {
+            // 前端分片索引从1开始，转换为从0开始的索引进行判断
+            int zeroBasedChunk = currentChunk - 1;
+            int zeroBasedTotalChunks = totalChunks;
+            if (zeroBasedChunk == zeroBasedTotalChunks - 1) {
                 log.info("最后一个分片上传完成，自动执行合并操作，chunk={}/{}, md5Value={}", chunk, chunks, md5Value);
                 // 最后一个分片上传完成，执行合并操作
                 return merge(md5Value, originalFilename);
@@ -378,7 +383,7 @@ public class FileServiceImpl implements IFileService {
         List<String> chunkPaths = new ArrayList<>();
 
         for (Object hashKey : map.keySet()) {
-            if (hashKey.toString().startsWith(REDIS_CHUNK_LOCATION_PREFIX.substring(0, REDIS_CHUNK_LOCATION_PREFIX.length() - 1))) {
+            if (hashKey.toString().startsWith(REDIS_CHUNK_LOCATION_PREFIX)) {
                 String chunkPath = map.get(hashKey).toString();
                 // 这里统一提取真实路径，修复删除失败问题
                 String realObjectName = extractObjectNameFromUrl(chunkPath);
