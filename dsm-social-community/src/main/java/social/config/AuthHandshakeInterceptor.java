@@ -34,12 +34,12 @@ public class AuthHandshakeInterceptor implements HandshakeInterceptor {
             }
             
             if (token == null) {
-                // 从请求路径中获取token
+                // 从请求路径中获取token（格式：/ws/chat/token=xxx）
                 String path = servletRequest.getServletRequest().getRequestURI();
-                if (path != null && path.contains("/ws/")) {
-                    String[] parts = path.split("/");
-                    if (parts.length > 2) {
-                        token = parts[2];
+                if (path != null && path.contains("token=")) {
+                    int tokenIndex = path.indexOf("token=");
+                    if (tokenIndex != -1) {
+                        token = path.substring(tokenIndex + 6);
                     }
                 }
             }

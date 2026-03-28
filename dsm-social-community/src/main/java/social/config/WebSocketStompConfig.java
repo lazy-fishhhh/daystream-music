@@ -32,7 +32,6 @@ public class WebSocketStompConfig implements WebSocketMessageBrokerConfigurer {
     public void registerStompEndpoints(StompEndpointRegistry registry) {
         registry.addEndpoint("/ws/chat")       // 连接地址：ws://服务器IP:端口/ws/chat
                 .addInterceptors(authHandshakeInterceptor) // 添加握手拦截器
-                .setAllowedOriginPatterns("*") // 允许所有前端跨域访问
-                .withSockJS();                 // 支持SockJS（兼容不支持WebSocket的浏览器）
+                .setAllowedOriginPatterns("*"); // 允许所有前端跨域访问
     }
 }
