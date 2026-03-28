@@ -29,7 +29,7 @@ public class AuthHandshakeInterceptor implements HandshakeInterceptor {
 
             // ====================== 必须回写响应头！浏览器强制要求，不写直接断开连接 ======================
             if (token != null) {
-                response.getHeaders().add("Sec-WebSocket-Protocol", token);
+                response.getHeaders().set("Sec-WebSocket-Protocol", token);
             }
 
             // 如果没有，从 Authorization 获取
