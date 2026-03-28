@@ -33,9 +33,20 @@ public class AuthHandshakeInterceptor implements HandshakeInterceptor {
                 token = servletRequest.getServletRequest().getParameter("token");
             }
             
+            if (token == null) {
+                // 从请求路径中获取token
+                String path = servletRequest.getServletRequest().getRequestURI();
+                if (path != null && path.contains("/ws/")) {
+                    String[] parts = path.split("/");
+                    if (parts.length > 2) {
+                        token = parts[2];
+                    }
+                }
+            }
+            
             if (token != null) {
                 Claims claims = JwtUtil.parseJWT(token);
-                Long userId = Long.parseLong(claims.getId());
+                Long userId = Long.parseLong(claims.getSubject());
                 attributes.put("userId", userId);
                 log.info("WebSocket 握手成功，userId: {}", userId);
                 return true;

@@ -54,38 +54,36 @@ public class FileServiceImpl implements IFileService {
 
     @Override
     public boolean check(String fileMd5, String chunk, String chunkMd5) {
-        // 1. 先检查Redis中是否有MD5记录
+        log.info("=====================================");
+        log.info("==== 检查分片 START =====");
+        log.info("传入 fileMd5: {}", fileMd5);
+        log.info("传入 chunk: {}", chunk);
+        log.info("传入 chunkMd5: {}", chunkMd5);
+
+        // 打印 Redis 里这个 key 到底有没有！！！
+        Map<Object, Object> allEntries = redisTemplate.opsForHash().entries(fileMd5);
+        log.info("Redis 中 key=[{}] 对应的全部数据: {}", fileMd5, allEntries);
+        log.info("Redis 数据是否为空: {}", allEntries.isEmpty());
+
+        // 开始检查
         Object o = redisTemplate.opsForHash().get(fileMd5, REDIS_CHUNK_MD5_PREFIX + chunk);
-        if (!chunkMd5.equals(o)) {
+        log.info("获取到的 Redis MD5 值: {}", o);
+
+        if (o == null) {
+            log.error("❌ 检查失败：Redis 中确实没有这条 MD5 记录");
             return false;
         }
-        
-        // 2. 再检查MinIO中是否真的有这个分片文件
-        Object chunkPathObj = redisTemplate.opsForHash().get(fileMd5, REDIS_CHUNK_LOCATION_PREFIX + chunk);
-        if (chunkPathObj == null) {
-            log.warn("分片 {} 的Redis记录存在，但路径信息缺失，需要重新上传", chunk);
+
+        String storedChunkMd5 = o.toString().replace("\"", "").trim();
+        log.info("去掉引号后: {}", storedChunkMd5);
+
+        if (!chunkMd5.equals(storedChunkMd5)) {
+            log.error("❌ MD5 不匹配");
             return false;
         }
-        
-        String chunkPath = chunkPathObj.toString();
-        String objectName = extractObjectNameFromUrl(chunkPath);
-        if (objectName == null || objectName.isEmpty()) {
-            log.warn("分片 {} 的路径信息无效，需要重新上传", chunk);
-            return false;
-        }
-        
-        // 3. 检查MinIO中文件是否存在
-        boolean fileExists = minIoService.isObjectExists(objectName);
-        if (!fileExists) {
-            log.warn("分片 {} 的Redis记录存在，但MinIO中文件不存在，需要重新上传", chunk);
-            // 清除Redis中的无效记录
-            redisTemplate.opsForHash().delete(fileMd5, 
-                REDIS_CHUNK_MD5_PREFIX + chunk,
-                REDIS_CHUNK_LOCATION_PREFIX + chunk,
-                REDIS_CHUNK_START_END_PREFIX + chunk);
-            return false;
-        }
-        
+
+        log.info("==== 检查分片 END =====");
+        log.info("=====================================");
         return true;
     }
 

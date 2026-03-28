@@ -6,6 +6,7 @@ import entity.pojo.util.WebSocketMessage;
 import entity.pojo.util.WebSocketMessageUtils;
 import io.jsonwebtoken.Claims;
 import jakarta.websocket.*;
+import jakarta.websocket.server.PathParam;
 import jakarta.websocket.server.ServerEndpoint;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -30,7 +31,7 @@ import static constants.RedisCacheConstants.TOKEN_USER_PREFIX;
  *
  * 用户登录成功后，直接发起 WebSocket 连接，用户id立即被添加
  */
-@ServerEndpoint("/chat")
+@ServerEndpoint("/chat/{token}")
 @Component
 @RequiredArgsConstructor
 @Slf4j
@@ -74,10 +75,8 @@ public class ChatEndPoint {
      * 建立websocket连接后调用
      */
     @OnOpen
-    public void onOpen(Session session) throws EncodeException, IOException {
+    public void onOpen(Session session, @PathParam("token") String token) throws EncodeException, IOException {
         // 鉴权
-        Map<String, List<String>> params = session.getRequestParameterMap();
-        String token = params.get("token") != null ? params.get("token").get(0) : null;
 
         Claims claims = JwtUtil.parseJWT(token);
         Long userId = claims.getSubject() != null ? Long.parseLong(claims.getSubject()) : null;
