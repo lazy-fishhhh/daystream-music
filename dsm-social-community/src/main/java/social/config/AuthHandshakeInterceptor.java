@@ -41,11 +41,13 @@ public class AuthHandshakeInterceptor implements HandshakeInterceptor {
             }
 
             // 校验token
-            if (token != null && !token.isEmpty()) {
+            if (token != null) {
                 Claims claims = JwtUtil.parseJWT(token);
                 Long userId = Long.parseLong(claims.getSubject());
                 attributes.put("userId", userId);
                 log.info("WebSocket 握手成功，userId: {}", userId);
+                // ====================== 必须回写响应头！浏览器强制要求，不写直接断开连接 ======================
+                response.getHeaders().set("Sec-WebSocket-Protocol", token);
                 return true;
             }
 

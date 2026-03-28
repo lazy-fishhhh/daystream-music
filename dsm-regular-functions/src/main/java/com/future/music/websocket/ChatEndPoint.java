@@ -6,7 +6,12 @@ import entity.pojo.util.WebSocketMessage;
 import entity.pojo.util.WebSocketMessageUtils;
 import io.jsonwebtoken.Claims;
 import jakarta.websocket.*;
+import jakarta.websocket.server.HandshakeRequest;
+
 import jakarta.websocket.server.ServerEndpoint;
+import jakarta.websocket.server.ServerEndpointConfig;
+import java.util.Collections;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -30,11 +35,31 @@ import static constants.RedisCacheConstants.TOKEN_USER_PREFIX;
  *
  * 用户登录成功后，直接发起 WebSocket 连接，用户id立即被添加
  */
-@ServerEndpoint("/chat")
+@ServerEndpoint(value = "/chat", configurator = ChatEndPoint.CustomConfigurator.class)
 @Component
 @RequiredArgsConstructor
 @Slf4j
 public class ChatEndPoint {
+    
+    // 自定义配置器，用于设置响应头和存储token
+    public static class CustomConfigurator extends ServerEndpointConfig.Configurator {
+        @Override
+        public void modifyHandshake(ServerEndpointConfig config, HandshakeRequest request, HandshakeResponse response) {
+            // 获取token
+            String token = null;
+            // 从Sec-WebSocket-Protocol请求头获取token
+            List<String> protocols = request.getHeaders().get("Sec-WebSocket-Protocol");
+            if (protocols != null && !protocols.isEmpty()) {
+                token = protocols.get(0);
+            }
+            
+            // 如果有token，回写响应头并存储到userProperties
+            if (token != null) {
+                response.getHeaders().put("Sec-WebSocket-Protocol", Collections.singletonList(token));
+                config.getUserProperties().put("token", token);
+            }
+        }
+    }
     private  final StringRedisTemplate stringRedisTemplate;
 
     private static final String PING = "ping";
@@ -78,10 +103,10 @@ public class ChatEndPoint {
         // 鉴权
         String token = null;
         
-        // 从EndpointConfig中获取请求头信息
+        // 从EndpointConfig中获取token（由CustomConfigurator设置）
         Map<String, Object> userProperties = config.getUserProperties();
-        if (userProperties.containsKey("Sec-WebSocket-Protocol")) {
-            token = (String) userProperties.get("Sec-WebSocket-Protocol");
+        if (userProperties.containsKey("token")) {
+            token = (String) userProperties.get("token");
         }
         
         // 如果没有token，尝试从查询参数中获取（作为备份方案）
