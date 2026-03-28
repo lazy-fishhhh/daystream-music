@@ -23,4 +23,10 @@ public class GameConstants {
     public static final Integer MEDIUM_TIME_LIMIT = 15;
     public static final Integer HARD_TIME_LIMIT = 10;
 
+    /**
+     * 每题分数
+     */
+    public static final Integer SCORE_PER_QUESTION = 10;
+
+
 }

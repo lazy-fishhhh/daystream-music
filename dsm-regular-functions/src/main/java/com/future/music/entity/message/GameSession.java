@@ -55,9 +55,4 @@ public class GameSession {
      */
     private Set<Long> usedSongIds = new HashSet<>();
 
-    /**
-     * 上一题是否回答正确
-     */
-    private boolean lastAnswerCorrect = false;
-
 }
