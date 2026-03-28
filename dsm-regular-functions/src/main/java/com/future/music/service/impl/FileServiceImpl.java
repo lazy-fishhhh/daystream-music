@@ -194,9 +194,28 @@ public class FileServiceImpl implements IFileService {
                 
                 log.debug("处理分片 {}，对象名称: {}", i, objectName);
                 
-                // 从MinIO获取分片文件的输入流
+                // 从MinIO获取分片文件的输入流，添加重试机制
                 // 从 MinIO 下载单个分片文件的字节流，供写入本地临时文件使用
-                inputStream = minIoService.getObjectStream(objectName);
+                int retryCount = 0;
+                int maxRetries = 3;
+                while (retryCount < maxRetries) {
+                    try {
+                        inputStream = minIoService.getObjectStream(objectName);
+                        if (inputStream != null) {
+                            break;
+                        }
+                    } catch (Exception e) {
+                        log.warn("获取分片 {} 文件流失败，正在重试... ({}/{})\n{}", i, retryCount + 1, maxRetries, e.getMessage());
+                    }
+                    retryCount++;
+                    try {
+                        Thread.sleep(1000); // 等待1秒后重试
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        break;
+                    }
+                }
+                
                 if (inputStream == null) {
                     throw new IOException("获取分片 " + i + " 文件流失败: The specified key does not exist");
                 }
