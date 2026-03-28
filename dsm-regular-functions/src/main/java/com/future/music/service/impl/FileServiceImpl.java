@@ -180,8 +180,8 @@ public class FileServiceImpl implements IFileService {
         InputStream inputStream = null;
 
         try {
-            // 前端使用1-based索引（分片1, 2, 3...）
-            for (int i = 1; i <= file_chunks; i++) {
+            // 前端使用0-based索引（分片0, 1, 2...）
+            for (int i = 0; i < file_chunks; i++) {
                 String redisKey = REDIS_CHUNK_LOCATION_PREFIX + i;
                 Object chunkPathObj = redisTemplate.opsForHash().get(md5Value, redisKey);
                 log.info("合并分片 {}，Redis键: {}，值: {}", i, redisKey, chunkPathObj);
@@ -409,10 +409,10 @@ public class FileServiceImpl implements IFileService {
             }
 
             // 如果是最后一个分片，则自动合并
-            // 前端使用1-based索引（分片1, 2, 3...），所以最后一个分片是 chunk == chunks
+            // 前端使用0-based索引（分片0, 1, 2...），所以最后一个分片是 chunk == chunks - 1
             int currentChunk = Integer.parseInt(chunk);
             int totalChunks = Integer.parseInt(chunks);
-            if (currentChunk == totalChunks) {
+            if (currentChunk == totalChunks - 1) {
                 log.info("最后一个分片上传完成，自动执行合并操作，chunk={}/{}, md5Value={}", chunk, chunks, md5Value);
                 // 最后一个分片上传完成，执行合并操作
                 return merge(md5Value, originalFilename);
