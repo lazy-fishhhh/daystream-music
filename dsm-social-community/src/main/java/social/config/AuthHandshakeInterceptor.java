@@ -1,11 +1,10 @@
 package social.config;
 
 import io.jsonwebtoken.Claims;
-import jakarta.servlet.http.HttpSession;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.server.ServerHttpRequest;
 import org.springframework.http.server.ServerHttpResponse;
-import org.springframework.http.server.ServletServerHttpRequest;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.WebSocketHandler;
 import org.springframework.web.socket.server.HandshakeInterceptor;
@@ -16,43 +15,50 @@ import java.util.Map;
 @Slf4j
 @Component
 public class AuthHandshakeInterceptor implements HandshakeInterceptor {
-    
-    @Override
-    public boolean beforeHandshake(ServerHttpRequest request, ServerHttpResponse response, 
-                                   WebSocketHandler wsHandler, Map<String, Object> attributes) throws Exception {
-        try {
-            ServletServerHttpRequest servletRequest = (ServletServerHttpRequest) request;
-            HttpSession session = servletRequest.getServletRequest().getSession();
-            
-            // 从Sec-WebSocket-Protocol请求头获取token
-            String token = String.valueOf((request.getHeaders().get("Sec-WebSocket-Protocol")));
 
-            // 如果Sec-WebSocket-Protocol没有token，尝试从Authorization请求头获取
+    @Override
+    public boolean beforeHandshake(ServerHttpRequest request, ServerHttpResponse response,
+                                   WebSocketHandler wsHandler, Map<String, Object> attributes) {
+        try {
+            HttpHeaders headers = request.getHeaders();
+            String token = null;
+
+            // ====================== 正确获取请求头（getFirst直接拿字符串，无List） ======================
+            // 从 Sec-WebSocket-Protocol 获取token
+            token = headers.getFirst("Sec-WebSocket-Protocol");
+
+            // ====================== 必须回写响应头！浏览器强制要求，不写直接断开连接 ======================
+            if (token != null) {
+                response.getHeaders().add("Sec-WebSocket-Protocol", token);
+            }
+
+            // 如果没有，从 Authorization 获取
             if (token == null) {
-                token = servletRequest.getServletRequest().getHeader("Authorization");
+                token = headers.getFirst("Authorization");
                 if (token != null && token.startsWith("Bearer ")) {
                     token = token.substring(7);
                 }
             }
-            
-            if (token != null) {
+
+            // 校验token
+            if (token != null && !token.isEmpty()) {
                 Claims claims = JwtUtil.parseJWT(token);
                 Long userId = Long.parseLong(claims.getSubject());
                 attributes.put("userId", userId);
                 log.info("WebSocket 握手成功，userId: {}", userId);
                 return true;
             }
-            
-            log.warn("WebSocket 握手失败，未提供 token");
+
+            log.warn("WebSocket 握手失败，未提供有效的token");
             return false;
         } catch (Exception e) {
-            log.error("WebSocket 握手异常", e);
+            log.error("WebSocket 握手异常，token解析失败", e);
             return false;
         }
     }
-    
+
     @Override
-    public void afterHandshake(ServerHttpRequest request, ServerHttpResponse response, 
-                              WebSocketHandler wsHandler, Exception exception) {
+    public void afterHandshake(ServerHttpRequest request, ServerHttpResponse response,
+                               WebSocketHandler wsHandler, Exception exception) {
     }
 }
