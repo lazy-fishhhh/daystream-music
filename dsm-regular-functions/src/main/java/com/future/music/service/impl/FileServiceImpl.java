@@ -96,6 +96,8 @@ public class FileServiceImpl implements IFileService {
 
             // 缓存键名为文件的md5值
             redisTemplate.opsForHash().putAll(md5Value, map);
+            log.info("分片信息已存入Redis，md5Value={}, chunkIndex={}, storedPath={}", md5Value, chunkIndex, storedPath);
+            log.info("Redis中当前的所有键值对: {}", redisTemplate.opsForHash().entries(md5Value));
             return "分片上传成功";
         } catch (IllegalStateException e) {
             e.printStackTrace();
@@ -140,11 +142,18 @@ public class FileServiceImpl implements IFileService {
         InputStream inputStream = null;
 
         try {
-             for (int i = 0; i < file_chunks; i++) {
+            // 先打印Redis中的所有键值对，用于调试
+            Map<Object, Object> allEntries = redisTemplate.opsForHash().entries(md5Value);
+            log.info("合并前Redis中的所有键值对: {}", allEntries);
+            
+            for (int i = 0; i < file_chunks; i++) {
                 // 前端分片索引从1开始，所以Redis中存储的是1-based的索引
                 int oneBasedChunk = i + 1;
-                Object chunkPathObj = redisTemplate.opsForHash().get(md5Value, REDIS_CHUNK_LOCATION_PREFIX + oneBasedChunk);
+                String redisKey = REDIS_CHUNK_LOCATION_PREFIX + oneBasedChunk;
+                log.info("尝试获取分片路径，键: {}, oneBasedChunk: {}", redisKey, oneBasedChunk);
+                Object chunkPathObj = redisTemplate.opsForHash().get(md5Value, redisKey);
                 if (chunkPathObj == null) {
+                    log.error("分片 {} 路径信息缺失，Redis键: {}", oneBasedChunk, redisKey);
                     throw new IOException("分片 " + oneBasedChunk + " 路径信息缺失");
                 }
                 String chunkPath = chunkPathObj.toString();
@@ -350,6 +359,8 @@ public class FileServiceImpl implements IFileService {
             // 前端分片索引从1开始，转换为从0开始的索引进行判断
             int zeroBasedChunk = currentChunk - 1;
             int zeroBasedTotalChunks = totalChunks;
+            log.info("检查是否为最后一个分片：currentChunk={}, totalChunks={}, zeroBasedChunk={}, zeroBasedTotalChunks={}", 
+                     currentChunk, totalChunks, zeroBasedChunk, zeroBasedTotalChunks);
             if (zeroBasedChunk == zeroBasedTotalChunks - 1) {
                 log.info("最后一个分片上传完成，自动执行合并操作，chunk={}/{}, md5Value={}", chunk, chunks, md5Value);
                 // 最后一个分片上传完成，执行合并操作
