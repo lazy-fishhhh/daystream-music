@@ -107,35 +107,30 @@ public class FileServiceImpl implements IFileService {
      * 分片上传实现方法（直接接受参数）
      */
     @Override
-    public String upload(String md5Value, String chunkIndex, String start, String end, 
+    public String upload(String md5Value, String chunkIndex, String start, String end,
                          String chunks, String fileSize, String chunkMd5, MultipartFile multipartFile) throws IOException {
 
-        // 使用MinIO存储分片文件
+        // 使用MinIO存储分片文件 【0-based 索引】
         String chunkPath = MINIO_CHUNKS_PREFIX + chunkMd5 + "_" + chunkIndex;
         try {
             // 上传分片到MinIO
-            // 这里我们自己指定带有index的存储路径，方便检索。
-            // 所以自定义一个uploadChunkFile，不用原来自动生成路径名的uploadFile了
             String storedPath = minIoService.uploadChunkFile(multipartFile, chunkPath);
 
-            // 前端使用1-based索引，但传入的chunkIndex可能是0-based或1-based
-            // 统一转换为1-based索引存储
-            int oneBasedIndex = Integer.parseInt(chunkIndex);
-            if (oneBasedIndex == 0) {
-                // 如果传入的是0，说明是0-based索引，转换为1-based
-                oneBasedIndex = 1;
-            }
-            String oneBasedChunkIndex = String.valueOf(oneBasedIndex);
-            
-            // 分片信息存入Redis，使用单个put操作避免覆盖其他分片信息
-            redisTemplate.opsForHash().put(md5Value, REDIS_CHUNK_LOCATION_PREFIX + oneBasedChunkIndex, storedPath);//分片在MinIO中的存储路径
-            redisTemplate.opsForHash().put(md5Value, REDIS_CHUNK_START_END_PREFIX + oneBasedChunkIndex, start + "_" + end);
-            redisTemplate.opsForHash().put(md5Value, REDIS_CHUNK_MD5_PREFIX + oneBasedChunkIndex, chunkMd5);
-            // 只在上传第一个分片时存储文件基本信息
-            if (oneBasedIndex == 1) {
+
+            // 直接使用前端传入的 chunkIndex（0、1、2...），不修改、不偏移
+            String finalChunkIndex = chunkIndex;
+
+            // 分片信息存入Redis，直接使用 0-based 索引
+            redisTemplate.opsForHash().put(md5Value, REDIS_CHUNK_LOCATION_PREFIX + finalChunkIndex, storedPath);
+            redisTemplate.opsForHash().put(md5Value, REDIS_CHUNK_START_END_PREFIX + finalChunkIndex, start + "_" + end);
+            redisTemplate.opsForHash().put(md5Value, REDIS_CHUNK_MD5_PREFIX + finalChunkIndex, chunkMd5);
+
+            // 只在上传 0号分片（第一个分片）时存储文件基本信息
+            if ("0".equals(chunkIndex)) {
                 redisTemplate.opsForHash().put(md5Value, REDIS_FILE_SIZE, fileSize);
                 redisTemplate.opsForHash().put(md5Value, REDIS_FILE_CHUNKS, chunks);
             }
+
             log.info("分片信息已存入Redis，md5Value={}, chunkIndex={}, storedPath={}", md5Value, chunkIndex, storedPath);
             log.info("Redis中当前的所有键值对: {}", redisTemplate.opsForHash().entries(md5Value));
             return "分片上传成功";
@@ -185,7 +180,7 @@ public class FileServiceImpl implements IFileService {
         InputStream inputStream = null;
 
         try {
-            // 前端使用1-based索引（分片1, 2, 3...），后端需要适配
+            // 前端使用1-based索引（分片1, 2, 3...）
             for (int i = 1; i <= file_chunks; i++) {
                 String redisKey = REDIS_CHUNK_LOCATION_PREFIX + i;
                 Object chunkPathObj = redisTemplate.opsForHash().get(md5Value, redisKey);
