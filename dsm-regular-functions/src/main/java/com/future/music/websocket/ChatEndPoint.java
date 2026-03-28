@@ -80,7 +80,7 @@ public class ChatEndPoint {
         String token = params.get("token") != null ? params.get("token").get(0) : null;
 
         Claims claims = JwtUtil.parseJWT(token);
-        Long userId = claims.getSubject() != null ? Long.parseLong(claims.getId()) : null;
+        Long userId = claims.getSubject() != null ? Long.parseLong(claims.getSubject()) : null;
         if (userId == null) {
             // 鉴权失败，关闭连接
             session.close(new CloseReason(CloseReason.CloseCodes.VIOLATED_POLICY, "token无效/未登录"));
@@ -97,6 +97,8 @@ public class ChatEndPoint {
             throw new RuntimeException("token无效,无法建立WebSocket连接");
         }
 
+        // 存储用户ID到Session
+        session.getUserProperties().put("userId", userId);
         // 存储Session和初始心跳时间
         onlineUsers.put(userId, session);
         userLastHeartbeat.put(userId, System.currentTimeMillis());
@@ -105,11 +107,18 @@ public class ChatEndPoint {
     }
 
     /**
+     * 从Session中获取用户ID
+     */
+    private Long getUserIdFromSession(Session session) {
+        return (Long) session.getUserProperties().get("userId");
+    }
+
+    /**
      * 接收客户端消息（包含心跳包）
      */
     @OnMessage
-    public void onMessage(String message) throws EncodeException, IOException {
-        Long userId = SecurityUtil.getCurrentUserId();
+    public void onMessage(Session session, String message) throws EncodeException, IOException {
+        Long userId = getUserIdFromSession(session);
         // 解析消息
         WebSocketMessage msg = JSON.parseObject(message, WebSocketMessage.class);
 
@@ -118,7 +127,7 @@ public class ChatEndPoint {
             userLastHeartbeat.put(userId, System.currentTimeMillis());
             // 回复心跳响应
             String pong = WebSocketMessageUtils.getMessage(true, null, "pong");
-            sessionGet(userId).getBasicRemote().sendObject(pong);
+            session.getBasicRemote().sendObject(pong);
             return;
         }
 
@@ -137,7 +146,7 @@ public class ChatEndPoint {
      */
     @OnClose
     public void onClose(Session session) throws EncodeException, IOException {
-        Long userId = SecurityUtil.getCurrentUserId();
+        Long userId = getUserIdFromSession(session);
         offlineProcess(userId);
     }
 
@@ -146,7 +155,7 @@ public class ChatEndPoint {
      */
     @OnError
     public void onError(Session session, Throwable throwable) throws EncodeException, IOException {
-        Long userId = SecurityUtil.getCurrentUserId();
+        Long userId = getUserIdFromSession(session);
         // 打印异常日志
         throwable.printStackTrace();
         // 异常断开处理
