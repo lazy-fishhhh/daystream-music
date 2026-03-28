@@ -54,8 +54,39 @@ public class FileServiceImpl implements IFileService {
 
     @Override
     public boolean check(String fileMd5, String chunk, String chunkMd5) {
+        // 1. 先检查Redis中是否有MD5记录
         Object o = redisTemplate.opsForHash().get(fileMd5, REDIS_CHUNK_MD5_PREFIX + chunk);
-        return chunkMd5.equals(o);
+        if (!chunkMd5.equals(o)) {
+            return false;
+        }
+        
+        // 2. 再检查MinIO中是否真的有这个分片文件
+        Object chunkPathObj = redisTemplate.opsForHash().get(fileMd5, REDIS_CHUNK_LOCATION_PREFIX + chunk);
+        if (chunkPathObj == null) {
+            log.warn("分片 {} 的Redis记录存在，但路径信息缺失，需要重新上传", chunk);
+            return false;
+        }
+        
+        String chunkPath = chunkPathObj.toString();
+        String objectName = extractObjectNameFromUrl(chunkPath);
+        if (objectName == null || objectName.isEmpty()) {
+            log.warn("分片 {} 的路径信息无效，需要重新上传", chunk);
+            return false;
+        }
+        
+        // 3. 检查MinIO中文件是否存在
+        boolean fileExists = minIoService.isObjectExists(objectName);
+        if (!fileExists) {
+            log.warn("分片 {} 的Redis记录存在，但MinIO中文件不存在，需要重新上传", chunk);
+            // 清除Redis中的无效记录
+            redisTemplate.opsForHash().delete(fileMd5, 
+                REDIS_CHUNK_MD5_PREFIX + chunk,
+                REDIS_CHUNK_LOCATION_PREFIX + chunk,
+                REDIS_CHUNK_START_END_PREFIX + chunk);
+            return false;
+        }
+        
+        return true;
     }
 
     @Override
