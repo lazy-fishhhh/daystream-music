@@ -9,6 +9,8 @@ import entity.pojo.util.Result;
 import entity.dto.FileUploadDTO;
 import entity.vo.MusicMvVO;
 
+import java.util.List;
+
 /**
  * MV相关的Service接口
  */
@@ -101,5 +103,74 @@ public interface IMusicMvService extends IService<MusicMv> {
      */
     Result<PageResp<MusicMvVO>> getVipMvs(Integer pageNum, Integer pageSize);
 
+    /**
+     * 根据时间、收藏量筛选MV
+     * @param startTime 开始时间（可选）
+     * @param endTime 结束时间（可选）
+     * @param minCollectCount 最小收藏量（可选）
+     * @param maxCollectCount 最大收藏量（可选）
+     * @param pageNum 页码
+     * @param pageSize 每页条数
+     * @return 分页的MV列表
+     */
+    Result<PageResp<MusicMvVO>> filterMvs(String startTime, String endTime, 
+                                          Long minCollectCount, Long maxCollectCount, 
+                                          Integer pageNum, Integer pageSize);
+
+    /**
+     * 将歌曲添加到指定MV
+     * @param mvId MV ID
+     * @param musicId 歌曲ID
+     * @return 添加结果
+     */
+    Result<Boolean> addMusicToMv(Long mvId, Long musicId);
+
+    /**
+     * 将歌曲从其对应的MV中移除
+     * @param musicId 歌曲ID
+     * @return 移除结果
+     */
+    Result<Boolean> removeMusicFromMv(Long musicId);
+
+    /**
+     * 查询未指定音乐的MV列表
+     * @param pageNum 页码
+     * @param pageSize 每页条数
+     * @return 分页的MV列表
+     */
+    Result<PageResp<MusicMvVO>> getMvsWithoutMusic(Integer pageNum, Integer pageSize);
+
+    /**
+     * 查询未指定MV的音乐列表
+     * @param pageNum 页码
+     * @param pageSize 每页条数
+     * @return 分页的音乐列表
+     */
+    Result<PageResp<entity.pojo.music.Music>> getMusicsWithoutMv(Integer pageNum, Integer pageSize);
+
+    /**
+     * 分页查询我的MV（按创建时间降序）
+     * @param pageNum 页码
+     * @param pageSize 每页条数
+     * @return 分页的MV列表
+     */
+    Result<PageResp<MusicMvVO>> getMyMvsByCreateTime(Integer pageNum, Integer pageSize);
+
+    /**
+     * 分页查询我的MV（按收藏量降序）
+     * @param pageNum 页码
+     * @param pageSize 每页条数
+     * @return 分页的MV列表
+     */
+    Result<PageResp<MusicMvVO>> getMyMvsByCollectCount(Integer pageNum, Integer pageSize);
+
+    /**
+     * 获取MV收藏者分页列表
+     * @param mvId MV ID
+     * @param pageNum 页码
+     * @param pageSize 每页条数
+     * @return 分页的用户列表
+     */
+    Result<PageResp<entity.pojo.info.User>> getMvCollectors(Long mvId, Integer pageNum, Integer pageSize);
 
 }

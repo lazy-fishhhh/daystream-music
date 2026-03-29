@@ -121,4 +121,57 @@ public interface MusicMvMapper extends BaseMapper<MusicMv> {
      * @return 收藏数
      */
     Long selectCollectCount(@Param("mvId") Long mvId);
+
+    /**
+     * 根据时间、收藏量筛选MV
+     * @param page 分页参数
+     * @param startTime 开始时间（可选）
+     * @param endTime 结束时间（可选）
+     * @param minCollectCount 最小收藏量（可选）
+     * @param maxCollectCount 最大收藏量（可选）
+     * @return 分页的MV列表
+     */
+    IPage<MusicMvVO> filterMvs(IPage<MusicMvVO> page, 
+                               @Param("startTime") String startTime,
+                               @Param("endTime") String endTime,
+                               @Param("minCollectCount") Long minCollectCount,
+                               @Param("maxCollectCount") Long maxCollectCount);
+
+    /**
+     * 分页查询我的MV（按创建时间降序）
+     * @param page 分页参数
+     * @param userId 用户ID
+     * @return 分页的MV列表
+     */
+    IPage<MusicMvVO> selectMyMvsByCreateTime(IPage<MusicMvVO> page, @Param("userId") Long userId);
+
+    /**
+     * 分页查询我的MV（按收藏量降序）
+     * @param page 分页参数
+     * @param userId 用户ID
+     * @return 分页的MV列表
+     */
+    IPage<MusicMvVO> selectMyMvsByCollectCount(IPage<MusicMvVO> page, @Param("userId") Long userId);
+
+    /**
+     * 获取MV收藏者分页列表
+     * @param page 分页参数
+     * @param mvId MV ID
+     * @return 分页的用户列表
+     */
+    IPage<entity.pojo.info.User> selectMvCollectors(IPage<entity.pojo.info.User> page, @Param("mvId") Long mvId);
+
+    /**
+     * 查询未指定音乐的MV列表
+     * @param page 分页参数
+     * @return 分页的MV列表
+     */
+    IPage<MusicMvVO> selectMvsWithoutMusic(IPage<MusicMvVO> page);
+
+    /**
+     * 查询未指定MV的音乐列表
+     * @param page 分页参数
+     * @return 分页的音乐列表
+     */
+    IPage<entity.pojo.music.Music> selectMusicsWithoutMv(IPage<entity.pojo.music.Music> page);
 }

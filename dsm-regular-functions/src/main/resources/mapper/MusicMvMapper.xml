@@ -262,4 +262,185 @@
         SELECT collection_count FROM music_mv
         WHERE id = #{mvId}
     </select>
+
+    <!-- 根据时间、收藏量筛选MV -->
+    <select id="filterMvs" resultMap="MusicMvVOMap">
+        SELECT 
+            mm.id, 
+            mm.mv_name, 
+            mm.music_id, 
+            m.music_name, 
+            mm.duration, 
+            mm.cover_url, 
+            mm.release_time, 
+            mm.play_count, 
+            mm.like_count, 
+            mm.comment_count, 
+            mm.share_count, 
+            mm.is_vip, 
+            mm.status,
+            mm.create_time,
+            mm.update_time,
+            mvr.quality_type,
+            mvr.mv_url as quality_mv_url,
+            mvr.file_size,
+            mvr.is_vip_limit
+        FROM music_mv mm
+        LEFT JOIN music m ON mm.music_id = m.id
+        LEFT JOIN mv_quality_relation mvr ON mm.id = mvr.mv_id
+        <where>
+            mm.status = 1
+            <if test="startTime != null and startTime != ''">
+                AND mm.release_time &gt;= #{startTime}
+            </if>
+            <if test="endTime != null and endTime != ''">
+                AND mm.release_time &lt;= #{endTime}
+            </if>
+            <if test="minCollectCount != null">
+                AND mm.collection_count &gt;= #{minCollectCount}
+            </if>
+            <if test="maxCollectCount != null">
+                AND mm.collection_count &lt;= #{maxCollectCount}
+            </if>
+        </where>
+        ORDER BY mm.release_time DESC
+    </select>
+
+    <!-- 分页查询我的MV（按创建时间降序） -->
+    <select id="selectMyMvsByCreateTime" resultMap="MusicMvVOMap">
+        SELECT
+            mm.id,
+            mm.mv_name,
+            mm.music_id,
+            m.music_name,
+            mm.duration,
+            mm.cover_url,
+            mm.release_time,
+            mm.play_count,
+            mm.like_count,
+            mm.comment_count,
+            mm.share_count,
+            mm.is_vip,
+            mm.status,
+            mm.create_time,
+            mm.update_time,
+            mvr.quality_type,
+            mvr.mv_url as quality_mv_url,
+            mvr.file_size,
+            mvr.is_vip_limit
+        FROM music_mv mm
+        LEFT JOIN music m ON mm.music_id = m.id
+        LEFT JOIN musician mu ON m.musician_id = mu.id
+        LEFT JOIN mv_quality_relation mvr ON mm.id = mvr.mv_id
+        WHERE mu.user_id = #{userId}
+        AND mm.status = 1
+        ORDER BY mm.create_time DESC
+    </select>
+
+    <!-- 分页查询我的MV（按收藏量降序） -->
+    <select id="selectMyMvsByCollectCount" resultMap="MusicMvVOMap">
+        SELECT
+            mm.id,
+            mm.mv_name,
+            mm.music_id,
+            m.music_name,
+            mm.duration,
+            mm.cover_url,
+            mm.release_time,
+            mm.play_count,
+            mm.like_count,
+            mm.comment_count,
+            mm.share_count,
+            mm.is_vip,
+            mm.status,
+            mm.create_time,
+            mm.update_time,
+            mvr.quality_type,
+            mvr.mv_url as quality_mv_url,
+            mvr.file_size,
+            mvr.is_vip_limit
+        FROM music_mv mm
+                 LEFT JOIN music m ON mm.music_id = m.id
+                 LEFT JOIN musician mu ON m.musician_id = mu.id
+                 LEFT JOIN mv_quality_relation mvr ON mm.id = mvr.mv_id
+        WHERE mu.user_id = #{userId}
+          AND mm.status = 1
+        ORDER BY mm.like_count DESC
+    </select>
+
+    <!-- 获取MV收藏者分页列表 -->
+    <select id="selectMvCollectors" resultType="entity.pojo.info.User">
+        SELECT 
+            u.id, 
+            u.username, 
+            u.avatar, 
+            u.gender,
+            u.introduction,
+            u.created_time,
+            u.follow_count,
+            u.fans_count
+        FROM user u
+        INNER JOIN user_collection uc ON u.id = uc.user_id
+        WHERE uc.target_id = #{mvId}
+        AND uc.target_type = 3
+        AND uc.is_canceled = 0
+        ORDER BY uc.collected_time DESC
+    </select>
+
+    <!-- 查询未指定音乐的MV列表 -->
+    <select id="selectMvsWithoutMusic" resultMap="MusicMvVOMap">
+        SELECT 
+            mm.id, 
+            mm.mv_name, 
+            mm.music_id, 
+            m.music_name, 
+            mm.duration, 
+            mm.cover_url, 
+            mm.release_time, 
+            mm.play_count, 
+            mm.like_count, 
+            mm.comment_count, 
+            mm.share_count, 
+            mm.is_vip, 
+            mm.status,
+            mm.create_time,
+            mm.update_time,
+            mvr.quality_type,
+            mvr.mv_url as quality_mv_url,
+            mvr.file_size,
+            mvr.is_vip_limit
+        FROM music_mv mm
+        LEFT JOIN music m ON mm.music_id = m.id
+        LEFT JOIN mv_quality_relation mvr ON mm.id = mvr.mv_id
+        WHERE mm.music_id IS NULL
+        AND mm.status = 1
+        ORDER BY mm.create_time DESC
+    </select>
+
+    <!-- 查询未指定MV的音乐列表 -->
+    <select id="selectMusicsWithoutMv" resultType="entity.pojo.music.Music">
+        SELECT 
+            m.id,
+            m.music_name,
+            m.album_id,
+            m.musician_id,
+            m.duration,
+            m.cover_url,
+            m.bpm,
+            m.license_type,
+            m.is_vip,
+            m.price,
+            m.play_count,
+            m.download_count,
+            m.status,
+            m.like_count,
+            m.comment_count,
+            m.create_time
+        FROM music m
+        WHERE NOT EXISTS (
+            SELECT 1 FROM music_mv mm WHERE mm.music_id = m.id
+        )
+        AND m.status = 1
+        ORDER BY m.create_time DESC
+    </select>
 </mapper>

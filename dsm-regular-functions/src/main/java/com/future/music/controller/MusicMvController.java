@@ -13,6 +13,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @Api(tags = "MV管理")
 @RequestMapping("/mv")
@@ -162,6 +164,107 @@ public class MusicMvController {
     public Result<PageResp<MusicMvVO>> getVipMvs(@RequestParam(defaultValue = "1") Integer pageNum, 
                                                 @RequestParam(defaultValue = "10") Integer pageSize) {
         return musicMvService.getVipMvs(pageNum, pageSize);
+    }
+
+    /**
+     * 根据时间、收藏量筛选MV
+     * @param startTime 开始时间（可选）
+     * @param endTime 结束时间（可选）
+     * @param minCollectCount 最小收藏量（可选）
+     * @param maxCollectCount 最大收藏量（可选）
+     * @param pageNum 页码
+     * @param pageSize 每页数量
+     * @return 分页结果
+     */
+    @ApiOperation(value = "根据时间、收藏量筛选MV")
+    @GetMapping("/filter")
+    public Result<PageResp<MusicMvVO>> filterMvs(
+            @RequestParam(required = false) String startTime,
+            @RequestParam(required = false) String endTime,
+            @RequestParam(required = false) Long minCollectCount,
+            @RequestParam(required = false) Long maxCollectCount,
+            @RequestParam(defaultValue = "1") Integer pageNum,
+            @RequestParam(defaultValue = "10") Integer pageSize) {
+        return musicMvService.filterMvs(startTime, endTime, minCollectCount, maxCollectCount, pageNum, pageSize);
+    }
+
+    /**
+     * 将歌曲添加到指定MV
+     * @param mvId MV ID
+     * @param musicId 歌曲ID
+     * @return 添加结果
+     */
+    @ApiOperation(value = "将歌曲添加到指定MV")
+    @PostMapping("/addMusic/{mvId}")
+    public Result<Boolean> addMusicToMv(@PathVariable Long mvId, @RequestParam Long musicId) {
+        return musicMvService.addMusicToMv(mvId, musicId);
+    }
+
+    /**
+     * 将歌曲从其对应的MV中移除
+     * @param musicId 歌曲ID
+     * @return 移除结果
+     */
+    @ApiOperation(value = "将歌曲从其对应的MV中移除")
+    @DeleteMapping("/removeMusic")
+    public Result<Boolean> removeMusicFromMv(@RequestParam Long musicId) {
+        return musicMvService.removeMusicFromMv(musicId);
+    }
+
+    /**
+     * 查询未指定音乐的MV列表
+     * @param pageNum 页码
+     * @param pageSize 每页数量
+     * @return 分页结果
+     */
+    @ApiOperation(value = "查询未指定音乐的MV列表")
+    @GetMapping("/withoutMusic")
+    public Result<PageResp<MusicMvVO>> getMvsWithoutMusic(
+            @RequestParam(defaultValue = "1") Integer pageNum,
+            @RequestParam(defaultValue = "10") Integer pageSize) {
+        return musicMvService.getMvsWithoutMusic(pageNum, pageSize);
+    }
+
+    /**
+     * 查询未指定MV的音乐列表
+     * @param pageNum 页码
+     * @param pageSize 每页数量
+     * @return 分页结果
+     */
+    @ApiOperation(value = "查询未指定MV的音乐列表")
+    @GetMapping("/musics/withoutMv")
+    public Result<PageResp<entity.pojo.music.Music>> getMusicsWithoutMv(
+            @RequestParam(defaultValue = "1") Integer pageNum,
+            @RequestParam(defaultValue = "10") Integer pageSize) {
+        return musicMvService.getMusicsWithoutMv(pageNum, pageSize);
+    }
+
+    /**
+     * 分页查询我的MV（按创建时间降序）
+     * @param pageNum 页码
+     * @param pageSize 每页数量
+     * @return 分页结果
+     */
+    @ApiOperation(value = "分页查询我的MV（按创建时间降序）")
+    @GetMapping("/myMvs/createTime")
+    public Result<PageResp<MusicMvVO>> getMyMvsByCreateTime(
+            @RequestParam(defaultValue = "1") Integer pageNum,
+            @RequestParam(defaultValue = "10") Integer pageSize) {
+        return musicMvService.getMyMvsByCreateTime(pageNum, pageSize);
+    }
+
+    /**
+     * 分页查询我的MV（按收藏量降序）
+     * @param pageNum 页码
+     * @param pageSize 每页数量
+     * @return 分页结果
+     */
+    @ApiOperation(value = "分页查询我的MV（按收藏量降序）")
+    @GetMapping("/myMvs/collectCount")
+    public Result<PageResp<MusicMvVO>> getMyMvsByCollectCount(
+            @RequestParam(defaultValue = "1") Integer pageNum,
+            @RequestParam(defaultValue = "10") Integer pageSize) {
+        return musicMvService.getMyMvsByCollectCount(pageNum, pageSize);
     }
 
 }

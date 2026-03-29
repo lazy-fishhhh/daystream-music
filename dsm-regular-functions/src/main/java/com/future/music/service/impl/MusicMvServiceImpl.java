@@ -275,7 +275,7 @@ public class MusicMvServiceImpl extends ServiceImpl<MusicMvMapper, MusicMv> impl
         // ========== 1. 前置参数强校验（快速失败） ==========
         try {
 
-            if (mvId <= 0) {
+            if (mvId == null || mvId <= 0) {
                 log.warn("更新MV失败：MV ID非法，mvId={}", mvId);
                 throw new BusinessException("MV异常10001","MV ID非法：MV ID必须为正整数");
             }
@@ -285,8 +285,9 @@ public class MusicMvServiceImpl extends ServiceImpl<MusicMvMapper, MusicMv> impl
             if(musicMvDTO.getIsVip() != null){
                 return Result.fail("是否VIP不允许更改");
             }
-
-
+            if(musicMvDTO.getMusicId() != null){
+                return Result.fail("关联歌曲ID不允许直接更改，请使用专门的关联接口");
+            }
 
             // 基础非空校验
             Assert.notNull(mvId, "MV ID不能为空");
@@ -393,22 +394,24 @@ public class MusicMvServiceImpl extends ServiceImpl<MusicMvMapper, MusicMv> impl
     @Transactional(rollbackFor = Exception.class)
     public Result<Boolean> deleteMv(Long mvId) {
         try {
-            // 1. 检查MV是否存在
-            MusicMv existingMv = this.getById(mvId);
-            if (existingMv == null) {
-                return Result.fail("MV不存在");
+            if (mvId == null || mvId <= 0) {
+                return Result.fail("MV ID无效，请提供有效的MV ID");
             }
 
-            // 删除MV多画质信息
+            MusicMv existingMv = this.getById(mvId);
+            if (existingMv == null) {
+                return Result.fail("MV不存在，请检查MV ID是否正确");
+            }
+
             QueryWrapper<MvQualityRelation> queryWrapper = new QueryWrapper<>();
             queryWrapper.eq("mv_id", mvId);
             mvQualityRelationService.remove(queryWrapper);
 
-            // 3. 删除MV
             boolean deleteResult = this.removeById(mvId);
 
             return Result.ok(deleteResult);
         } catch (Exception e) {
+            log.error("删除MV失败", e);
             return Result.fail("删除MV失败: " + e.getMessage());
         }
     }
@@ -422,9 +425,13 @@ public class MusicMvServiceImpl extends ServiceImpl<MusicMvMapper, MusicMv> impl
     @Override
     public Result<MusicMvVO> getMvDetail(Long mvId) {
         try {
+            if (mvId == null || mvId <= 0) {
+                return Result.fail("MV ID无效，请提供有效的MV ID");
+            }
+
             MusicMvVO mvDetail = musicMvMapper.selectMvDetailById(mvId);
             if (mvDetail == null) {
-                return Result.fail("MV不存在");
+                return Result.fail("MV不存在，请检查MV ID是否正确");
             }
             setLikeAndCollectStatus(mvDetail);
 
@@ -435,6 +442,7 @@ public class MusicMvServiceImpl extends ServiceImpl<MusicMvMapper, MusicMv> impl
 
             return Result.ok(mvDetail);
         } catch (Exception e) {
+            log.error("查询MV详情失败", e);
             return Result.fail("查询MV详情失败: " + e.getMessage());
         }
     }
@@ -468,13 +476,23 @@ public class MusicMvServiceImpl extends ServiceImpl<MusicMvMapper, MusicMv> impl
     @Override
     public Result<MusicMvVO> getMvByMusicId(Long musicId) {
         try {
+            if (musicId == null || musicId <= 0) {
+                return Result.fail("歌曲ID无效，请提供有效的歌曲ID");
+            }
+
+            Music music = musicMapper.selectById(musicId);
+            if (music == null) {
+                return Result.fail("歌曲不存在，请检查歌曲ID是否正确");
+            }
+
             MusicMvVO mvDetail = musicMvMapper.selectMvByMusicId(musicId);
             if (mvDetail == null) {
-                return Result.fail("该音乐没有对应的MV");
+                return Result.fail("该歌曲暂未关联MV");
             }
             setLikeAndCollectStatus(mvDetail);
             return Result.ok(mvDetail);
         } catch (Exception e) {
+            log.error("查询音乐对应的MV失败", e);
             return Result.fail("查询音乐对应的MV失败: " + e.getMessage());
         }
     }
@@ -594,5 +612,186 @@ public class MusicMvServiceImpl extends ServiceImpl<MusicMvMapper, MusicMv> impl
         musicMvVOPageResp.setTotal(page.getTotal());
         musicMvVOPageResp.setRecords(page.getRecords());
         return musicMvVOPageResp;
+    }
+
+    @Override
+    public Result<PageResp<MusicMvVO>> filterMvs(String startTime, String endTime, Long minCollectCount, Long maxCollectCount, Integer pageNum, Integer pageSize) {
+        try {
+            Page<MusicMvVO> page = new Page<>(pageNum, pageSize);
+            IPage<MusicMvVO> mvPage = musicMvMapper.filterMvs(page, startTime, endTime, minCollectCount, maxCollectCount);
+            return Result.ok(convertToPageResp(mvPage));
+        } catch (Exception e) {
+            log.error("筛选MV失败", e);
+            return Result.fail("筛选MV失败: " + e.getMessage());
+        }
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public Result<Boolean> addMusicToMv(Long mvId, Long musicId) {
+        try {
+            if (mvId == null || mvId <= 0) {
+                return Result.fail("MV ID无效，请提供有效的MV ID");
+            }
+            if (musicId == null || musicId <= 0) {
+                return Result.fail("歌曲ID无效，请提供有效的歌曲ID");
+            }
+
+            MusicMv mv = this.getById(mvId);
+            if (mv == null) {
+                return Result.fail("MV不存在，请检查MV ID是否正确");
+            }
+
+            Music music = musicMapper.selectById(musicId);
+            if (music == null) {
+                return Result.fail("歌曲不存在，请检查歌曲ID是否正确");
+            }
+
+            if (mv.getMusicId() != null) {
+                if (mv.getMusicId().equals(musicId)) {
+                    return Result.fail("该MV已关联此歌曲，无需重复添加");
+                }
+                return Result.fail("该MV已关联其他歌曲（ID: " + mv.getMusicId() + "），请先移除现有关联后再添加新歌曲");
+            }
+
+            MusicMv existingMv = this.getOne(
+                Wrappers.<MusicMv>lambdaQuery()
+                    .eq(MusicMv::getMusicId, musicId)
+            );
+            if (existingMv != null) {
+                return Result.fail("该歌曲已关联其他MV（ID: " + existingMv.getId() + "），一首歌曲只能关联一个MV");
+            }
+
+            mv.setMusicId(musicId);
+            mv.setUpdateTime(LocalDateTime.now());
+            boolean result = this.updateById(mv);
+            return Result.ok(result);
+        } catch (Exception e) {
+            log.error("将歌曲添加到MV失败", e);
+            return Result.fail("将歌曲添加到MV失败: " + e.getMessage());
+        }
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public Result<Boolean> removeMusicFromMv(Long musicId) {
+        try {
+            if (musicId == null || musicId <= 0) {
+                return Result.fail("歌曲ID无效，请提供有效的歌曲ID");
+            }
+
+            Music music = musicMapper.selectById(musicId);
+            if (music == null) {
+                return Result.fail("歌曲不存在，请检查歌曲ID是否正确");
+            }
+
+            MusicMv mv = this.getOne(
+                Wrappers.<MusicMv>lambdaQuery()
+                    .eq(MusicMv::getMusicId, musicId)
+            );
+            if (mv == null) {
+                return Result.ok(true);
+            }
+
+            log.info("将歌曲ID: {} 从MVID: {} 中移除", musicId, mv.getId());
+
+            mv.setMusicId(null);
+            mv.setUpdateTime(LocalDateTime.now());
+            boolean res = this.updateById(mv);
+            System.out.println(res);
+            return Result.ok(res);
+        } catch (Exception e) {
+            log.error("将歌曲从MV中移除失败", e);
+            return Result.fail("将歌曲从MV中移除失败: " + e.getMessage());
+        }
+    }
+
+    @Override
+    public Result<PageResp<MusicMvVO>> getMvsWithoutMusic(Integer pageNum, Integer pageSize) {
+        try {
+            Page<MusicMvVO> page = new Page<>(pageNum, pageSize);
+            IPage<MusicMvVO> mvPage = musicMvMapper.selectMvsWithoutMusic(page);
+            return Result.ok(convertToPageResp(mvPage));
+        } catch (Exception e) {
+            log.error("查询未指定音乐的MV列表失败", e);
+            return Result.fail("查询未指定音乐的MV列表失败: " + e.getMessage());
+        }
+    }
+
+    @Override
+    public Result<PageResp<entity.pojo.music.Music>> getMusicsWithoutMv(Integer pageNum, Integer pageSize) {
+        try {
+            Page<entity.pojo.music.Music> page = new Page<>(pageNum, pageSize);
+            IPage<entity.pojo.music.Music> musicPage = musicMvMapper.selectMusicsWithoutMv(page);
+            PageResp<entity.pojo.music.Music> musicPageResp = new PageResp<>();
+            musicPageResp.setCurrent(musicPage.getCurrent());
+            musicPageResp.setPages(musicPage.getPages());
+            musicPageResp.setSize(musicPage.getSize());
+            musicPageResp.setTotal(musicPage.getTotal());
+            musicPageResp.setRecords(musicPage.getRecords());
+            return Result.ok(musicPageResp);
+        } catch (Exception e) {
+            log.error("查询未指定MV的音乐列表失败", e);
+            return Result.fail("查询未指定MV的音乐列表失败: " + e.getMessage());
+        }
+    }
+
+    @Override
+    public Result<PageResp<MusicMvVO>> getMyMvsByCreateTime(Integer pageNum, Integer pageSize) {
+        try {
+            Long userId = SecurityUtil.getCurrentUserId();
+            if (userId == null) {
+                return Result.fail("用户未登录");
+            }
+            Page<MusicMvVO> page = new Page<>(pageNum, pageSize);
+            IPage<MusicMvVO> mvPage = musicMvMapper.selectMyMvsByCreateTime(page, userId);
+            return Result.ok(convertToPageResp(mvPage));
+        } catch (Exception e) {
+            log.error("查询我的MV失败", e);
+            return Result.fail("查询我的MV失败: " + e.getMessage());
+        }
+    }
+
+    @Override
+    public Result<PageResp<MusicMvVO>> getMyMvsByCollectCount(Integer pageNum, Integer pageSize) {
+        try {
+            Long userId = SecurityUtil.getCurrentUserId();
+            if (userId == null) {
+                return Result.fail("用户未登录");
+            }
+            Page<MusicMvVO> page = new Page<>(pageNum, pageSize);
+            IPage<MusicMvVO> mvPage = musicMvMapper.selectMyMvsByCollectCount(page, userId);
+            return Result.ok(convertToPageResp(mvPage));
+        } catch (Exception e) {
+            log.error("查询我的MV失败", e);
+            return Result.fail("查询我的MV失败: " + e.getMessage());
+        }
+    }
+
+    @Override
+    public Result<PageResp<entity.pojo.info.User>> getMvCollectors(Long mvId, Integer pageNum, Integer pageSize) {
+        try {
+            if (mvId == null || mvId <= 0) {
+                return Result.fail("MV ID无效，请提供有效的MV ID");
+            }
+
+            MusicMv mv = this.getById(mvId);
+            if (mv == null) {
+                return Result.fail("MV不存在，请检查MV ID是否正确");
+            }
+
+            Page<entity.pojo.info.User> page = new Page<>(pageNum, pageSize);
+            IPage<entity.pojo.info.User> userPage = musicMvMapper.selectMvCollectors(page, mvId);
+            PageResp<entity.pojo.info.User> userPageResp = new PageResp<>();
+            userPageResp.setCurrent(userPage.getCurrent());
+            userPageResp.setPages(userPage.getPages());
+            userPageResp.setSize(userPage.getSize());
+            userPageResp.setTotal(userPage.getTotal());
+            userPageResp.setRecords(userPage.getRecords());
+            return Result.ok(userPageResp);
+        } catch (Exception e) {
+            log.error("获取MV收藏者列表失败", e);
+            return Result.fail("获取MV收藏者列表失败: " + e.getMessage());
+        }
     }
 }
