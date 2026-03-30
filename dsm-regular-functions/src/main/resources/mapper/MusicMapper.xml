@@ -101,12 +101,31 @@
         WHERE m.musician_id = #{musicianId}
     </select>
 
-    <select id="selectMusicVOsByMusicianIdPage" resultType="com.future.music.entity.vo.MusicDetailVO">
+    <resultMap id="MusicDetailVOMap" type="com.future.music.entity.vo.MusicDetailVO">
+        <id property="id" column="id"/>
+        <result property="musicName" column="musicName"/>
+        <result property="coverUrl" column="coverUrl"/>
+        <result property="bpm" column="bpm"/>
+        <result property="isVip" column="isVip"/>
+        <result property="likeCount" column="likeCount"/>
+        <result property="commentCount" column="commentCount"/>
+        <result property="duration" column="duration"/>
+        <result property="albumName" column="albumName"/>
+        <result property="musicianName" column="musicianName"/>
+        <result property="createTime" column="createTime"/>
+        <result property="status" column="status"/>
+        <result property="tagName" column="tagName"/>
+        <collection property="audioList" ofType="com.future.music.entity.vo.MusicDetailVO$AudioInfo">
+            <id property="qualityType" column="qualityType"/>
+            <result property="audioUrl" column="audioUrl"/>
+            <result property="fileSize" column="fileSize"/>
+        </collection>
+    </resultMap>
+
+    <select id="selectMusicVOsByMusicianIdPage" resultMap="MusicDetailVOMap">
         SELECT
             m.id AS id,
             m.music_name AS musicName,
-            m.album_id AS albumId,
-            m.musician_id AS musicianId,
             m.cover_url AS coverUrl,
             m.bpm AS bpm,
             m.is_vip AS isVip,
@@ -117,14 +136,18 @@
             al.album_name AS albumName,
             mu.stage_name AS musicianName,
             m.create_time AS createTime,
-            GROUP_CONCAT(DISTINCT mt.tag_name) AS tagName
+            GROUP_CONCAT(DISTINCT mt.tag_name) AS tagName,
+            ma.quality_type AS qualityType,
+            ma.audio_url AS audioUrl,
+            ma.file_size AS fileSize
         FROM music m
         LEFT JOIN musician mu ON m.musician_id = mu.id
         LEFT JOIN album al ON m.album_id = al.id
         LEFT JOIN music_tag_relation mtr ON m.id = mtr.music_id
         LEFT JOIN music_tag mt ON mtr.tag_id = mt.id
+        LEFT JOIN music_audio_relation ma ON m.id = ma.music_id
         WHERE mu.user_id = #{musicianId}
-        GROUP BY m.id
+        GROUP BY m.id, ma.quality_type
     </select>
 
     <select id="selectMusicRecommendByTagId" resultType="java.lang.Long">

@@ -26,4 +26,14 @@ public class MusicDetailVO {
     private Integer status;
     private List<String> tags;          // 歌曲标签
     private String tagName;             // 临时字段，用于接收XML查询返回的标签字符串
+    private List<AudioInfo> audioList;  // 音频列表
+
+    @Data
+    @AllArgsConstructor
+    @NoArgsConstructor
+    public static class AudioInfo {
+        private Integer qualityType;     // 音质类型（1-标准，2-高清，3-无损）
+        private String audioUrl;         // 音频URL
+        private Long fileSize;           // 文件大小
+    }
 }

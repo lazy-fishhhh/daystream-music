@@ -55,7 +55,7 @@ public class ChatEndPoint {
             
             // 如果有token，回写响应头并存储到userProperties
             if (token != null) {
-                response.getHeaders().put("Sec-WebSocket-Protocol", Collections.singletonList(token));
+
                 config.getUserProperties().put("token", token);
             }
         }
