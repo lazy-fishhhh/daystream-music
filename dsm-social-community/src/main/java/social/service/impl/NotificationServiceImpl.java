@@ -1,12 +1,13 @@
 package social.service.impl;
 
 import com.future.login.util.SecurityUtil;
+import com.future.common.websocket.ChatEndPoint;
 import entity.pojo.social.Notification;
+import entity.pojo.util.WebSocketMessageUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
-import org.springframework.messaging.simp.SimpMessageSendingOperations;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import social.domain.vo.NotificationVO;
@@ -32,17 +33,14 @@ public class NotificationServiceImpl implements NotificationService {
     
     private final NotificationMapper notificationMapper;
     private final User2Mapper user2Mapper;
-    private final SimpMessageSendingOperations messagingTemplate;
     private final OnlineUserService onlineUserService;
     
     @Autowired
     public NotificationServiceImpl(NotificationMapper notificationMapper, 
                                  User2Mapper user2Mapper, 
-                                 SimpMessageSendingOperations messagingTemplate, 
                                  @Lazy OnlineUserService onlineUserService) {
         this.notificationMapper = notificationMapper;
         this.user2Mapper = user2Mapper;
-        this.messagingTemplate = messagingTemplate;
         this.onlineUserService = onlineUserService;
     }
     
@@ -296,11 +294,8 @@ public class NotificationServiceImpl implements NotificationService {
                     );
                     
                     // 推送未读通知数量
-                    messagingTemplate.convertAndSendToUser(
-                        userId.toString(),
-                        "/queue/notification/unread-count",
-                        unreadCount
-                    );
+                    String message = WebSocketMessageUtils.getMessage(true, null, unreadCount);
+                    ChatEndPoint.sendMessageToUser(userId, message);
                     log.debug("推送未读通知数量成功，userId: {}, 点赞: {}, 评论: {}, 粉丝: {}, 私信: {}", 
                         userId, likeUnread, commentUnread, followUnread, privateMessageUnread);
                 }
@@ -325,11 +320,8 @@ public class NotificationServiceImpl implements NotificationService {
                 if (onlineUserService.isUserOnline(userId)) {
                     // 1. 推送通知内容
                     NotificationVO vo = convertToVO(notification);
-                    messagingTemplate.convertAndSendToUser(
-                        userId.toString(),
-                        "/queue/notification",
-                        vo
-                    );
+                    String notificationMessage = WebSocketMessageUtils.getMessage(true, null, vo);
+                    ChatEndPoint.sendMessageToUser(userId, notificationMessage);
                     log.debug("推送通知成功，userId: {}, type: {}", userId, notification.getType());
                     
                     // 2. 推送最新未读通知数量
@@ -342,11 +334,8 @@ public class NotificationServiceImpl implements NotificationService {
                         likeUnread, commentUnread, followUnread, privateMessageUnread
                     );
                     
-                    messagingTemplate.convertAndSendToUser(
-                        userId.toString(),
-                        "/queue/notification/unread-count",
-                        unreadCount
-                    );
+                    String unreadMessage = WebSocketMessageUtils.getMessage(true, null, unreadCount);
+                    ChatEndPoint.sendMessageToUser(userId, unreadMessage);
                     log.debug("推送未读通知数量成功，userId: {}, 点赞: {}, 评论: {}, 粉丝: {}, 私信: {}", 
                         userId, likeUnread, commentUnread, followUnread, privateMessageUnread);
                 }

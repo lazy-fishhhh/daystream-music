@@ -3,13 +3,15 @@ package social.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.future.login.util.SecurityUtil;
+import com.future.common.websocket.ChatEndPoint;
 import entity.pojo.social.*;
+import entity.pojo.util.WebSocketMessage;
+import entity.pojo.util.WebSocketMessageUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import org.springframework.context.annotation.Lazy;
-import org.springframework.messaging.simp.SimpMessageSendingOperations;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import social.domain.dto.GroupMessageDTO;
@@ -42,10 +44,11 @@ public class ChatServiceImpl implements ChatService {
     private final GroupMemberMapper groupMemberMapper;
     private final GroupMessageMapper groupMessageMapper;
     private final User2Mapper user2Mapper;
-    private final SimpMessageSendingOperations messagingTemplate;
     private final OnlineUserService onlineUserService;
     private final NotificationService notificationService;
-    
+
+
+
     @Autowired
     public ChatServiceImpl(PrivateSessionMapper privateSessionMapper,
                           PrivateMessageMapper privateMessageMapper,
@@ -53,7 +56,6 @@ public class ChatServiceImpl implements ChatService {
                           GroupMemberMapper groupMemberMapper,
                           GroupMessageMapper groupMessageMapper,
                           User2Mapper user2Mapper,
-                          SimpMessageSendingOperations messagingTemplate,
                           @Lazy OnlineUserService onlineUserService,
                           NotificationService notificationService) {
         this.privateSessionMapper = privateSessionMapper;
@@ -62,7 +64,6 @@ public class ChatServiceImpl implements ChatService {
         this.groupMemberMapper = groupMemberMapper;
         this.groupMessageMapper = groupMessageMapper;
         this.user2Mapper = user2Mapper;
-        this.messagingTemplate = messagingTemplate;
         this.onlineUserService = onlineUserService;
         this.notificationService = notificationService;
     }
@@ -125,11 +126,9 @@ public class ChatServiceImpl implements ChatService {
                     likeUnread, commentUnread, followUnread, privateMessageUnread
                 );
                 
-                messagingTemplate.convertAndSendToUser(
-                    userId.toString(),
-                    "/queue/notification/unread-count",
-                    unreadCount
-                );
+                // 使用ChatEndPoint发送WebSocket消息
+                String message = WebSocketMessageUtils.getMessage(true, null, unreadCount);
+                ChatEndPoint.sendMessageToUser(userId, message);
                 log.debug("推送未读通知数量成功，userId: {}, 点赞: {}, 评论: {}, 粉丝: {}, 私信: {}", 
                     userId, likeUnread, commentUnread, followUnread, privateMessageUnread);
             } catch (Exception e) {
@@ -146,11 +145,9 @@ public class ChatServiceImpl implements ChatService {
     private void asyncSendPrivateMessage(Long toUserId, PrivateMessage message) {
         OnlineUserService.getMessagePushExecutor().execute(() -> {
             try {
-                messagingTemplate.convertAndSendToUser(
-                    toUserId.toString(),
-                    "/queue/private",
-                    message
-                );
+                // 使用ChatEndPoint发送WebSocket消息
+                String wsMessage = WebSocketMessageUtils.getMessage(false, message.getFromUser(), message);
+                ChatEndPoint.sendMessageToUser(toUserId, wsMessage);
                 log.debug("私聊消息异步推送成功，toUserId: {}, msgId: {}", toUserId, message.getId());
             } catch (Exception e) {
                 log.error("私聊消息异步推送失败，toUserId: {}, msgId: {}", toUserId, message.getId(), e);
@@ -350,19 +347,10 @@ public class ChatServiceImpl implements ChatService {
             int successCount = 0;
             int failCount = 0;
             
-            for (Long userId : userIds) {
-                try {
-                    messagingTemplate.convertAndSendToUser(
-                        userId.toString(),
-                        "/queue/group",
-                        message
-                    );
-                    successCount++;
-                } catch (Exception e) {
-                    failCount++;
-                    log.error("群聊消息推送失败，userId: {}, msgId: {}", userId, message.getId(), e);
-                }
-            }
+            // 使用ChatEndPoint发送WebSocket消息
+            String wsMessage = WebSocketMessageUtils.getMessage(false, message.getFromUser(), message);
+            ChatEndPoint.sendMessageToUsers(userIds, wsMessage);
+            successCount = userIds.size();
             
             log.debug("群聊消息批量异步推送完成，msgId: {}, 成功: {}, 失败: {}", 
                 message.getId(), successCount, failCount);
@@ -727,11 +715,9 @@ public class ChatServiceImpl implements ChatService {
                 vo.setLastMessage(lastMessage);
                 vo.setTimestamp(System.currentTimeMillis());
                 
-                messagingTemplate.convertAndSendToUser(
-                    userId.toString(),
-                    "/queue/unread-count",
-                    vo
-                );
+                // 使用ChatEndPoint发送WebSocket消息
+                String message = WebSocketMessageUtils.getMessage(true, null, vo);
+                ChatEndPoint.sendMessageToUser(userId, message);
                 log.debug("未读消息数量推送成功，userId: {}, type: {}, sessionId: {}, count: {}", 
                     userId, type, sessionId, unreadCount);
             } catch (Exception e) {

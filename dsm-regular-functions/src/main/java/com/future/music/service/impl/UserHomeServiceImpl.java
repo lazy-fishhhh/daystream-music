@@ -18,7 +18,7 @@ import com.future.music.domain.vo.*;
 import com.future.music.mapper.*;
 import com.future.music.service.IMusicService;
 import com.future.music.service.IUserHomeService;
-import com.future.music.websocket.ChatEndPoint;
+import com.future.common.websocket.ChatEndPoint;
 import com.future.player.mapper.AlbumMapper;
 import constants.MusicConstants;
 import constants.RabbitConstants;

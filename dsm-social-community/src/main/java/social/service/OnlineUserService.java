@@ -6,8 +6,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 
 import org.springframework.context.annotation.Lazy;
 import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.messaging.simp.SimpMessageSendingOperations;
 import org.springframework.stereotype.Service;
+import com.future.common.websocket.ChatEndPoint;
+import entity.pojo.util.WebSocketMessageUtils;
 import entity.pojo.social.GroupMessage;
 import entity.pojo.social.PrivateMessage;
 import social.domain.vo.OfflineMessageSummaryVO;
@@ -40,8 +41,6 @@ public class OnlineUserService {
 
     // Redis 操作工具
     private final StringRedisTemplate stringRedisTemplate;
-    // WebSocket 消息发送模板（用于推送在线用户列表）
-    private final SimpMessageSendingOperations messagingTemplate;
     
     // 聊天服务，用于获取离线消息
     private final ChatService chatService;
@@ -50,11 +49,9 @@ public class OnlineUserService {
     
     @Autowired
     public OnlineUserService(StringRedisTemplate stringRedisTemplate, 
-                            SimpMessageSendingOperations messagingTemplate, 
                             @Lazy ChatService chatService,
                             @Lazy NotificationService notificationService) {
         this.stringRedisTemplate = stringRedisTemplate;
-        this.messagingTemplate = messagingTemplate;
         this.chatService = chatService;
         this.notificationService = notificationService;
     }
@@ -141,7 +138,12 @@ public class OnlineUserService {
         MESSAGE_PUSH_EXECUTOR.execute(() -> {
             try {
                 OnlineStatusVO vo = new OnlineStatusVO(userId, status, System.currentTimeMillis());
-                messagingTemplate.convertAndSend("/topic/online-status", vo);
+                // 广播在线状态变更给所有在线用户
+                String message = WebSocketMessageUtils.getMessage(true, null, vo);
+                Set<Long> onlineUsers = getOnlineUsers();
+                for (Long onlineUserId : onlineUsers) {
+                    ChatEndPoint.sendMessageToUser(onlineUserId, message);
+                }
                 log.debug("增量广播在线状态成功，userId: {}, status: {}", userId, status);
             } catch (Exception e) {
                 log.error("增量广播在线状态失败，userId: {}, status: {}", userId, status, e);
@@ -168,33 +170,24 @@ public class OnlineUserService {
                     likeUnread, commentUnread, followUnread, privateMessageUnread
                 );
                 
-                messagingTemplate.convertAndSendToUser(
-                    userId.toString(),
-                    "/queue/notification/unread-count",
-                    unreadCount
-                );
+                String unreadCountMessage = WebSocketMessageUtils.getMessage(true, null, unreadCount);
+                ChatEndPoint.sendMessageToUser(userId, unreadCountMessage);
                 log.info("推送未读通知数量成功，userId: {}, 点赞: {}, 评论: {}, 粉丝: {}, 私信: {}", 
                     userId, likeUnread, commentUnread, followUnread, privateMessageUnread);
                 
                 // 2. 推送未读通知
                 List<social.domain.vo.NotificationVO> unreadNotifications = notificationService.getUnreadNotifications(userId);
                 if (!unreadNotifications.isEmpty()) {
-                    messagingTemplate.convertAndSendToUser(
-                        userId.toString(),
-                        "/queue/notification/unread",
-                        unreadNotifications
-                    );
+                    String notificationMessage = WebSocketMessageUtils.getMessage(true, null, unreadNotifications);
+                    ChatEndPoint.sendMessageToUser(userId, notificationMessage);
                     log.info("推送未读通知成功，userId: {}, 通知数: {}", userId, unreadNotifications.size());
                 }
                 
                 // 3. 推送离线消息摘要
                 List<OfflineMessageSummaryVO> offlineSummary = chatService.getOfflineMessageSummary(userId);
                 if (!offlineSummary.isEmpty()) {
-                    messagingTemplate.convertAndSendToUser(
-                        userId.toString(),
-                        "/queue/offline-summary",
-                        offlineSummary
-                    );
+                    String summaryMessage = WebSocketMessageUtils.getMessage(true, null, offlineSummary);
+                    ChatEndPoint.sendMessageToUser(userId, summaryMessage);
                     log.info("推送离线消息摘要成功，userId: {}, 摘要数: {}", userId, offlineSummary.size());
                 }
 

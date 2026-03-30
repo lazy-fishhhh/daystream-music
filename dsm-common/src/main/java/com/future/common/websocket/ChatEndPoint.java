@@ -1,17 +1,14 @@
-package com.future.music.websocket;
+package com.future.common.websocket;
 
 import com.alibaba.fastjson2.JSON;
-import com.future.login.util.SecurityUtil;
+
 import entity.pojo.util.WebSocketMessage;
 import entity.pojo.util.WebSocketMessageUtils;
 import io.jsonwebtoken.Claims;
 import jakarta.websocket.*;
 import jakarta.websocket.server.HandshakeRequest;
-
 import jakarta.websocket.server.ServerEndpoint;
 import jakarta.websocket.server.ServerEndpointConfig;
-import java.util.Collections;
-import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -55,12 +52,12 @@ public class ChatEndPoint {
             
             // 如果有token，回写响应头并存储到userProperties
             if (token != null) {
-
+                response.getHeaders().put("Sec-WebSocket-Protocol", List.of(token));
                 config.getUserProperties().put("token", token);
             }
         }
     }
-    private  final StringRedisTemplate stringRedisTemplate;
+    private final StringRedisTemplate stringRedisTemplate;
 
     private static final String PING = "ping";
     private static final String PONG = "pong";
@@ -99,7 +96,7 @@ public class ChatEndPoint {
      * 建立websocket连接后调用
      */
     @OnOpen
-    public void onOpen(Session session, EndpointConfig config) throws EncodeException, IOException {
+    public void onOpen(Session session, EndpointConfig config) throws IOException {
         // 鉴权
         String token = null;
         
@@ -162,7 +159,7 @@ public class ChatEndPoint {
      * 接收客户端消息（包含心跳包）
      */
     @OnMessage
-    public void onMessage(Session session, String message) throws EncodeException, IOException {
+    public void onMessage(Session session, String message) throws IOException {
         Long userId = getUserIdFromSession(session);
         // 解析消息
         WebSocketMessage msg = JSON.parseObject(message, WebSocketMessage.class);
@@ -172,7 +169,7 @@ public class ChatEndPoint {
             userLastHeartbeat.put(userId, System.currentTimeMillis());
             // 回复心跳响应
             String pong = WebSocketMessageUtils.getMessage(true, null, "pong");
-            session.getBasicRemote().sendObject(pong);
+            session.getBasicRemote().sendText(pong);
             return;
         }
 
@@ -182,7 +179,7 @@ public class ChatEndPoint {
         Session toSession = onlineUsers.get(toUser);
         if (toSession != null && toSession.isOpen()) {
             String result = WebSocketMessageUtils.getMessage(false, userId, mess);
-            toSession.getBasicRemote().sendObject(result);
+            toSession.getBasicRemote().sendText(result);
         }
     }
 
@@ -190,7 +187,7 @@ public class ChatEndPoint {
      * 连接关闭时调用
      */
     @OnClose
-    public void onClose(Session session) throws EncodeException, IOException {
+    public void onClose(Session session) throws IOException {
         Long userId = getUserIdFromSession(session);
         offlineProcess(userId);
     }
@@ -199,7 +196,7 @@ public class ChatEndPoint {
      * 连接异常时调用
      */
     @OnError
-    public void onError(Session session, Throwable throwable) throws EncodeException, IOException {
+    public void onError(Session session, Throwable throwable) throws IOException {
         Long userId = getUserIdFromSession(session);
         // 打印异常日志
         throwable.printStackTrace();
@@ -216,14 +213,11 @@ public class ChatEndPoint {
         return onlineUsers.containsKey(userId);
     }
 
-
-
-
     // ————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————
     /**
      * 离线处理统一逻辑
      */
-    private static void offlineProcess(Long userId) throws EncodeException, IOException {
+    private static void offlineProcess(Long userId) throws IOException {
         if (userId == null) return;
         // 清理存储
         onlineUsers.remove(userId);
@@ -235,7 +229,7 @@ public class ChatEndPoint {
     /**
      * 广播在线用户列表（统一状态同步）
      */
-    private static void broadcastOnlineStatus() throws EncodeException, IOException {
+    private static void broadcastOnlineStatus() throws IOException {
         Set<Long> onlineUserIds = onlineUsers.keySet();
         String message = WebSocketMessageUtils.getMessage(true, null, onlineUserIds);
         broadcastToAllUsers(message);
@@ -244,18 +238,39 @@ public class ChatEndPoint {
     /**
      * 广播消息给所有在线用户
      */
-    private static void broadcastToAllUsers(String message) throws EncodeException, IOException {
+    private static void broadcastToAllUsers(String message) throws IOException {
         for (Session session : onlineUsers.values()) {
             if (session.isOpen()) {
-                session.getBasicRemote().sendObject(message);
+                session.getBasicRemote().sendText(message);
             }
         }
     }
 
     /**
-     * 获取用户Session（空值保护）
+     * 向指定用户发送消息
+     * @param userId 用户ID
+     * @param message 消息内容
      */
-    private Session sessionGet(Long userId) {
-        return onlineUsers.getOrDefault(userId, null);
+    public static void sendMessageToUser(Long userId, String message) {
+        Session session = onlineUsers.get(userId);
+        if (session != null && session.isOpen()) {
+            try {
+                session.getBasicRemote().sendText(message);
+                log.debug("向用户发送消息成功，userId: {}", userId);
+            } catch (IOException e) {
+                log.error("向用户发送消息失败，userId: {}", userId, e);
+            }
+        }
+    }
+
+    /**
+     * 向多个用户发送消息
+     * @param userIds 用户ID列表
+     * @param message 消息内容
+     */
+    public static void sendMessageToUsers(List<Long> userIds, String message) {
+        for (Long userId : userIds) {
+            sendMessageToUser(userId, message);
+        }
     }
 }
