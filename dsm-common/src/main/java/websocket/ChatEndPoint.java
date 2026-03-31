@@ -1,4 +1,4 @@
-package com.future.common.websocket;
+package websocket;
 
 import com.alibaba.fastjson2.JSON;
 import entity.pojo.util.WebSocketMessage;
@@ -92,12 +92,16 @@ public class ChatEndPoint implements ApplicationContextAware {
      */
     @OnOpen
     public void onOpen(Session session, EndpointConfig config) throws IOException {
+        // ====================== 【关键日志】连接刚到达服务器，第一行打印 ======================
+        log.info("=== WebSocket 连接刚到达服务器，SessionID：{} ===", session.getId());
 
         String token = null;
         Map<String, List<String>> params = session.getRequestParameterMap();
         if (params.containsKey("token")) {
             token = params.get("token").get(0);
         }
+        // 打印获取到的token，方便排查
+        log.info("WebSocket 连接解析到token：{}", token);
 
         // 鉴权校验
         if (token == null) {
