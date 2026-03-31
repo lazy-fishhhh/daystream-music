@@ -8,8 +8,8 @@ import jakarta.websocket.*;
 import jakarta.websocket.server.HandshakeRequest;
 import jakarta.websocket.server.ServerEndpoint;
 import jakarta.websocket.server.ServerEndpointConfig;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
@@ -28,20 +28,29 @@ import static constants.RedisCacheConstants.TOKEN_USER_PREFIX;
 
 @ServerEndpoint(value = "/chat", configurator = ChatEndPoint.CustomConfigurator.class)
 @Component
-@RequiredArgsConstructor
+
+// WebSocket 是多实例，不能用构造器注入 Spring Bean，会导致空指针
+// @RequiredArgsConstructor 会导致每个实例都有自己的依赖，而不是共享的
 @Slf4j
 public class ChatEndPoint {
 
-    // 自定义配置器：这里只做兼容，核心取参在onOpen里从URL参数拿
+    // 自定义配置器：清空无用逻辑，适配 URL 传 token
     public static class CustomConfigurator extends ServerEndpointConfig.Configurator {
         @Override
         public void modifyHandshake(ServerEndpointConfig config, HandshakeRequest request, HandshakeResponse response) {
 
-
         }
     }
 
-    private final StringRedisTemplate stringRedisTemplate;
+    // ====================== StringRedisTemplate 改为 静态变量 ======================
+    // 原因：WebSocket 多实例共享 Redis 工具，必须 static
+    private static StringRedisTemplate stringRedisTemplate;
+
+    // ====================== 使用 Setter 方法注入，替代构造器注入 ======================
+    @Autowired
+    public void setStringRedisTemplate(StringRedisTemplate stringRedisTemplate) {
+        ChatEndPoint.stringRedisTemplate = stringRedisTemplate;
+    }
 
     private static final String PING = "ping";
     private static final String PONG = "pong";
@@ -81,7 +90,7 @@ public class ChatEndPoint {
      */
     @OnOpen
     public void onOpen(Session session, EndpointConfig config) throws IOException {
-        // 直接从URL查询参数中获取token
+
         String token = null;
         Map<String, List<String>> params = session.getRequestParameterMap();
         if (params.containsKey("token")) {
@@ -90,37 +99,44 @@ public class ChatEndPoint {
 
         // 鉴权校验
         if (token == null) {
-            // 鉴权失败，关闭连接
             session.close(new CloseReason(CloseReason.CloseCodes.VIOLATED_POLICY, "token无效/未登录"));
             log.warn("未提供token,无法建立WebSocket连接");
-            throw new RuntimeException("未提供token,无法建立WebSocket连接");
+            return;
         }
 
-        Claims claims = JwtUtil.parseJWT(token);
-        Long userId = claims.getSubject() != null ? Long.parseLong(claims.getSubject()) : null;
-        if (userId == null) {
-            // 鉴权失败，关闭连接
-            session.close(new CloseReason(CloseReason.CloseCodes.VIOLATED_POLICY, "token无效/未登录"));
-            log.warn("token中的userId为null,无法建立WebSocket连接");
-            throw new RuntimeException("token无效,无法建立WebSocket连接");
+        try {
+            Claims claims = JwtUtil.parseJWT(token);
+            Long userId = claims.getSubject() != null ? Long.parseLong(claims.getSubject()) : null;
+
+            if (userId == null) {
+                session.close(new CloseReason(CloseReason.CloseCodes.VIOLATED_POLICY, "token无效/未登录"));
+                log.warn("token中的userId为null,无法建立WebSocket连接");
+                return;
+            }
+
+            String redisTokenKey = TOKEN_USER_PREFIX + userId;
+            String redisToken = stringRedisTemplate.opsForValue().get(redisTokenKey);
+
+            if (!StringUtils.hasText(redisToken) || !redisToken.equals(token)) {
+                session.close(new CloseReason(CloseReason.CloseCodes.VIOLATED_POLICY, "token无效/已过期"));
+                log.warn("未查询到redis中该token的缓存信息,无法建立WebSocket连接");
+                return;
+            }
+
+            // 存储用户ID到Session
+            session.getUserProperties().put("userId", userId);
+            // 存储Session和初始心跳时间
+            onlineUsers.put(userId, session);
+            userLastHeartbeat.put(userId, System.currentTimeMillis());
+            // 广播上线消息
+            broadcastOnlineStatus();
+
+            log.info("WebSocket 连接成功 → userId:{}", userId);
+
+        } catch (Exception e) {
+            session.close(new CloseReason(CloseReason.CloseCodes.VIOLATED_POLICY, "token解析失败"));
+            log.error("WebSocket token 解析异常", e);
         }
-
-        String redisTokenKey = TOKEN_USER_PREFIX + userId;
-        String redisToken = stringRedisTemplate.opsForValue().get(redisTokenKey);
-
-        // 检查Redis中的token是否存在且与请求中的token一致
-        if (!StringUtils.hasText(redisToken) || !redisToken.equals(token)) {
-            log.warn("未查询到redis中该token的缓存信息,无法建立WebSocket连接");
-            throw new RuntimeException("token无效,无法建立WebSocket连接");
-        }
-
-        // 存储用户ID到Session
-        session.getUserProperties().put("userId", userId);
-        // 存储Session和初始心跳时间
-        onlineUsers.put(userId, session);
-        userLastHeartbeat.put(userId, System.currentTimeMillis());
-        // 广播上线消息
-        broadcastOnlineStatus();
     }
 
     /**
@@ -184,7 +200,6 @@ public class ChatEndPoint {
         if (userId == null) {
             return false;
         }
-        // ConcurrentHashMap的keySet是线程安全的，直接判断存在性即可
         return onlineUsers.containsKey(userId);
     }
 
