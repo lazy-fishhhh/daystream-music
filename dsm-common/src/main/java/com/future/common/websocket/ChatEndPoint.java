@@ -9,7 +9,8 @@ import jakarta.websocket.server.HandshakeRequest;
 import jakarta.websocket.server.ServerEndpoint;
 import jakarta.websocket.server.ServerEndpointConfig;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.ApplicationContextAware;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
@@ -32,7 +33,18 @@ import static constants.RedisCacheConstants.TOKEN_USER_PREFIX;
 // WebSocket 是多实例，不能用构造器注入 Spring Bean，会导致空指针
 // @RequiredArgsConstructor 会导致每个实例都有自己的依赖，而不是共享的
 @Slf4j
-public class ChatEndPoint {
+public class ChatEndPoint implements ApplicationContextAware {
+
+    // ====================== Spring上下文静态变量 ======================
+    private static ApplicationContext applicationContext;
+    @Override
+    public void setApplicationContext(ApplicationContext applicationContext) {
+        ChatEndPoint.applicationContext = applicationContext;
+    }
+    public static ApplicationContext getApplicationContext() {
+        return applicationContext;
+    }
+    // ==============================================================
 
     // 自定义配置器：清空无用逻辑，适配 URL 传 token
     public static class CustomConfigurator extends ServerEndpointConfig.Configurator {
@@ -40,16 +52,6 @@ public class ChatEndPoint {
         public void modifyHandshake(ServerEndpointConfig config, HandshakeRequest request, HandshakeResponse response) {
 
         }
-    }
-
-    // ====================== StringRedisTemplate 改为 静态变量 ======================
-    // 原因：WebSocket 多实例共享 Redis 工具，必须 static
-    private static StringRedisTemplate stringRedisTemplate;
-
-    // ====================== 使用 Setter 方法注入，替代构造器注入 ======================
-    @Autowired
-    public void setStringRedisTemplate(StringRedisTemplate stringRedisTemplate) {
-        ChatEndPoint.stringRedisTemplate = stringRedisTemplate;
     }
 
     private static final String PING = "ping";
@@ -115,6 +117,15 @@ public class ChatEndPoint {
             }
 
             String redisTokenKey = TOKEN_USER_PREFIX + userId;
+            // ====================== 修复空指针 ======================
+            ApplicationContext context = getApplicationContext();
+            if (context == null) {
+                session.close(new CloseReason(CloseReason.CloseCodes.SERVICE_RESTART, "服务初始化中，暂不支持连接"));
+                log.error("Spring 上下文未初始化，拒绝 WebSocket 连接");
+                return;
+            }
+            StringRedisTemplate stringRedisTemplate = context.getBean(StringRedisTemplate.class);
+            // ====================================================================
             String redisToken = stringRedisTemplate.opsForValue().get(redisTokenKey);
 
             if (!StringUtils.hasText(redisToken) || !redisToken.equals(token)) {
