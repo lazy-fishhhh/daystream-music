@@ -1,4 +1,4 @@
-package com.future.common.websocket;
+package websocket;
 
 import com.alibaba.fastjson2.JSON;
 import entity.pojo.util.WebSocketMessage;
