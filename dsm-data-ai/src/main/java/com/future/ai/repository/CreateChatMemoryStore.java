@@ -1,6 +1,8 @@
 package com.future.ai.repository;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.future.ai.config.RabbitMqConfig;
+import com.future.ai.domain.dto.TitleGeneratorMessage;
 import com.future.ai.domain.entity.AiChatMessage;
 import com.future.ai.domain.entity.AiChatSession;
 import com.future.ai.mapper.AiChatMessageMapper;
@@ -11,6 +13,7 @@ import constants.RedisCacheConstants;
 import dev.langchain4j.data.message.*;
 import dev.langchain4j.store.memory.chat.ChatMemoryStore;
 import jakarta.annotation.Resource;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Repository;
 
@@ -33,7 +36,7 @@ public class CreateChatMemoryStore implements ChatMemoryStore {
     private AiChatMessageMapper messageMapper;
 
     @Resource
-    private TitleGeneratorService titleGeneratorService;
+    private RabbitTemplate rabbitTemplate;
 
     @Override
     public List<ChatMessage> getMessages(Object memoryId) {
@@ -86,10 +89,16 @@ public class CreateChatMemoryStore implements ChatMemoryStore {
                 for (ChatMessage message : messages) {
                     if (message instanceof UserMessage) {
                         String userQuestion = ((UserMessage) message).singleText();
-                        // 调用大模型生成标题
-                        String title = titleGeneratorService.generateTitle(userQuestion);
-                        session.setTitle(title);
-                        break; // 取第一条用户消息生成标题后退出
+                        // 使用 RabbitMQ 发送标题生成请求
+                        TitleGeneratorMessage titleMessage = new TitleGeneratorMessage();
+                        titleMessage.setSessionId(sessionId);
+                        titleMessage.setUserQuestion(userQuestion);
+                        rabbitTemplate.convertAndSend(
+                                RabbitMqConfig.TITLE_GENERATOR_EXCHANGE,
+                                RabbitMqConfig.TITLE_GENERATOR_ROUTING_KEY,
+                                titleMessage
+                        );
+                        break;
                     }
                 }
             }
