@@ -7,7 +7,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
-import com.future.common.websocket.ChatEndPoint;
+import websocket.ChatEndPoint;
 import entity.pojo.util.WebSocketMessageUtils;
 import entity.pojo.social.GroupMessage;
 import entity.pojo.social.PrivateMessage;

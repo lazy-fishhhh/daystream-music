@@ -25,7 +25,7 @@ import org.springframework.web.bind.annotation.*;
 			"admin.mapper"})
 
 @ComponentScan(basePackages = {
-        "com.future.common.websocket",
+        "websocket",
         "com.future.login",
         "com.future.ai" ,
         "com.future.music",
