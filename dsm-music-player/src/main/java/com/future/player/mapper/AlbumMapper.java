@@ -25,13 +25,14 @@ public interface AlbumMapper extends BaseMapper<Album> {
      * @return 分页的专辑 VO 列表
      */
     @Select("""
-            SELECT a.id, a.album_name, m.stage_name as musician_name, a.cover_url, 
-                   a.release_date, a.introduction, a.status, 
-                   a.collect_count, a.comment_count
-            FROM album a
-            LEFT JOIN musician m ON a.musician_id = m.id
-            WHERE m.user_id = #{userId}
-            ORDER BY a.release_date DESC
+            SELECT a.id, a.album_name, m.stage_name as musician_name, a.cover_url,\s
+                  a.release_date, a.introduction, a.status,\s
+                  a.collect_count, a.comment_count
+           FROM album a
+           LEFT JOIN musician m\s
+             ON a.musician_id = m.id\s
+             AND m.user_id = #{userId}  -- 移到这里！
+           ORDER BY a.release_date DESC
             """)
     IPage<AlbumVO> selectAlbumByUserId(
             Page<AlbumVO> page,  // 分页参数（必须作为第一个参数）
