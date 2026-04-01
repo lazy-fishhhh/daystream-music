@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>WebSocket 极简测试</title>
+    <style>
+        body{padding:20px;font-size:14px;}
+        .box{margin:10px 0;}
+        textarea{width:100%;height:120px;padding:8px;}
+        input{width:80%;padding:8px;}
+        button{padding:8px 16px;margin:0 5px;cursor:pointer;}
+        .log{border:1px solid #ccc;padding:10px;height:300px;overflow:auto;white-space:pre-wrap;}
+        .green{color:green;}
+        .red{color:red;}
+        .blue{color:#1890ff;}
+    </style>
+</head>
+<body>
+
+<h3>WebSocket 直连测试（填Token即可）</h3>
+
+<div class="box">
+    <div>WS地址前缀：ws://127.0.0.1:8080/chat?token=</div>
+</div>
+
+<div class="box">
+    <label>粘贴最新有效Token：</label><br>
+    <textarea id="tokenVal" placeholder="放你刚登录拿到的新Token"></textarea>
+</div>
+
+<div class="box">
+    <button onclick="connect()">🔗 开始连接</button>
+    <button onclick="closeWs()">❌ 断开连接</button>
+    <button onclick="clearLog()">🗑 清空日志</button>
+</div>
+
+<div class="box">
+    <div>连接日志：</div>
+    <div id="log" class="log"></div>
+</div>
+
+<script>
+    let ws = null;
+    const logDom = document.getElementById('log');
+
+    function log(text, type=''){
+        const d = new Date();
+        const time = d.getHours()+":"+d.getMinutes()+":"+d.getSeconds();
+        let html = `[${time}] ${text}\n`;
+        if(type==='green') html = `<span class="green">${html}</span>`;
+        if(type==='red') html = `<span class="red">${html}</span>`;
+        if(type==='blue') html = `<span class="blue">${html}</span>`;
+        logDom.innerHTML += html;
+        logDom.scrollTop = logDom.scrollHeight;
+    }
+
+    function clearLog(){
+        logDom.innerHTML = '';
+    }
+
+    function connect(){
+        if(ws){
+            ws.close();
+            ws = null;
+        }
+        const token = document.getElementById('tokenVal').value.trim();
+        if(!token){
+            log('请先填入最新有效Token！','red');
+            return;
+        }
+        const url = `ws://39.96.214.163:8080/chat?token=${token}`;
+        log('准备连接：'+url,'blue');
+
+        ws = new WebSocket(url);
+
+        ws.onopen = ()=>{
+            log('✅ WebSocket 连接成功！','green');
+        };
+
+        ws.onerror = (e)=>{
+            log('❌ WebSocket 发生错误','red');
+        };
+
+        ws.onclose = (e)=>{
+            log(`🔌 连接关闭 code:${e.code} reason:${e.reason}`,'red');
+            ws = null;
+        };
+
+        ws.onmessage = (e)=>{
+            log('📩 收到服务端消息：'+e.data,'green');
+        };
+    }
+
+    function closeWs(){
+        if(ws){
+            ws.close(1000,'手动关闭');
+            log('已手动断开连接');
+        }
+    }
+</script>
+
+</body>
+</html>

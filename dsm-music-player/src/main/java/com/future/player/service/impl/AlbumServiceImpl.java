@@ -68,8 +68,17 @@ public class AlbumServiceImpl implements IAlbumService {
             if (album.getStatus() == null) {
                 album.setStatus(1); // 默认上架
             }
-            // 直接设置musicianId为当前用户ID
-            album.setMusicianId(SecurityUtil.getCurrentUserId());
+
+
+
+            LambdaQueryWrapper<Musician> lqw = new LambdaQueryWrapper<>();
+            lqw.eq(Musician::getUserId, SecurityUtil.getCurrentUserId());
+            Musician musician = musicianMapper.selectOne(lqw);
+            if(musician == null){
+                throw new BusinessException("用户不存在10004", "用户不存在");
+            }
+
+            album.setMusicianId(musician.getId());
             if (album.getReleaseDate() == null) {
                 album.setReleaseDate(LocalDateTime.now()); // 默认当前时间
             }
