@@ -29,7 +29,7 @@ import java.util.concurrent.TimeUnit;
 
 import static constants.RedisCacheConstants.TOKEN_USER_PREFIX;
 
-@ServerEndpoint(value = "/ws/chat", configurator = ChatEndPoint.CustomConfigurator.class)
+@ServerEndpoint(value = "/chat", configurator = ChatEndPoint.CustomConfigurator.class)
 @Component
 
 // WebSocket 是多实例，不能用构造器注入 Spring Bean，会导致空指针
