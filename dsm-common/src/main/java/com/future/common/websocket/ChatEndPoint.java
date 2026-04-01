@@ -1,4 +1,4 @@
-package websocket;
+package com.future.common.websocket;
 
 import com.alibaba.fastjson2.JSON;
 import entity.pojo.util.WebSocketMessage;
@@ -11,6 +11,8 @@ import jakarta.websocket.server.ServerEndpointConfig;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
+import org.springframework.context.event.ContextRefreshedEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
@@ -37,12 +39,35 @@ public class ChatEndPoint implements ApplicationContextAware {
 
     // ====================== Spring上下文静态变量 ======================
     private static ApplicationContext applicationContext;
+    private static boolean initialized = false;
+    
     @Override
     public void setApplicationContext(ApplicationContext applicationContext) {
         ChatEndPoint.applicationContext = applicationContext;
+        log.info("Spring 应用上下文注入成功");
     }
+    
     public static ApplicationContext getApplicationContext() {
+        if (applicationContext == null) {
+            log.error("Spring 应用上下文未初始化");
+            throw new IllegalStateException("Spring 应用上下文未初始化");
+        }
         return applicationContext;
+    }
+    
+    // 监听 Spring 容器初始化完成事件
+    @EventListener(ContextRefreshedEvent.class)
+    public void onContextRefreshed(ContextRefreshedEvent event) {
+        if (applicationContext != null) {
+            initialized = true;
+            log.info("WebSocket 服务初始化完成，Spring 容器就绪");
+        } else {
+            log.warn("WebSocket 服务初始化失败：Spring 应用上下文未注入");
+        }
+    }
+    
+    public static boolean isInitialized() {
+        return initialized;
     }
     // ==============================================================
 
@@ -95,6 +120,13 @@ public class ChatEndPoint implements ApplicationContextAware {
         // ====================== 【关键日志】连接刚到达服务器，第一行打印 ======================
         log.info("=== WebSocket 连接刚到达服务器，SessionID：{} ===", session.getId());
 
+        // 检查服务是否初始化完成
+        if (!initialized) {
+            session.close(new CloseReason(CloseReason.CloseCodes.SERVICE_RESTART, "服务初始化中，暂不支持连接"));
+            log.warn("WebSocket 服务未初始化完成，拒绝连接");
+            return;
+        }
+
         String token = null;
         Map<String, List<String>> params = session.getRequestParameterMap();
         if (params.containsKey("token")) {
@@ -121,15 +153,15 @@ public class ChatEndPoint implements ApplicationContextAware {
             }
 
             String redisTokenKey = TOKEN_USER_PREFIX + userId;
-            // ====================== 修复空指针 ======================
-            ApplicationContext context = getApplicationContext();
-            if (context == null) {
-                session.close(new CloseReason(CloseReason.CloseCodes.SERVICE_RESTART, "服务初始化中，暂不支持连接"));
-                log.error("Spring 上下文未初始化，拒绝 WebSocket 连接");
+            // 从Spring上下文获取StringRedisTemplate
+            StringRedisTemplate stringRedisTemplate = applicationContext.getBean(StringRedisTemplate.class);
+            
+            if (stringRedisTemplate == null) {
+                session.close(new CloseReason(CloseReason.CloseCodes.SERVICE_RESTART, "服务依赖未就绪"));
+                log.error("StringRedisTemplate 未初始化，拒绝 WebSocket 连接");
                 return;
             }
-            StringRedisTemplate stringRedisTemplate = context.getBean(StringRedisTemplate.class);
-            // ====================================================================
+            
             String redisToken = stringRedisTemplate.opsForValue().get(redisTokenKey);
 
             if (!StringUtils.hasText(redisToken) || !redisToken.equals(token)) {

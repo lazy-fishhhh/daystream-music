@@ -1,7 +1,6 @@
 package social.service.impl;
 
-import com.future.login.util.SecurityUtil;
-import websocket.ChatEndPoint;
+import com.future.common.websocket.ChatEndPoint;
 import entity.pojo.social.Notification;
 import entity.pojo.util.WebSocketMessageUtils;
 import lombok.extern.slf4j.Slf4j;
