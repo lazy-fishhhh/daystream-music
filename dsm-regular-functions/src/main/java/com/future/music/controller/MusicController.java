@@ -1,6 +1,7 @@
 package com.future.music.controller;
 
 
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.future.login.util.SecurityUtil;
 import com.future.music.domain.dto.MusicPlayDTO;
 import com.future.music.domain.dto.MusicPlayReportDTO;
@@ -140,11 +141,12 @@ public class MusicController {
 
     @ApiOperation(value = "上传音乐时查询自己所有专辑")
     @GetMapping("/albums")
-    public Result<List<MusicAlbumVO>> getAllAlbums() {
+    public Result<Page<MusicAlbumVO>> getAllAlbums(@RequestParam(defaultValue = "1") Integer pageNum,
+                                                   @RequestParam(defaultValue = "10") Integer pageSize) {
         if (SecurityUtil.getCurrentUser() == null) {
             return Result.fail("用户未登录");
         }
-        return Result.ok(albumMapper.selectAllAlbumByUserId(SecurityUtil.getCurrentUser().getId()));
+        return Result.ok(albumMapper.selectAllAlbumByUserId(Page.of(pageNum, pageSize), SecurityUtil.getCurrentUser().getId()));
     }
 
 }
