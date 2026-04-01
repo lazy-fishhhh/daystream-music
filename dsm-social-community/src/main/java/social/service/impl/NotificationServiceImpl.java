@@ -1,6 +1,5 @@
 package social.service.impl;
 
-import com.future.login.util.SecurityUtil;
 import com.future.common.websocket.ChatEndPoint;
 import entity.pojo.social.Notification;
 import entity.pojo.util.WebSocketMessageUtils;

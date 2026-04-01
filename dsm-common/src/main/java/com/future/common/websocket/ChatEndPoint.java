@@ -1,7 +1,6 @@
 package com.future.common.websocket;
 
 import com.alibaba.fastjson2.JSON;
-
 import entity.pojo.util.WebSocketMessage;
 import entity.pojo.util.WebSocketMessageUtils;
 import io.jsonwebtoken.Claims;
@@ -9,8 +8,11 @@ import jakarta.websocket.*;
 import jakarta.websocket.server.HandshakeRequest;
 import jakarta.websocket.server.ServerEndpoint;
 import jakarta.websocket.server.ServerEndpointConfig;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.ApplicationContextAware;
+import org.springframework.context.event.ContextRefreshedEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
@@ -27,37 +29,55 @@ import java.util.concurrent.TimeUnit;
 
 import static constants.RedisCacheConstants.TOKEN_USER_PREFIX;
 
-/*
- * 前端发送常规的HTTP请求，并在请求头中携带Upgrade:websocket(将http请求升级为websocket)
- *
- * 用户登录成功后，直接发起 WebSocket 连接，用户id立即被添加
- */
 @ServerEndpoint(value = "/chat", configurator = ChatEndPoint.CustomConfigurator.class)
 @Component
-@RequiredArgsConstructor
+
+// WebSocket 是多实例，不能用构造器注入 Spring Bean，会导致空指针
+// @RequiredArgsConstructor 会导致每个实例都有自己的依赖，而不是共享的
 @Slf4j
-public class ChatEndPoint {
+public class ChatEndPoint implements ApplicationContextAware {
+
+    // ====================== Spring上下文静态变量 ======================
+    private static ApplicationContext applicationContext;
+    private static boolean initialized = false;
     
-    // 自定义配置器，用于设置响应头和存储token
-    public static class CustomConfigurator extends ServerEndpointConfig.Configurator {
-        @Override
-        public void modifyHandshake(ServerEndpointConfig config, HandshakeRequest request, HandshakeResponse response) {
-            // 获取token
-            String token = null;
-            // 从Sec-WebSocket-Protocol请求头获取token
-            List<String> protocols = request.getHeaders().get("Sec-WebSocket-Protocol");
-            if (protocols != null && !protocols.isEmpty()) {
-                token = protocols.get(0);
-            }
-            
-            // 如果有token，回写响应头并存储到userProperties
-            if (token != null) {
-                response.getHeaders().put("Sec-WebSocket-Protocol", List.of(token));
-                config.getUserProperties().put("token", token);
-            }
+    @Override
+    public void setApplicationContext(ApplicationContext applicationContext) {
+        ChatEndPoint.applicationContext = applicationContext;
+        log.info("Spring 应用上下文注入成功");
+    }
+    
+    public static ApplicationContext getApplicationContext() {
+        if (applicationContext == null) {
+            log.error("Spring 应用上下文未初始化");
+            throw new IllegalStateException("Spring 应用上下文未初始化");
+        }
+        return applicationContext;
+    }
+    
+    // 监听 Spring 容器初始化完成事件
+    @EventListener(ContextRefreshedEvent.class)
+    public void onContextRefreshed(ContextRefreshedEvent event) {
+        if (applicationContext != null) {
+            initialized = true;
+            log.info("WebSocket 服务初始化完成，Spring 容器就绪");
+        } else {
+            log.warn("WebSocket 服务初始化失败：Spring 应用上下文未注入");
         }
     }
-    private final StringRedisTemplate stringRedisTemplate;
+    
+    public static boolean isInitialized() {
+        return initialized;
+    }
+    // ==============================================================
+
+    // 自定义配置器：修复 Spring Boot3 + Tomcat10 握手BUG
+    public static class CustomConfigurator extends ServerEndpointConfig.Configurator {
+        @Override
+        public <T> T getEndpointInstance(Class<T> clazz) throws InstantiationException {
+            return getApplicationContext().getBean(clazz);
+        }
+    }
 
     private static final String PING = "ping";
     private static final String PONG = "pong";
@@ -97,55 +117,73 @@ public class ChatEndPoint {
      */
     @OnOpen
     public void onOpen(Session session, EndpointConfig config) throws IOException {
-        // 鉴权
-        String token = null;
-        
-        // 从EndpointConfig中获取token（由CustomConfigurator设置）
-        Map<String, Object> userProperties = config.getUserProperties();
-        if (userProperties.containsKey("token")) {
-            token = (String) userProperties.get("token");
-        }
-        
-        // 如果没有token，尝试从查询参数中获取（作为备份方案）
-        if (token == null) {
-            Map<String, List<String>> params = session.getRequestParameterMap();
-            if (params.containsKey("token")) {
-                token = params.get("token").get(0);
-            }
+        // ====================== 【关键日志】连接刚到达服务器，第一行打印 ======================
+        log.info("=== WebSocket 连接刚到达服务器，SessionID：{} ===", session.getId());
+
+        // 检查服务是否初始化完成
+        if (!initialized) {
+            session.close(new CloseReason(CloseReason.CloseCodes.SERVICE_RESTART, "服务初始化中，暂不支持连接"));
+            log.warn("WebSocket 服务未初始化完成，拒绝连接");
+            return;
         }
 
+        String token = null;
+        Map<String, List<String>> params = session.getRequestParameterMap();
+        if (params.containsKey("token")) {
+            token = params.get("token").get(0);
+        }
+        // 打印获取到的token，方便排查
+        log.info("WebSocket 连接解析到token：{}", token);
+
+        // 鉴权校验
         if (token == null) {
-            // 鉴权失败，关闭连接
             session.close(new CloseReason(CloseReason.CloseCodes.VIOLATED_POLICY, "token无效/未登录"));
             log.warn("未提供token,无法建立WebSocket连接");
-            throw new RuntimeException("未提供token,无法建立WebSocket连接");
+            return;
         }
 
-        Claims claims = JwtUtil.parseJWT(token);
-        Long userId = claims.getSubject() != null ? Long.parseLong(claims.getSubject()) : null;
-        if (userId == null) {
-            // 鉴权失败，关闭连接
-            session.close(new CloseReason(CloseReason.CloseCodes.VIOLATED_POLICY, "token无效/未登录"));
-            log.warn("token中的userId为null,无法建立WebSocket连接");
-            throw new RuntimeException("token无效,无法建立WebSocket连接");
+        try {
+            Claims claims = JwtUtil.parseJWT(token);
+            Long userId = claims.getSubject() != null ? Long.parseLong(claims.getSubject()) : null;
+
+            if (userId == null) {
+                session.close(new CloseReason(CloseReason.CloseCodes.VIOLATED_POLICY, "token无效/未登录"));
+                log.warn("token中的userId为null,无法建立WebSocket连接");
+                return;
+            }
+
+            String redisTokenKey = TOKEN_USER_PREFIX + userId;
+            // 从Spring上下文获取StringRedisTemplate
+            StringRedisTemplate stringRedisTemplate = applicationContext.getBean(StringRedisTemplate.class);
+            
+            if (stringRedisTemplate == null) {
+                session.close(new CloseReason(CloseReason.CloseCodes.SERVICE_RESTART, "服务依赖未就绪"));
+                log.error("StringRedisTemplate 未初始化，拒绝 WebSocket 连接");
+                return;
+            }
+            
+            String redisToken = stringRedisTemplate.opsForValue().get(redisTokenKey);
+
+            if (!StringUtils.hasText(redisToken) || !redisToken.equals(token)) {
+                session.close(new CloseReason(CloseReason.CloseCodes.VIOLATED_POLICY, "token无效/已过期"));
+                log.warn("未查询到redis中该token的缓存信息,无法建立WebSocket连接");
+                return;
+            }
+
+            // 存储用户ID到Session
+            session.getUserProperties().put("userId", userId);
+            // 存储Session和初始心跳时间
+            onlineUsers.put(userId, session);
+            userLastHeartbeat.put(userId, System.currentTimeMillis());
+            // 广播上线消息
+            broadcastOnlineStatus();
+
+            log.info("WebSocket 连接成功 → userId:{}", userId);
+
+        } catch (Exception e) {
+            session.close(new CloseReason(CloseReason.CloseCodes.VIOLATED_POLICY, "token解析失败"));
+            log.error("WebSocket token 解析异常", e);
         }
-
-        String redisTokenKey = TOKEN_USER_PREFIX + userId;
-        String redisToken = stringRedisTemplate.opsForValue().get(redisTokenKey);
-
-        // 检查Redis中的token是否存在且与请求中的token一致
-        if (!StringUtils.hasText(redisToken) || !redisToken.equals(token)) {
-            log.warn("未查询到redis中该token的缓存信息,无法建立WebSocket连接");
-            throw new RuntimeException("token无效,无法建立WebSocket连接");
-        }
-
-        // 存储用户ID到Session
-        session.getUserProperties().put("userId", userId);
-        // 存储Session和初始心跳时间
-        onlineUsers.put(userId, session);
-        userLastHeartbeat.put(userId, System.currentTimeMillis());
-        // 广播上线消息
-        broadcastOnlineStatus();
     }
 
     /**
@@ -209,7 +247,6 @@ public class ChatEndPoint {
         if (userId == null) {
             return false;
         }
-        // ConcurrentHashMap的keySet是线程安全的，直接判断存在性即可
         return onlineUsers.containsKey(userId);
     }
 

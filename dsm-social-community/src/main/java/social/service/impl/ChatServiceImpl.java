@@ -5,7 +5,6 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.future.login.util.SecurityUtil;
 import com.future.common.websocket.ChatEndPoint;
 import entity.pojo.social.*;
-import entity.pojo.util.WebSocketMessage;
 import entity.pojo.util.WebSocketMessageUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
