@@ -29,6 +29,7 @@ public interface AlbumMapper extends BaseMapper<Album> {
                   a.release_date, a.introduction, a.status,\s
                   a.collect_count, a.comment_count
            FROM album a
+               
            LEFT JOIN musician m\s
              ON a.musician_id = m.id\s
              AND m.user_id = #{userId}  -- 移到这里！

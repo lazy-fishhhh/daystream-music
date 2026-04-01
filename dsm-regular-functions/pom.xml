@@ -252,7 +252,18 @@
             <artifactId>jaudiotagger</artifactId>
             <version>3.0.1</version>
         </dependency>
-        
+        <!-- WebSocket 核心依赖（Spring Boot 3 必须） -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-websocket</artifactId>
+        </dependency>
+
+        <!-- Jakarta WebSocket 2.0 适配（Tomcat 10 必须） -->
+        <dependency>
+            <groupId>jakarta.websocket</groupId>
+            <artifactId>jakarta.websocket-api</artifactId>
+            <scope>provided</scope>
+        </dependency>
 
     </dependencies>
     <build>

@@ -29,7 +29,7 @@ import java.util.concurrent.TimeUnit;
 
 import static constants.RedisCacheConstants.TOKEN_USER_PREFIX;
 
-@ServerEndpoint(value = "/chat", configurator = ChatEndPoint.CustomConfigurator.class)
+@ServerEndpoint(value = "/ws/chat", configurator = ChatEndPoint.CustomConfigurator.class)
 @Component
 
 // WebSocket 是多实例，不能用构造器注入 Spring Bean，会导致空指针
@@ -71,11 +71,11 @@ public class ChatEndPoint implements ApplicationContextAware {
     }
     // ==============================================================
 
-    // 自定义配置器：清空无用逻辑，适配 URL 传 token
+    // 自定义配置器：修复 Spring Boot3 + Tomcat10 握手BUG
     public static class CustomConfigurator extends ServerEndpointConfig.Configurator {
         @Override
-        public void modifyHandshake(ServerEndpointConfig config, HandshakeRequest request, HandshakeResponse response) {
-
+        public <T> T getEndpointInstance(Class<T> clazz) throws InstantiationException {
+            return getApplicationContext().getBean(clazz);
         }
     }
 
