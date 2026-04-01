@@ -48,7 +48,8 @@ public interface AlbumMapper extends BaseMapper<Album> {
             WHERE m.user_id = #{userId}
             ORDER BY a.release_date DESC
             """)
-    List<MusicAlbumVO> selectAllAlbumByUserId(
+    Page<MusicAlbumVO> selectAllAlbumByUserId(
+            Page<?> page,
             @Param("userId") Long userId
     );
 
