@@ -6,6 +6,7 @@ import com.future.player.entity.dto.DisableAccountDTO;
 import com.future.player.entity.dto.MusicianApplyDTO;
 import com.future.player.entity.dto.MusicianListDTO;
 import com.future.player.entity.dto.UpdateMusicianDTO;
+import com.future.player.entity.vo.MusicianDetailVO;
 import com.future.player.entity.vo.MusicianInfoVO;
 import com.future.player.service.MusicianApplyService;
 import entity.pojo.util.PageReq;
@@ -14,6 +15,7 @@ import entity.pojo.util.Result;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -48,7 +50,7 @@ public class MusicianApplyController {
     {
         return musicianApplyService.deleteMusician(disableAccountDTO);
     }
-    @PreAuthorize("hasRole('音乐人')")
+    @PreAuthorize("hasAnyRole('音乐人','管理员')")
     @ApiOperation(value = "获取当前音乐人信息")
     @GetMapping("/getMuscianInfo")
     public Result<MusicianInfoVO> getMuscianInfo()
@@ -62,12 +64,18 @@ public class MusicianApplyController {
         return musicianApplyService.getAllMusician(musicianListDTO);
     }
     @ApiOperation(value = "更改音乐人的信息")
+    @PreAuthorize("hasAnyRole('音乐人','管理员')")
     @PostMapping("/updateMusicianInfo")
     public Result<String> updateMusicianInfo(@Valid @RequestBody UpdateMusicianDTO updateMusicianDTO)
     {
         return musicianApplyService.updateMusicianInfo(updateMusicianDTO);
     }
-
+    @ApiOperation(value="获取音乐人的个人信息(跳转)")
+    @GetMapping("getMusicianDetail")
+    public Result<MusicianDetailVO> getMusicianDetail(@RequestParam @NotBlank(message = "音乐人ID不能为空") String musicianId)
+    {
+        return musicianApplyService.getMusicianDetail(musicianId);
+    }
 
 
 }
