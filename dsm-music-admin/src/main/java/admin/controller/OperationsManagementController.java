@@ -40,6 +40,14 @@ public class OperationsManagementController {
         return adminBannerService.getBannerList(page, pageSize);
     }
 
+    @ApiOperation("搜索Banner")
+    @GetMapping("/banner/search")
+    public Result<PageResp<BannerVO>> searchBanner(@RequestParam(defaultValue = "1") Integer page, 
+                                                  @RequestParam(defaultValue = "10") Integer pageSize, 
+                                                  @RequestParam(required = false) String keyword) {
+        return adminBannerService.searchBanner(page, pageSize, keyword);
+    }
+
     @ApiOperation("获取Banner详情")
     @GetMapping("/banner/{id}")
     public Result<BannerVO> getBannerDetail(@PathVariable Long id) {

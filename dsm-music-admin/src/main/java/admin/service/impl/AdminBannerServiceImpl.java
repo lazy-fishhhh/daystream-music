@@ -157,4 +157,33 @@ public class AdminBannerServiceImpl implements AdminBannerService {
         adminBannerMapper.updateById(banner);
         return Result.ok();
     }
+
+    @Override
+    public Result<PageResp<BannerVO>> searchBanner(Integer page, Integer pageSize, String keyword) {
+        Page<Banner> bannerPage = new Page<>(page, pageSize);
+        LambdaQueryWrapper<Banner> queryWrapper = new LambdaQueryWrapper<>();
+        
+        // 如果关键词不为空，添加搜索条件
+        if (keyword != null && !keyword.isEmpty()) {
+            queryWrapper.like(Banner::getTitle, keyword)
+                   .or().like(Banner::getLinkUrl, keyword);
+        }
+        
+        // 保持与getBannerList相同的排序逻辑
+        queryWrapper.orderByDesc(Banner::getSortOrder)
+                    .orderByDesc(Banner::getCreateTime);
+        
+        Page<Banner> resultPage = adminBannerMapper.selectPage(bannerPage, queryWrapper);
+        
+        // 将Banner转换为BannerVO
+        List<BannerVO> bannerVOList = resultPage.getRecords().stream()
+                .map(BannerVO::fromBanner)
+                .collect(Collectors.toList());
+        
+        PageResp<BannerVO> pageResp = convertPageToResp(resultPage);
+        // 设置记录列表
+        pageResp.setRecords(bannerVOList);
+        
+        return Result.ok(pageResp);
+    }
 }
