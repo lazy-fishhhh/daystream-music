@@ -48,6 +48,9 @@ public interface IMinIoService {
     //判断文件是否存在
     boolean isObjectExists(String objectName);
 
+    //判断文件是否存在
+    boolean isMvObjectExists(String objectName);
+
     boolean isAllowedFile(MultipartFile file, String type);
 
     String generatePresignedUrl(String objectName, int expireSeconds);

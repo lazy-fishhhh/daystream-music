@@ -536,7 +536,7 @@ public class FileServiceImpl implements IFileService {
 
                     // 检查这个分片文件【真的在 MinIO 里存在】
                     if (objectName != null && !objectName.isEmpty()) {
-                        if (minIoService.isObjectExists(objectName)) {
+                        if (minIoService.isMvObjectExists(objectName)) {
                             // 真实存在 → 有效分片计数+1
                             fileExistsCount++;
                         } else {

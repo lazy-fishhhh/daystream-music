@@ -177,6 +177,33 @@ class MinIoServiceImpl implements IMinIoService {
         }
     }
 
+    @Override
+    public boolean isMvObjectExists(String objectName) {
+        try {
+            // 调用statObject方法获取文件信息，如果文件不存在会抛出异常
+            minioClient.statObject(
+                    StatObjectArgs.builder()
+                            .bucket(bucketName)
+                            .object(objectName)
+                            .build()
+            );
+            // 没有抛出异常，说明文件存在
+            return true;
+        } catch (ErrorResponseException e) {
+            // 捕获404异常（文件不存在）
+            if (e.errorResponse().code().equals("NoSuchKey")) {
+                return false;
+            }
+            // 其他错误（如桶不存在等）
+            throw new RuntimeException("判断文件存在性失败：" + e.getMessage());
+        } catch (InvalidKeyException | InvalidResponseException | IOException
+                 | NoSuchAlgorithmException | ServerException | InsufficientDataException
+                 | InternalException | XmlParserException e) {
+            // 处理其他异常
+            throw new RuntimeException("判断文件存在性失败：" + e.getMessage());
+        }
+    }
+
     //判断是否是正确的格式
     @Override
     public boolean isAllowedFile(MultipartFile file, String type) {
