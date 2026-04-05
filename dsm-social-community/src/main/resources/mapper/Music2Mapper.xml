@@ -36,18 +36,36 @@
         limit #{pageSize}
     </select>
     <select id="selectLikeMusicVOAll" resultType="social.domain.vo.LikeMusicVO">
-        select m.id,m.music_name,m.album_id,m.musician_id,m.duration,m.cover_url,m.is_vip,m.status,
-        u.username as musicianName,
-        a.album_name,
-        l.updated_time
-        from
-        music as m
-        left join user as u on m.musician_id=u.id
-        left join album as a on m.album_id=a.id
-        left join like_record l on m.id=l.target_id
-        where
-        l.user_id=#{userId}
-        and l.is_canceled=0
-        order by l.updated_time desc
+        SELECT
+        m.id,
+        m.music_name AS musicName,
+        m.album_id AS albumId,
+        m.musician_id AS musicianId,
+        m.duration,
+        m.cover_url AS coverUrl,
+        m.is_vip AS isVip,
+        m.status,
+        -- 音乐人名称
+        IFNULL(u.stage_name, '未知音乐人') AS musicianName,
+        -- 专辑名称
+        IFNULL(a.album_name, '未知专辑') AS albumName,
+        l.updated_time AS updatedTime
+        FROM music AS m
+
+        LEFT JOIN musician AS u
+        ON m.musician_id = u.id
+
+        LEFT JOIN album AS a
+        ON m.album_id = a.id
+
+        LEFT JOIN like_record AS l
+        ON m.id = l.target_id
+        and l.target_type=1
+        AND l.user_id = #{userId}
+        AND l.is_canceled = 0
+
+        WHERE l.id IS NOT NULL
+
+        ORDER BY l.updated_time DESC
     </select>
 </mapper>

@@ -595,7 +595,7 @@ public class UserBaseServiceImpl implements UserBaseService {
     public Result getLikeMusic(PageDTO pageDTO)
     {
         //获取当前用户的id
-        Long currentUserId = SecurityUtil.getCurrentUserId();
+        Long currentUserId = Long.parseLong(pageDTO.getUserId());
         Integer pageSize=pageDTO.getSize();
         //查询reids中的数据
         String key=USER_LIKE+":"+currentUserId;
@@ -716,7 +716,7 @@ public class UserBaseServiceImpl implements UserBaseService {
     public Result getCollectAlbum(PageDTO pageDTO)
     {
         //获取当前用户的id
-        Long currentUserId = SecurityUtil.getCurrentUserId();
+        Long currentUserId = Long.parseLong(pageDTO.getUserId());
         Integer pageSize=pageDTO.getSize();
         //查询reids中的数据
         String key=USER_COLLECTION+":"+"album"+currentUserId;
@@ -834,7 +834,7 @@ public class UserBaseServiceImpl implements UserBaseService {
     @Override
     public Result getPlayList(PageDTO pageDTO) {
         //获取当前用户的id
-        Long currentUserId = SecurityUtil.getCurrentUserId();
+        Long currentUserId = Long.parseLong(pageDTO.getUserId());
         Integer pageSize=pageDTO.getSize();
         //查询reids中的数据
         String key=USER_COLLECTION+":"+"playList"+currentUserId;
@@ -1119,7 +1119,7 @@ public class UserBaseServiceImpl implements UserBaseService {
     public Result getFollowerList(PageDTO pageDTO)
     {
         //从redis中查询
-        Long currentUserId = SecurityUtil.getCurrentUserId();
+        Long currentUserId = Long.parseLong(pageDTO.getUserId());
         String followerKey= RedisCacheConstants.USER_FOLLOWER+":"+currentUserId;
         List<UserFollowerVO> userFollowerVOS=new ArrayList<>();
         ZSetOperations<String, String> zSetOperations = stringRedisTemplate.opsForZSet();
@@ -1237,7 +1237,7 @@ public class UserBaseServiceImpl implements UserBaseService {
     public Result getFollowListMusic(PageDTO pageDTO)
     {
         //从redis中查询
-        Long currentUserId = SecurityUtil.getCurrentUserId();
+        Long currentUserId = Long.parseLong(pageDTO.getUserId());
         String followKey=RedisCacheConstants.USER_FOLLOW+":"+currentUserId+"music";
         List<UserFollowerVO> userFollowerVOS=new ArrayList<>();
         ZSetOperations<String, String> zSetOperations = stringRedisTemplate.opsForZSet();
@@ -1353,7 +1353,7 @@ public class UserBaseServiceImpl implements UserBaseService {
     public Result getFollowListNormal(PageDTO pageDTO)
     {
         //从redis中查询
-        Long currentUserId = SecurityUtil.getCurrentUserId();
+        Long currentUserId = Long.parseLong(pageDTO.getUserId());
         String followKey=RedisCacheConstants.USER_FOLLOW + ":" + currentUserId+"normal";
         List<UserFollowerVO> userFollowerVOS=new ArrayList<>();
         ZSetOperations<String, String> zSetOperations = stringRedisTemplate.opsForZSet();
