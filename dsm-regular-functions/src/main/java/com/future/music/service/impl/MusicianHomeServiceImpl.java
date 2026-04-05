@@ -26,16 +26,11 @@ public class MusicianHomeServiceImpl implements IMusicianHomeService {
     private final RegularAlbumMapper albumMapper;
 
     @Override
-    public Result<PageResp<List<MusicDetailVO>>> getMyMusic(PageReq pageReq) {
-        // 获取当前用户ID作为音乐人ID
-        Long currentUserId = SecurityUtil.getCurrentUserId();
-        if (Objects.isNull(currentUserId)) {
-            return Result.fail("用户未登录");
-        }
+    public Result<PageResp<List<MusicDetailVO>>> getMyMusic(Long musicianId, Integer pageNum, Integer pageSize) {
 
         // 创建分页对象
-        Page<MusicDetailVO> page = new Page<>(pageReq.getPageNum(), pageReq.getPageSize());
-        IPage<MusicDetailVO> musicVOIPage = musicMapper.selectMusicVOsByMusicianIdPage(page, currentUserId);
+        Page<MusicDetailVO> page = new Page<>(pageNum, pageSize);
+        IPage<MusicDetailVO> musicVOIPage = musicMapper.selectMusicVOsByMusicianIdPage(page, musicianId);
 
         // 处理标签字符串到List<String>的转换
         List<MusicDetailVO> musicDetailVOs = musicVOIPage.getRecords();
