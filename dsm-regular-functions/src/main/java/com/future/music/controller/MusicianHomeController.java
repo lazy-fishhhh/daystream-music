@@ -22,9 +22,11 @@ public class MusicianHomeController {
     private final IMusicianHomeService musicianHomeService;
 
     @ApiOperation(value = "分页查询我的音乐作品")
-    @PostMapping("/getMyMusic")
-    public Result<PageResp<List<MusicDetailVO>>> getMyMusic(@RequestBody PageReq pageReq) {
-        return musicianHomeService.getMyMusic(pageReq);
+    @GetMapping("/getMyMusic")
+    public Result<PageResp<List<MusicDetailVO>>> getMyMusic(@RequestParam Long musicianId,
+                                                            @RequestParam(defaultValue = "1") int pageNum,
+                                                            @RequestParam(defaultValue = "10") int pageSize) {
+        return musicianHomeService.getMyMusic(musicianId,  pageNum, pageSize);
     }
 
     @ApiOperation("获取专辑详细信息")

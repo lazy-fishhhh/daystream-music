@@ -44,9 +44,10 @@ public class AlbumController {
 
     @ApiOperation(value = "分页查询我的所有专辑")
     @GetMapping("/api/album/query-my-album")
-    public Result<PageResp<AlbumVO>> queryMyAlbum(@RequestParam(defaultValue = "1") int pageNum,
-                                               @RequestParam(defaultValue = "10") int pageSize) {
-        return albumService.queryMyAlbum(pageNum, pageSize);
+    public Result<PageResp<AlbumVO>> queryMyAlbum(@RequestParam Long userId,
+                                                  @RequestParam(defaultValue = "1") int pageNum,
+                                                  @RequestParam(defaultValue = "10") int pageSize) {
+        return albumService.queryMyAlbum(userId, pageNum, pageSize);
     }
 
     @ApiOperation(value = "分页查询公开专辑", notes = "先按点赞量降序，再按发布时间降序")
