@@ -63,7 +63,7 @@
         <where>
             p.is_deleted=0
         <if test="role != null">
-            r.id=#{role}
+            and r.id=#{role}
         </if>
         <if test="key!=null and key!=''">
             and (p.title like concat('%',#{key},'%')

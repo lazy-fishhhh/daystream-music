@@ -65,4 +65,13 @@ public interface AdminBannerService {
      * @return 操作结果
      */
     Result<Void> updateBannerStatus(Long id, Integer status);
+
+    /**
+     * 搜索Banner
+     * @param page 当前页码
+     * @param pageSize 每页条数
+     * @param keyword 搜索关键词
+     * @return Banner列表分页结果
+     */
+    Result<PageResp<BannerVO>> searchBanner(Integer page, Integer pageSize, String keyword);
 }

@@ -11,6 +11,7 @@ import com.future.player.entity.dto.DisableAccountDTO;
 import com.future.player.entity.dto.MusicianApplyDTO;
 import com.future.player.entity.dto.MusicianListDTO;
 import com.future.player.entity.dto.UpdateMusicianDTO;
+import com.future.player.entity.vo.MusicianDetailVO;
 import com.future.player.mapper.PlayerMusicianMapper;
 import com.future.player.service.MusicianApplyService;
 import constants.RegexPatterns;
@@ -187,6 +188,31 @@ public class MusicianApplyServiceImpl implements MusicianApplyService {
         Long id = Long.parseLong(updateMusicianDTO.getId());
         playerMusicianMapper.updateMusicianInfo(updateMusicianDTO);
         return Result.ok("修改成功");
+    }
+
+    @Override
+    public Result<MusicianDetailVO> getMusicianDetail(String musicianId) {
+        //根据音乐人Id判断该音乐人是否存在
+        Long id=Long.parseLong(musicianId);
+        LambdaQueryWrapper<Musician> lambdaQueryWrapper=new LambdaQueryWrapper<>();
+        lambdaQueryWrapper.eq(Musician::getId,id)
+                .eq(Musician::getStatus,1)
+                .eq(Musician::getIsDeleted,0);
+        Musician musician = playerMusicianMapper.selectOne(lambdaQueryWrapper);
+        if(musician==null)
+        {
+            return Result.fail("该歌手不存在或已注销");
+        }
+        //如果存在，查询歌手的信息
+        MusicianDetailVO musicianDetailVO = playerMusicianMapper.selectDetail(id);
+        if (musicianDetailVO == null) {
+            return Result.fail("音乐人信息查询失败");
+        }
+        //判断是否关注
+        Long currentUserId=SecurityUtil.getCurrentUserId();
+        boolean follow = playerMusicianMapper.isFollow(currentUserId,musicianDetailVO.getUserId());
+        musicianDetailVO.setFollow(follow);
+        return Result.ok(musicianDetailVO);
     }
 
 

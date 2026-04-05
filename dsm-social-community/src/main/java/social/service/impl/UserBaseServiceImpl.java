@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.future.common.websocket.ChatEndPoint;
 import com.future.login.exception.BusinessException;
 import com.future.login.mapper.UserRoleMapper;
 import com.future.login.util.SecurityUtil;
@@ -1472,23 +1473,26 @@ public class UserBaseServiceImpl implements UserBaseService {
         return Result.ok(pageLikeVO);
     }
     @Override
-    public Result getOtherUserInfo(Long userId) {
+    public Result<OtherUserVO> getOtherUserInfo(Long userId) {
         if(userId==null)
         {
             return Result.fail("用户id不能为空");
         }
-        OtherUserVO otherUserVO = user2Mapper.otherUserInfo(userId);
-        if(otherUserVO==null)
+        User user = user2Mapper.selectById(userId);
+        if(user==null)
         {
             return Result.fail("用户不存在");
         }
+        OtherUserVO otherUserVO=new OtherUserVO();
+        BeanUtils.copyProperties(user, otherUserVO);
+        if (user.getGender() == 1){
+            otherUserVO.setGender("男");
+        }else if (user.getGender() == 2){
+            otherUserVO.setGender("女");
+        }else {
+            otherUserVO.setGender("未知");
+        }
         Long currentUserId = SecurityUtil.getCurrentUserId();
-        //关注数
-        Long count = followMapper.followCount(currentUserId);
-        otherUserVO.setFollowCount(count);
-        //设置粉丝数
-        Long followerCount = followMapper.fansCount(currentUserId);
-        otherUserVO.setFollowerCount(followerCount);
         //是否关注作者
         LambdaQueryWrapper<UserFollow> lambdaQueryWrapper1 = new LambdaQueryWrapper<>();
         lambdaQueryWrapper1.eq(UserFollow::getUserId,currentUserId)
@@ -1511,6 +1515,9 @@ public class UserBaseServiceImpl implements UserBaseService {
         else {
             otherUserVO.setIsVip(false);
         }
+        //在线状态
+        boolean userOnline = ChatEndPoint.isUserOnline(userId);
+        otherUserVO.setOnlineStatus(userOnline ? 1 : 0);
         return Result.ok(otherUserVO);
     }
     @Override

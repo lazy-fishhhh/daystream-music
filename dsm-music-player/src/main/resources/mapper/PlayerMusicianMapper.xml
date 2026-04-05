@@ -18,7 +18,7 @@
         WHERE u.id = #{userId}
           AND u.user_status = 1
           AND m.status = 1
-          amd m.is_deleted = 0
+          and m.is_deleted = 0
     </select>
 
     <!-- 查询音乐人标签 -->
@@ -35,7 +35,7 @@
         m.avatar,
         m.introduction,
         m.id,
-        m.total_fans AS fansCount,
+        u.fans_count AS fansCount,
         m.total_income AS totalIncome,
         DATE_FORMAT(m.created_time, '%Y-%m-%d %H:%i:%s') AS createdTime,
         u.id AS userId,
@@ -87,5 +87,28 @@
         where id = #{id}
     </update>
 
+    <select id="selectDetail" resultType="com.future.player.entity.vo.MusicianDetailVO">
+        SELECT
+            m.stage_name,
+            m.avatar,
+            m.introduction,
+            m.id AS musicianId,
+            u.fans_count AS fansCount,
+            u.id AS userId
+        FROM musician m
+                 INNER JOIN user u ON m.user_id = u.id
+        WHERE m.id = #{id}
+          AND u.id=m.user_id
+          AND u.user_status = 1
+          AND m.status = 1
+            and m.is_deleted = 0
+    </select>
+
+    <select id="isFollow" resultType="boolean">
+        select count(*)>0
+        from user_follow
+        where user_id=#{currentUserId}
+          and followed_user_id= #{userId}
+    </select>
 
 </mapper>

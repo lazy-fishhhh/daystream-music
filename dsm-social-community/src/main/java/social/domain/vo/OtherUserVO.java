@@ -34,15 +34,23 @@ public class OtherUserVO {
     /**
      * 关注数
      */
-    private Long followCount;
+    private Integer followCount;
     /**
      * 粉丝数
      */
-    private Long followerCount;
+    private Integer fansCount;
     /**
      * 是否关注
      */
     private Boolean isFollow;
+    /**
+     * 用户的背景图
+     */
+    private String backgroundImage;
+    /**
+     * 在线状态
+     */
+    private Integer onlineStatus;
     @JsonIgnore
     private LocalDateTime vipExpireTime;
 }

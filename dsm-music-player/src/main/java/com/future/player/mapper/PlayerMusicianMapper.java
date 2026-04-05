@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.future.player.entity.dto.UpdateMusicianDTO;
+import com.future.player.entity.vo.MusicianDetailVO;
 import entity.pojo.music.Musician;
 import entity.pojo.music.SingerTagRelation;
 import org.apache.ibatis.annotations.Mapper;
@@ -30,5 +31,7 @@ public interface PlayerMusicianMapper extends BaseMapper<Musician> {
     void updateMusicianInfo(UpdateMusicianDTO updateMusicianDTO);
     void insertTag(SingerTagRelation tagRelation);
     void deleteMusician(Long id);
-
+    MusicianDetailVO selectDetail(Long id);
+    Boolean isFollow(@Param("currentUserId")Long currentUserId,
+                     @Param("userId")Long userId);
 }
