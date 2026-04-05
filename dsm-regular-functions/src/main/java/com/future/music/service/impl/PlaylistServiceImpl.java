@@ -353,13 +353,8 @@ public class PlaylistServiceImpl implements IPlaylistService {
     }
 
     @Override
-    public Result<PageResp<List<PlaylistVO>>> queryMyPlaylistByCreateTime(int pageNum, int pageSize) {
+    public Result<PageResp<List<PlaylistVO>>> queryMyPlaylistByCreateTime(Long userId, int pageNum, int pageSize) {
 
-        Long userId = SecurityUtil.getCurrentUserId();
-
-        if (userId == null) {
-            return Result.fail("用户未登录");
-        }
 
         // 构建分页参数
         Page<Playlist> page = new Page<>(pageNum, pageSize);
@@ -379,12 +374,7 @@ public class PlaylistServiceImpl implements IPlaylistService {
     }
 
     @Override
-    public Result<PageResp<List<PlaylistVO>>> queryMyPlaylistByCollect(int pageNum, int pageSize) {
-        // 获取当前用户ID
-        Long userId = SecurityUtil.getCurrentUserId();
-        if (userId == null) {
-            return Result.fail("用户未登录");
-        }
+    public Result<PageResp<List<PlaylistVO>>> queryMyPlaylistByCollect(Long userId, int pageNum, int pageSize) {
 
         // 构建分页参数
         Page<Playlist> page = new Page<>(pageNum, pageSize);
