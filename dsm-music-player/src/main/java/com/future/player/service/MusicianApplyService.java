@@ -6,9 +6,12 @@ import com.future.player.entity.dto.MusicianListDTO;
 import com.future.player.entity.dto.UpdateMusicianDTO;
 import com.future.player.entity.vo.MusicianDetailVO;
 import com.future.player.entity.vo.MusicianInfoVO;
+import com.future.player.entity.vo.MusicianVO;
 import entity.pojo.util.PageResp;
 import entity.pojo.util.Result;
 import org.springframework.stereotype.Service;
+
+import java.util.List;
 
 @Service
 public interface MusicianApplyService {
@@ -26,4 +29,6 @@ public interface MusicianApplyService {
     Result<String> updateMusicianInfo(UpdateMusicianDTO updateMusicianDTO);
 
     Result<MusicianDetailVO> getMusicianDetail(String musicianId);
+
+    Result<List<MusicianVO>> getFourMusician();
 }

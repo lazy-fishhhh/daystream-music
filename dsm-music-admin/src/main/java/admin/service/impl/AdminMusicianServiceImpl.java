@@ -51,8 +51,13 @@ public class AdminMusicianServiceImpl implements AdminMusicianService {
         //构建mybatis分页参数
         Page<MusicianVO> page = new Page<>(musicianDTO.getPageNum(), musicianDTO.getPageSize());
         IPage<MusicianVO> musicianList = adminMusicianMapper.getMusicianList(page, musicianDTO.getStatus(), musicianDTO.getKey());
+        List<MusicianVO> records = musicianList.getRecords();
+        for (MusicianVO vo : records) {
+            List<String> tags = adminMusicianMapper.getTags(Long.parseLong(vo.getId()));
+            vo.setTags(tags);
+        }
         PageResp<MusicianVO> pageResp = new PageResp<>();
-        pageResp.setRecords(musicianList.getRecords());
+        pageResp.setRecords(records);
         pageResp.setTotal(musicianList.getTotal());
         pageResp.setPages(musicianList.getPages());
         pageResp.setCurrent(musicianList.getCurrent());
@@ -314,6 +319,7 @@ public class AdminMusicianServiceImpl implements AdminMusicianService {
         }
         //查询音乐人完整信息
         DetailMusicianVO detailMusicianVO = adminMusicianMapper.getDteailMusica(musician.getUserId());
+        detailMusicianVO.setTags(adminMusicianMapper.getTags(Long.parseLong(detailMusicianVO.getId())));
         return Result.ok(detailMusicianVO);
     }
     //更新音乐人信息

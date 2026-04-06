@@ -8,6 +8,7 @@ import com.future.player.entity.dto.MusicianListDTO;
 import com.future.player.entity.dto.UpdateMusicianDTO;
 import com.future.player.entity.vo.MusicianDetailVO;
 import com.future.player.entity.vo.MusicianInfoVO;
+import com.future.player.entity.vo.MusicianVO;
 import com.future.player.service.MusicianApplyService;
 import entity.pojo.util.PageReq;
 import entity.pojo.util.PageResp;
@@ -19,6 +20,8 @@ import jakarta.validation.constraints.NotBlank;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @Api(tags = "音乐人管理")
 @RestController
@@ -75,6 +78,12 @@ public class MusicianApplyController {
     public Result<MusicianDetailVO> getMusicianDetail(@RequestParam @NotBlank(message = "音乐人ID不能为空") String musicianId)
     {
         return musicianApplyService.getMusicianDetail(musicianId);
+    }
+    @ApiOperation(value = "展示四位音乐人")
+    @GetMapping("getFourMusician")
+    public Result<List<MusicianVO>> getFourMusician()
+    {
+        return musicianApplyService.getFourMusician();
     }
 
 

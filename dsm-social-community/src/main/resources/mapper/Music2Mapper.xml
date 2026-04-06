@@ -17,20 +17,30 @@
         and l.user_Id=#{userId}
     </select>
     <select id="selectLikeMusicVOBatchIds" resultType="social.domain.vo.LikeMusicVO">
-        select m.id,m.music_name,m.album_id,m.musician_id,m.duration,m.cover_url,m.is_vip,m.status,
-        u.username as musicianName,
-        a.album_name,
-        l.updated_time
+        select m.id,
+        m.music_name as musicName,
+        m.album_id as albumId,
+        m.musician_id as musicianId,
+        m.duration,
+        m.cover_url as coverUrl,
+        m.is_vip as isVip,m.status,
+        m.status,
+        -- 音乐人名称
+        IFNULL(u.stage_name, '未知音乐人') AS musicianName,
+        -- 专辑名称
+        IFNULL(a.album_name, '未知专辑') AS albumName,
+        l.updated_time as updatedTime
         from
         music as m
-        left join user as u on m.musician_id=u.id
+        left join musician as u on m.musician_id=u.id
         left join album as a on m.album_id=a.id
         left join like_record l on m.id=l.target_id
         where
             l.user_id=#{userId}
          and l.is_canceled=0
+        and l.target_type=1
         <if test="lastId != null and lastId != ''">
-            and m.id &lt; #{lastId}  <!-- 查ID比lastId小的 -->
+            and m.id &lt; #{lastId}
         </if>
         order by l.updated_time desc
         limit #{pageSize}
