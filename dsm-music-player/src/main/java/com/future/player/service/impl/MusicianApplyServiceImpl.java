@@ -12,6 +12,7 @@ import com.future.player.entity.dto.MusicianApplyDTO;
 import com.future.player.entity.dto.MusicianListDTO;
 import com.future.player.entity.dto.UpdateMusicianDTO;
 import com.future.player.entity.vo.MusicianDetailVO;
+import com.future.player.entity.vo.MusicianVO;
 import com.future.player.mapper.PlayerMusicianMapper;
 import com.future.player.service.MusicianApplyService;
 import constants.RegexPatterns;
@@ -213,6 +214,13 @@ public class MusicianApplyServiceImpl implements MusicianApplyService {
         boolean follow = playerMusicianMapper.isFollow(currentUserId,musicianDetailVO.getUserId());
         musicianDetailVO.setFollow(follow);
         return Result.ok(musicianDetailVO);
+    }
+
+    @Override
+    public Result<List<MusicianVO>> getFourMusician() {
+        //从数据库中查找四个粉丝最高的音乐人
+        List<MusicianVO> musicianVOS = playerMusicianMapper.selectFourMuscian();
+        return Result.ok(musicianVOS);
     }
 
 

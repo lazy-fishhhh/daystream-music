@@ -2,6 +2,8 @@ package admin.domain.vo;
 
 import lombok.Data;
 
+import java.util.List;
+
 @Data
 public class MusicianVO {
     /**
@@ -36,4 +38,24 @@ public class MusicianVO {
      * 音乐人头像
      */
     private String avatar;
+    /**
+     * 音乐人标签
+     */
+    private List<String> tags;
+    /**
+     * 粉丝数
+     */
+    private Integer fansCount;
+    /**
+     * 发布作品数
+     */
+    private Integer musicCount;
+    /**
+     * 专辑数
+     */
+    private Integer albumCount;
+    /**
+     * mv数
+     */
+    private Integer mvCount;
 }

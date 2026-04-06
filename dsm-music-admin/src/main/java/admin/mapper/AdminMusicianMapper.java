@@ -29,4 +29,5 @@ public interface AdminMusicianMapper extends BaseMapper<Musician> {
     DetailMusicianVO getDteailMusica(Long userId);
 
     void updateDetail(Long id);
+    List<String> getTags(Long musicianId);
 }
