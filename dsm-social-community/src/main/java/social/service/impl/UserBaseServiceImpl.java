@@ -1518,6 +1518,11 @@ public class UserBaseServiceImpl implements UserBaseService {
         //在线状态
         boolean userOnline = ChatEndPoint.isUserOnline(userId);
         otherUserVO.setOnlineStatus(userOnline ? 1 : 0);
+
+        //用户角色
+        Integer i = user2Mapper.selectRoleIds(userId);
+        RoleEnum roleEnum = RoleEnum.valueOf(i);
+        otherUserVO.setUserRole(roleEnum.getDoc());
         return Result.ok(otherUserVO);
     }
     @Override

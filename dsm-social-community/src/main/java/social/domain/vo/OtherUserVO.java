@@ -51,6 +51,11 @@ public class OtherUserVO {
      * 在线状态
      */
     private Integer onlineStatus;
+
+    /**
+     * 用户角色
+     */
+    private String userRole;
     @JsonIgnore
     private LocalDateTime vipExpireTime;
 }

@@ -355,6 +355,9 @@ public class PlaylistServiceImpl implements IPlaylistService {
     @Override
     public Result<PageResp<List<PlaylistVO>>> queryMyPlaylistByCreateTime(Long userId, int pageNum, int pageSize) {
 
+        if (userId == null) {
+            return Result.fail("用户ID不能为空");
+        }
 
         // 构建分页参数
         Page<Playlist> page = new Page<>(pageNum, pageSize);
@@ -375,6 +378,10 @@ public class PlaylistServiceImpl implements IPlaylistService {
 
     @Override
     public Result<PageResp<List<PlaylistVO>>> queryMyPlaylistByCollect(Long userId, int pageNum, int pageSize) {
+
+        if (userId == null) {
+            return Result.fail("用户ID不能为空");
+        }
 
         // 构建分页参数
         Page<Playlist> page = new Page<>(pageNum, pageSize);
