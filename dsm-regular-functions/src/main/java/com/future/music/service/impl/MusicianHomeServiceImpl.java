@@ -1,5 +1,6 @@
 package com.future.music.service.impl;
 
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.future.login.util.SecurityUtil;
@@ -7,9 +8,11 @@ import com.future.music.domain.vo.AlbumVO;
 import com.future.music.domain.vo.MusicVO;
 import com.future.music.entity.vo.MusicDetailVO;
 
+import com.future.music.mapper.LikeRecordMapper;
 import com.future.music.mapper.MusicMapper;
 import com.future.music.mapper.RegularAlbumMapper;
 import com.future.music.service.IMusicianHomeService;
+import entity.pojo.social.LikeRecord;
 import entity.pojo.util.PageReq;
 import entity.pojo.util.PageResp;
 import entity.pojo.util.Result;
@@ -24,6 +27,7 @@ import java.util.Objects;
 public class MusicianHomeServiceImpl implements IMusicianHomeService {
     private final MusicMapper musicMapper;
     private final RegularAlbumMapper albumMapper;
+    private final LikeRecordMapper likeRecordMapper;
 
     @Override
     public Result<PageResp<List<MusicDetailVO>>> getMyMusic(Long musicianId, Integer pageNum, Integer pageSize) {
@@ -45,6 +49,14 @@ public class MusicianHomeServiceImpl implements IMusicianHomeService {
             }
             // 清空临时tagName字段
             musicDetailVO.setTagName(null);
+
+            Long musicId = musicDetailVO.getId();
+            QueryWrapper<LikeRecord> wrapper = new QueryWrapper<>();
+            wrapper.eq("user_id", SecurityUtil.getCurrentUserId()) // 获取当前登录用户ID
+                    .eq("target_type", 1) // 目标类型：1=音乐（系统定义）
+                    .eq("target_id", musicId); // 目标ID：音乐ID
+            LikeRecord likeRecord = likeRecordMapper.selectOne(wrapper);
+            musicDetailVO.setIsLiked(likeRecord != null ? 1 : 0);
         }
 
         // 封装分页结果

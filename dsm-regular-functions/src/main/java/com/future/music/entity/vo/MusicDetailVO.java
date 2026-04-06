@@ -22,6 +22,7 @@ public class MusicDetailVO {
     private String duration;            // 时长
     private String albumName;           // 所属专辑名字
     private String musicianName;        // 作者名字（音乐人名称）
+    private Integer isLiked;            // 是否点赞（0-未点赞，1-已点赞）
     private String createTime;
     private Integer status;
     private List<String> tags;          // 歌曲标签
