@@ -193,7 +193,7 @@ public class AdminMusicianServiceImpl implements AdminMusicianService {
             }
             //根据状态封禁音乐人
             //判断音乐人状态
-            Integer status = musician.getStatus();
+            Integer status = musician.getIsDeleted();
             BanUserStatusVO banUserStatusVO = new BanUserStatusVO();
             //如果用户未封禁，则封禁
             if (status == 0) {
