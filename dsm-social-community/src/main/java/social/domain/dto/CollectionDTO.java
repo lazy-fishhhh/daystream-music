@@ -1,5 +1,6 @@
 package social.domain.dto;
 
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
@@ -8,7 +9,7 @@ public class CollectionDTO {
     /**
      * 收藏目标id
      */
-    @NotNull(message = "收藏目标id不为空")
+    @NotBlank(message = "收藏目标id不为空")
     private String targetId;
     /**
      * 收藏类型 1-歌单 2-专辑

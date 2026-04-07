@@ -617,6 +617,11 @@ public class UserBaseServiceImpl implements UserBaseService {
                 Long lastId = Long.parseLong(pageDTO.getLastId());
                 //定位到上一页最后一个点赞的索引
                 LikeMusicVO likeMusicVO = music2Mapper.selectLikeMusicVO(lastId, currentUserId);
+                if(likeMusicVO!=null)
+                {
+                    List<Integer> integers = music2Mapper.selectQuality(Long.parseLong(likeMusicVO.getId()));
+                    likeMusicVO.setQuality(integers);
+                }
                 String lastMusic = null;
                 try {
                     lastMusic = objectMapper.writeValueAsString(likeMusicVO);
@@ -676,6 +681,16 @@ public class UserBaseServiceImpl implements UserBaseService {
                 {
                     return Result.ok("该lastId后面没有数据了");
                 }
+                likeMusicVOList.forEach(likeMusicVO -> {
+                    List<Integer> quality =
+                            music2Mapper.selectQuality(Long.parseLong(likeMusicVO.getId()));
+                    likeMusicVO.setQuality(quality);
+                });
+                musicVOS.forEach(likeMusicVO -> {
+                    List<Integer> quality =
+                            music2Mapper.selectQuality(Long.parseLong(likeMusicVO.getId()));
+                    likeMusicVO.setQuality(quality);
+                });
                 //存入redis
                 Set<ZSetOperations.TypedTuple<String>> tuples = likeMusicVOList.stream().map(
                                 likeMusicVO -> {

@@ -5,6 +5,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Data;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * 点赞歌曲表
@@ -51,6 +52,14 @@ public class LikeMusicVO {
      * 是否下架 1-上架 2-下架
      */
     private Integer status;
+    /**
+     * 是否点赞
+     */
+    private boolean isLike=true;
+    /**
+     * 音质
+     */
+    private List<Integer> quality;
     @JsonIgnore
     private LocalDateTime updatedTime;
 }
