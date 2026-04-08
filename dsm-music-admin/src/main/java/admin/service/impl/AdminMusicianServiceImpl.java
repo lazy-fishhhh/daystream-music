@@ -326,14 +326,15 @@ public class AdminMusicianServiceImpl implements AdminMusicianService {
     @Override
     public Result<String> updateMusicianInfo(UpdateMusicianDTO updateMusicianDTO) {
         LambdaQueryWrapper<Musician> lambdaQueryWrapper = new LambdaQueryWrapper<>();
-        lambdaQueryWrapper.eq(Musician::getId, updateMusicianDTO.getId())
+        Long musicianId=Long.parseLong(updateMusicianDTO.getId());
+        lambdaQueryWrapper.eq(Musician::getId, musicianId)
                 .eq(Musician::getStatus, 1)
                 .in(Musician::getIsDeleted, 0, 1);
         Musician musician = adminMusicianMapper.selectOne(lambdaQueryWrapper);
         if (musician == null) {
             return Result.fail("音乐人不存在");
         }
-        adminMusicianMapper.updateDetail(musician.getId());
+        adminMusicianMapper.updateDetail(musicianId,updateMusicianDTO);
         return Result.ok("更新成功");
     }
 }

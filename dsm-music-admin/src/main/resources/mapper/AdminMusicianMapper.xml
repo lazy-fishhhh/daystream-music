@@ -97,24 +97,27 @@
         </where>
     </select>
     <update id="updateDetail">
-        update musician
+        UPDATE musician m
+        INNER JOIN USER u ON u.id = m.user_id
         <set>
-            <if test="stageName!=null and stageName!=''">
-                    stage_name=#{stageName},
+            <if test="dto.stageName != null and dto.stageName != ''">
+                m.stage_name = #{dto.stageName},
             </if>
-            <if test="introduction!=null and introduction!=''">
-                    introduction=#{introduction},
+            <if test="dto.introduction != null and dto.introduction != ''">
+                m.introduction = #{dto.introduction},
             </if>
-            <if test="avatar!=null and avatar!=''">
-                    avatar=#{avatar},
+            <if test="dto.avatar != null and dto.avatar != ''">
+                m.avatar = #{dto.avatar},
             </if>
-            <if test="walletBalance!=null">
-                    wallet_balance=#{walletBalance},
+            <if test="dto.walletBalance != null">
+                u.wallet_balance = #{dto.walletBalance},
             </if>
-            <if test="vipExpireTime!=null">
-                    vip_expire_time=#{vipExpireTime},
+
+            <if test="dto.vipExpireTime != null">
+                u.vip_expire_time = #{dto.vipExpireTime}
             </if>
         </set>
+        WHERE m.id = #{id}
     </update>
     <select id="getTags" resultType="string">
         SELECT st.tag_name
