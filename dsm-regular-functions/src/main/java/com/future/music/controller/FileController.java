@@ -1,8 +1,10 @@
 package com.future.music.controller;
 
 import com.future.music.service.IFileService;
+import com.future.music.service.IMinIoService;
 import entity.pojo.util.Result;
 import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiOperation;
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -24,6 +26,17 @@ public class FileController {
     
     @Resource
     private IFileService fileService;
+    @Resource
+    private IMinIoService  iMinIoService;
+
+
+    @ApiOperation("上次文件普通接口")
+    @PostMapping("/uploadFile")
+    public Result<String> uploadFile(MultipartFile multipartFile) {
+        return Result.ok(iMinIoService.uploadFile(multipartFile));
+    }
+
+
     /**
      * 检验分片文件是否已经上传到MinIO
      *

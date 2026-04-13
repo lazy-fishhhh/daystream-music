@@ -96,21 +96,36 @@ public class AlbumServiceImpl implements IAlbumService {
     @Override
     public Result<Void> updateAlbum(AlbumDTO albumDTO) {
         try {
-            // 验证专辑是否存在
+            // 1. 验证专辑是否存在
             Album existingAlbum = albumMapper.selectById(albumDTO.getId());
             if (existingAlbum == null) {
-                throw new BusinessException("专辑不存在10002", "专辑不存在");
+                throw new BusinessException("10002", "专辑不存在");
             }
 
-            boolean isAuthor = existingAlbum.getMusicianId().equals(SecurityUtil.getCurrentUserId());
-            if(!isAuthor){
-                throw new BusinessException("权限不足10003", "您没有权限修改此专辑");
+            // 2. 验证当前用户是否是专辑作者
+            LambdaQueryWrapper<Musician> lqw = new LambdaQueryWrapper<>();
+            lqw.eq(Musician::getUserId, SecurityUtil.getCurrentUserId());
+            Musician musician = musicianMapper.selectOne(lqw);
+
+            boolean isAuthor = existingAlbum.getMusicianId().equals(musician.getId());
+            if (!isAuthor) {
+                throw new BusinessException("10003", "您没有权限修改此专辑");
             }
+
+            // 3. 拷贝属性
             Album album = new Album();
             BeanUtils.copyProperties(albumDTO, album);
 
-            String coverUrl = minIoPlayerService.uploadFile(albumDTO.getCoverFile());
-            album.setCoverUrl(coverUrl);
+            // 4. 只有上传了封面文件才更新封面，没有上传就保留原来的
+            if (albumDTO.getCoverFile() != null && !albumDTO.getCoverFile().isEmpty()) {
+                String coverUrl = minIoPlayerService.uploadFile(albumDTO.getCoverFile());
+                album.setCoverUrl(coverUrl);
+            } else {
+                // 没有上传新封面 → 把旧封面设置回去，保证SQL有可更新字段
+                album.setCoverUrl(existingAlbum.getCoverUrl());
+            }
+
+            // 5. 执行更新
             albumMapper.updateById(album);
             return Result.ok();
         } catch (Exception e) {
