@@ -36,7 +36,7 @@ public interface IAlbumService {
      * @param pageSize 每页大小
      * @return 分页结果
      */
-    Result<PageResp<AlbumVO>> queryMyAlbum(int pageNum, int pageSize);
+    Result<PageResp<AlbumVO>> queryMyAlbum(Long userId, int pageNum, int pageSize);
 
     /**
      * 分页查询指定人的公开专辑

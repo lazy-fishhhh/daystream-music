@@ -111,4 +111,25 @@
           and followed_user_id= #{userId}
     </select>
 
+    <select id="selectFourMuscian" resultType="com.future.player.entity.vo.MusicianVO">
+        select
+            m.id,
+            m.stage_name,
+            m.avatar,
+            m.introduction,
+            -- 代表作（取第一首歌曲名）
+            (select mu.music_name
+             from music mu
+             where mu.musician_id = m.id
+                            limit 1) as representativeWork
+        from musician m
+            left join user u on m.user_id = u.id
+        where m.status = 1
+          and m.is_deleted = 0
+        -- 子查询保证有作品
+          and exists (select 1 from music mu where mu.musician_id = m.id)
+        group by m.id
+        order by u.fans_count desc
+            limit 4
+    </select>
 </mapper>

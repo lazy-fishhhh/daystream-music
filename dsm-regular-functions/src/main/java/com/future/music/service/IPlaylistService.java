@@ -20,9 +20,9 @@ public interface IPlaylistService {
 
     PageResp<SearchPlaylistVO> searchPlaylist(SearchDTO dto);
     
-    Result<PageResp<List<PlaylistVO>>> queryMyPlaylistByCreateTime(int pageNum, int pageSize);
+    Result<PageResp<List<PlaylistVO>>> queryMyPlaylistByCreateTime(Long userId, int pageNum, int pageSize);
     
-    Result<PageResp<List<PlaylistVO>>> queryMyPlaylistByCollect(int pageNum, int pageSize);
+    Result<PageResp<List<PlaylistVO>>> queryMyPlaylistByCollect(Long userId, int pageNum, int pageSize);
 
     Result<String> addSongToPlaylist(Long playlistId, Long songId);
 

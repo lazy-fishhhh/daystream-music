@@ -3,6 +3,8 @@ package admin.domain.vo;
 import lombok.Data;
 
 import java.time.LocalDateTime;
+import java.util.List;
+
 @Data
 public class DetailMusicianVO {
     /**
@@ -49,5 +51,18 @@ public class DetailMusicianVO {
      * 粉丝数
      */
     private Long fansCount;
+    /**
+     * 标签
+     */
+    private List<String> tags;
+    /**
+     * 作品数
+     */
+    private Integer musicCount;
+    /**
+     * 专辑数
+     */
+    private Integer albumCount;
+    private Integer mvCount;
 
 }

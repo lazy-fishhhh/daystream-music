@@ -4,10 +4,24 @@
         "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="admin.mapper.AdminMusicianMapper">
     <select id="getMusicianList" resultType="admin.domain.vo.MusicianVO">
-        select m.id,m.user_id,m.stage_name as nickname,u.email,m.status,m.introduction,m.created_time ,u.avatar
+        select m.id,
+        m.user_id,
+        m.stage_name as nickname,
+        u.email,
+        m.status,
+        m.introduction,
+        m.created_time,
+        m.avatar,
+        u.fans_count as fansCount,
+        IFNULL(COUNT(DISTINCT mu.id), 0) as musicCount,
+        IFNULL(COUNT(DISTINCT a.id), 0) as albumCount,
+        IFNULL(COUNT(DISTINCT mm.id), 0) as mvCount
         from
         musician as m
         left join user as u on m.user_id=u.id
+        left join album as a on m.id=a.musician_id
+        left join music as mu on m.id=mu.musician_id
+        left join music_mv as mm on mu.id=mm.music_id
         <where>
             <if test="status != null">
                 m.status = #{status}
@@ -15,9 +29,11 @@
             <if test="key != null and key != ''">
                 AND (m.stage_name LIKE CONCAT('%', #{key}, '%')
                 OR u.email LIKE CONCAT('%', #{key}, '%'))
-                or m.introduction LIKE CONCAT('%', #{key}, '%')
+                or m.introduction LIKE CONCAT('%', #{key}, '%'))
             </if>
+            and m.is_deleted=0
         </where>
+        GROUP BY m.id
         ORDER BY m.created_time DESC
     </select>
     <update id="batchPass">
@@ -63,34 +79,50 @@
         ORDER BY m.created_time DESC
     </select>
     <select id="getDteailMusica" resultType="admin.domain.vo.DetailMusicianVO">
-        select m.id,m.user_id,m.stage_name as nickname,u.email,m.is_deleted as status,m.introduction,m.created_time ,u.avatar
-        ,u.vip_expire_time,u.wallet_balance,u.fans_count
+        select m.id,m.user_id,m.stage_name as nickname,u.email,m.is_deleted as status,m.introduction,m.created_time ,m.avatar
+        ,u.vip_expire_time,u.wallet_balance,u.fans_count,
+        IFNULL(COUNT(DISTINCT mu.id), 0) as musicCount,
+        IFNULL(COUNT(DISTINCT a.id), 0) as albumCount,
+        IFNULL(COUNT(DISTINCT mm.id), 0) as mvCount
         from
         musician as m
         left join user as u on m.user_id=u.id
+        left join album as a on m.id=a.musician_id
+        left join music as mu on m.id=mu.musician_id
+        left join music_mv as mm on mu.id=mm.music_id
         <where>
             m.status = 1
             and m.is_deleted in (0,1)
+            and m.user_id=#{userId}
         </where>
     </select>
     <update id="updateDetail">
-        update musician
+        UPDATE musician m
+        INNER JOIN USER u ON u.id = m.user_id
         <set>
-            <if test="stageName!=null and stageName!=''">
-                    stage_name=#{stageName},
+            <if test="dto.stageName != null and dto.stageName != ''">
+                m.stage_name = #{dto.stageName},
             </if>
-            <if test="introduction!=null and introduction!=''">
-                    introduction=#{introduction},
+            <if test="dto.introduction != null and dto.introduction != ''">
+                m.introduction = #{dto.introduction},
             </if>
-            <if test="avatar!=null and avatar!=''">
-                    avatar=#{avatar},
+            <if test="dto.avatar != null and dto.avatar != ''">
+                m.avatar = #{dto.avatar},
             </if>
-            <if test="walletBalance!=null">
-                    wallet_balance=#{walletBalance},
+            <if test="dto.walletBalance != null">
+                u.wallet_balance = #{dto.walletBalance},
             </if>
-            <if test="vipExpireTime!=null">
-                    vip_expire_time=#{vipExpireTime},
+
+            <if test="dto.vipExpireTime != null">
+                u.vip_expire_time = #{dto.vipExpireTime}
             </if>
         </set>
+        WHERE m.id = #{id}
     </update>
+    <select id="getTags" resultType="string">
+        SELECT st.tag_name
+        FROM singer_tag_relation str
+        JOIN singer_tag st ON str.tag_id = st.id
+        WHERE str.musician_id = #{musicianId}
+    </select>
 </mapper>

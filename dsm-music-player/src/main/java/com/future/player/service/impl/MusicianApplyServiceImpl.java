@@ -12,6 +12,7 @@ import com.future.player.entity.dto.MusicianApplyDTO;
 import com.future.player.entity.dto.MusicianListDTO;
 import com.future.player.entity.dto.UpdateMusicianDTO;
 import com.future.player.entity.vo.MusicianDetailVO;
+import com.future.player.entity.vo.MusicianVO;
 import com.future.player.mapper.PlayerMusicianMapper;
 import com.future.player.service.MusicianApplyService;
 import constants.RegexPatterns;
@@ -23,6 +24,7 @@ import entity.pojo.util.PageResp;
 import entity.pojo.util.Result;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.security.core.parameters.P;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -94,7 +96,8 @@ public class MusicianApplyServiceImpl implements MusicianApplyService {
         Long userId = user.getId();
         LambdaQueryWrapper<Musician> lambdaQueryWrapper=new LambdaQueryWrapper<>();
         lambdaQueryWrapper.eq(Musician::getUserId,userId)
-                .eq(Musician::getStatus,1);
+                .eq(Musician::getStatus,1)
+                .eq(Musician::getIsDeleted,0);
         Musician musician = playerMusicianMapper.selectOne(lambdaQueryWrapper);
         if(musician==null)
         {
@@ -215,6 +218,13 @@ public class MusicianApplyServiceImpl implements MusicianApplyService {
         return Result.ok(musicianDetailVO);
     }
 
+    @Override
+    public Result<List<MusicianVO>> getFourMusician() {
+        //从数据库中查找四个粉丝最高的音乐人
+        List<MusicianVO> musicianVOS = playerMusicianMapper.selectFourMuscian();
+        return Result.ok(musicianVOS);
+    }
+
 
     @Override
     @Transactional
@@ -223,11 +233,13 @@ public class MusicianApplyServiceImpl implements MusicianApplyService {
         Long currentUserId=SecurityUtil.getCurrentUserId();
         LambdaQueryWrapper<Musician> lambdaQueryWrapper=new LambdaQueryWrapper<>();
         lambdaQueryWrapper.eq(Musician::getUserId,currentUserId)
-                .eq(Musician::getStatus,0);
+                .eq(Musician::getStatus,0)
+                .eq(Musician::getIsDeleted,0);
         Musician musician = playerMusicianMapper.selectOne(lambdaQueryWrapper);
         if(musician!=null) {
-            return Result.fail("您已经申请过申请，请耐心等待认证");
+            return Result.fail("您已经提交过申请，请耐心等待认证");
         }
+        //判断是否入驻过
         LambdaQueryWrapper<Musician> lambdaQueryWrapper1=new LambdaQueryWrapper<>();
         lambdaQueryWrapper1.eq(Musician::getUserId,currentUserId)
                 .eq(Musician::getStatus,1)
@@ -236,12 +248,6 @@ public class MusicianApplyServiceImpl implements MusicianApplyService {
         if(musician1!=null) {
             return Result.fail("您已经入驻过音乐人，请勿重复申请");
         }
-        //判断是否申请过
-        String username = musicianApplyDTO.getStageName();
-        if (!RegexPatterns.matches(username, RegexPatterns.USERNAME_REGEX)) {
-            return Result.fail("用户名2-16位，请输入正确的用户名");
-        }
-        //判断用户名是否合法
         //如果申请过被驳回，则重新改成待审核
         LambdaQueryWrapper<Musician> lambdaQueryWrapper2=new LambdaQueryWrapper<>();
         lambdaQueryWrapper2.eq(Musician::getUserId,currentUserId)
@@ -261,17 +267,33 @@ public class MusicianApplyServiceImpl implements MusicianApplyService {
         LambdaQueryWrapper<Musician> lambdaQueryWrapper3=new LambdaQueryWrapper<>();
         lambdaQueryWrapper3.eq(Musician::getUserId,currentUserId)
                 .eq(Musician::getStatus,1)
-                .eq(Musician::getIsDeleted,1);
+                .eq(Musician::getIsDeleted,2);
         Musician musician4=playerMusicianMapper.selectOne(lambdaQueryWrapper3);
         if(musician4!=null)
         {
             musician4.setStatus(0);
             musician4.setIsDeleted(0);
-            musician2.setCreatedTime(LocalDateTime.now());
-            musician2.setStageName(musicianApplyDTO.getStageName());
-            musician2.setIntroduction(musicianApplyDTO.getIntroduction());
-            musician2.setAvatar(musicianApplyDTO.getAvatar());
+            musician4.setCreatedTime(LocalDateTime.now());
+            musician4.setStageName(musicianApplyDTO.getStageName());
+            musician4.setIntroduction(musicianApplyDTO.getIntroduction());
+            musician4.setAvatar(musicianApplyDTO.getAvatar());
             playerMusicianMapper.update(musician4,lambdaQueryWrapper3);
+            return Result.ok("申请成功，请等待审核");
+        }
+        //如果是音乐人，但是被封禁了
+        LambdaQueryWrapper<Musician> lambdaQueryWrapper4=new LambdaQueryWrapper<>();
+        lambdaQueryWrapper4.eq(Musician::getUserId,currentUserId)
+                .eq(Musician::getStatus,1)
+                .eq(Musician::getIsDeleted,1);
+        Musician musician5=playerMusicianMapper.selectOne(lambdaQueryWrapper3);
+        if(musician5!=null)
+        {
+            return Result.fail("你的音乐人账号已封禁，请等待解封");
+        }
+        //判断用户名是否合法
+        String username = musicianApplyDTO.getStageName();
+        if (!RegexPatterns.matches(username, RegexPatterns.USERNAME_REGEX)) {
+            return Result.fail("用户名2-16位，请输入正确的用户名");
         }
         //创建音乐人申请
         Musician musician3=new Musician();

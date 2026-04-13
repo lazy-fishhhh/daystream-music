@@ -153,14 +153,8 @@ public class AlbumServiceImpl implements IAlbumService {
     }
 
     @Override
-    public Result<PageResp<AlbumVO>> queryMyAlbum(int pageNum, int pageSize) {
+    public Result<PageResp<AlbumVO>> queryMyAlbum(Long userId, int pageNum, int pageSize) {
         try {
-            // 获取当前用户ID
-            Long userId = getCurrentUserId();
-            if (userId == null) {
-                return Result.fail("用户未登录");
-            }
-
             // 1. 构建MyBatis-Plus分页对象
             Page<AlbumVO> page = new Page<>(pageNum, pageSize);
             // 2. 调用Mapper分页查询

@@ -2,11 +2,17 @@ package social.domain.dto;
 
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
 @Data
 public class PageDTO {
+    /**
+     * 用户id
+     */
+    @NotBlank(message="用户id不能为空")
+    private String userId;
     /**
      * 上一页最后一条的id,第一次获取为null
      */

@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.future.common.websocket.ChatEndPoint;
 import com.future.login.exception.BusinessException;
 import com.future.login.mapper.UserRoleMapper;
 import com.future.login.util.SecurityUtil;
@@ -594,7 +595,7 @@ public class UserBaseServiceImpl implements UserBaseService {
     public Result getLikeMusic(PageDTO pageDTO)
     {
         //获取当前用户的id
-        Long currentUserId = SecurityUtil.getCurrentUserId();
+        Long currentUserId = Long.parseLong(pageDTO.getUserId());
         Integer pageSize=pageDTO.getSize();
         //查询reids中的数据
         String key=USER_LIKE+":"+currentUserId;
@@ -616,6 +617,11 @@ public class UserBaseServiceImpl implements UserBaseService {
                 Long lastId = Long.parseLong(pageDTO.getLastId());
                 //定位到上一页最后一个点赞的索引
                 LikeMusicVO likeMusicVO = music2Mapper.selectLikeMusicVO(lastId, currentUserId);
+                if(likeMusicVO!=null)
+                {
+                    List<Integer> integers = music2Mapper.selectQuality(Long.parseLong(likeMusicVO.getId()));
+                    likeMusicVO.setQuality(integers);
+                }
                 String lastMusic = null;
                 try {
                     lastMusic = objectMapper.writeValueAsString(likeMusicVO);
@@ -675,6 +681,16 @@ public class UserBaseServiceImpl implements UserBaseService {
                 {
                     return Result.ok("该lastId后面没有数据了");
                 }
+                likeMusicVOList.forEach(likeMusicVO -> {
+                    List<Integer> quality =
+                            music2Mapper.selectQuality(Long.parseLong(likeMusicVO.getId()));
+                    likeMusicVO.setQuality(quality);
+                });
+                musicVOS.forEach(likeMusicVO -> {
+                    List<Integer> quality =
+                            music2Mapper.selectQuality(Long.parseLong(likeMusicVO.getId()));
+                    likeMusicVO.setQuality(quality);
+                });
                 //存入redis
                 Set<ZSetOperations.TypedTuple<String>> tuples = likeMusicVOList.stream().map(
                                 likeMusicVO -> {
@@ -715,7 +731,7 @@ public class UserBaseServiceImpl implements UserBaseService {
     public Result getCollectAlbum(PageDTO pageDTO)
     {
         //获取当前用户的id
-        Long currentUserId = SecurityUtil.getCurrentUserId();
+        Long currentUserId = Long.parseLong(pageDTO.getUserId());
         Integer pageSize=pageDTO.getSize();
         //查询reids中的数据
         String key=USER_COLLECTION+":"+"album"+currentUserId;
@@ -833,7 +849,7 @@ public class UserBaseServiceImpl implements UserBaseService {
     @Override
     public Result getPlayList(PageDTO pageDTO) {
         //获取当前用户的id
-        Long currentUserId = SecurityUtil.getCurrentUserId();
+        Long currentUserId = Long.parseLong(pageDTO.getUserId());
         Integer pageSize=pageDTO.getSize();
         //查询reids中的数据
         String key=USER_COLLECTION+":"+"playList"+currentUserId;
@@ -1118,7 +1134,7 @@ public class UserBaseServiceImpl implements UserBaseService {
     public Result getFollowerList(PageDTO pageDTO)
     {
         //从redis中查询
-        Long currentUserId = SecurityUtil.getCurrentUserId();
+        Long currentUserId = Long.parseLong(pageDTO.getUserId());
         String followerKey= RedisCacheConstants.USER_FOLLOWER+":"+currentUserId;
         List<UserFollowerVO> userFollowerVOS=new ArrayList<>();
         ZSetOperations<String, String> zSetOperations = stringRedisTemplate.opsForZSet();
@@ -1236,7 +1252,7 @@ public class UserBaseServiceImpl implements UserBaseService {
     public Result getFollowListMusic(PageDTO pageDTO)
     {
         //从redis中查询
-        Long currentUserId = SecurityUtil.getCurrentUserId();
+        Long currentUserId = Long.parseLong(pageDTO.getUserId());
         String followKey=RedisCacheConstants.USER_FOLLOW+":"+currentUserId+"music";
         List<UserFollowerVO> userFollowerVOS=new ArrayList<>();
         ZSetOperations<String, String> zSetOperations = stringRedisTemplate.opsForZSet();
@@ -1352,7 +1368,7 @@ public class UserBaseServiceImpl implements UserBaseService {
     public Result getFollowListNormal(PageDTO pageDTO)
     {
         //从redis中查询
-        Long currentUserId = SecurityUtil.getCurrentUserId();
+        Long currentUserId = Long.parseLong(pageDTO.getUserId());
         String followKey=RedisCacheConstants.USER_FOLLOW + ":" + currentUserId+"normal";
         List<UserFollowerVO> userFollowerVOS=new ArrayList<>();
         ZSetOperations<String, String> zSetOperations = stringRedisTemplate.opsForZSet();
@@ -1472,23 +1488,26 @@ public class UserBaseServiceImpl implements UserBaseService {
         return Result.ok(pageLikeVO);
     }
     @Override
-    public Result getOtherUserInfo(Long userId) {
+    public Result<OtherUserVO> getOtherUserInfo(Long userId) {
         if(userId==null)
         {
             return Result.fail("用户id不能为空");
         }
-        OtherUserVO otherUserVO = user2Mapper.otherUserInfo(userId);
-        if(otherUserVO==null)
+        User user = user2Mapper.selectById(userId);
+        if(user==null)
         {
             return Result.fail("用户不存在");
         }
+        OtherUserVO otherUserVO=new OtherUserVO();
+        BeanUtils.copyProperties(user, otherUserVO);
+        if (user.getGender() == 1){
+            otherUserVO.setGender("男");
+        }else if (user.getGender() == 2){
+            otherUserVO.setGender("女");
+        }else {
+            otherUserVO.setGender("未知");
+        }
         Long currentUserId = SecurityUtil.getCurrentUserId();
-        //关注数
-        Long count = followMapper.followCount(currentUserId);
-        otherUserVO.setFollowCount(count);
-        //设置粉丝数
-        Long followerCount = followMapper.fansCount(currentUserId);
-        otherUserVO.setFollowerCount(followerCount);
         //是否关注作者
         LambdaQueryWrapper<UserFollow> lambdaQueryWrapper1 = new LambdaQueryWrapper<>();
         lambdaQueryWrapper1.eq(UserFollow::getUserId,currentUserId)
@@ -1511,6 +1530,14 @@ public class UserBaseServiceImpl implements UserBaseService {
         else {
             otherUserVO.setIsVip(false);
         }
+        //在线状态
+        boolean userOnline = ChatEndPoint.isUserOnline(userId);
+        otherUserVO.setOnlineStatus(userOnline ? 1 : 0);
+
+        //用户角色
+        Integer i = user2Mapper.selectRoleIds(userId);
+        RoleEnum roleEnum = RoleEnum.valueOf(i);
+        otherUserVO.setUserRole(roleEnum.getDoc());
         return Result.ok(otherUserVO);
     }
     @Override

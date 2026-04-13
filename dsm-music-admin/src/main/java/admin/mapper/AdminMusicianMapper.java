@@ -1,7 +1,8 @@
 package admin.mapper;
 
+
+import admin.domain.dto.UpdateMusicianDTO;
 import admin.domain.vo.DetailMusicianVO;
-import admin.domain.vo.DetailUserVO;
 import admin.domain.vo.MusicianListVO;
 import admin.domain.vo.MusicianVO;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
@@ -28,5 +29,6 @@ public interface AdminMusicianMapper extends BaseMapper<Musician> {
 
     DetailMusicianVO getDteailMusica(Long userId);
 
-    void updateDetail(Long id);
+    void updateDetail(@Param("id") Long id, @Param("dto") UpdateMusicianDTO dto);
+    List<String> getTags(Long musicianId);
 }

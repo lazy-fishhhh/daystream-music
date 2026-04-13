@@ -22,6 +22,7 @@
         left join user_collection as c on p.id=c.target_id
         where
          c.user_id=#{userId}
+        and c.target_type=2
         and c.is_canceled=0
         <if test="lastId!=null and lastId!=''">
             and p.id &lt; #{lastId}
@@ -39,6 +40,7 @@
         where
         c.user_id=#{userId}
         and c.is_canceled=0
+        and c.target_type=2
         order by c.updated_time desc
     </select>
 </mapper>

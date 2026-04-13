@@ -51,8 +51,13 @@ public class AdminMusicianServiceImpl implements AdminMusicianService {
         //构建mybatis分页参数
         Page<MusicianVO> page = new Page<>(musicianDTO.getPageNum(), musicianDTO.getPageSize());
         IPage<MusicianVO> musicianList = adminMusicianMapper.getMusicianList(page, musicianDTO.getStatus(), musicianDTO.getKey());
+        List<MusicianVO> records = musicianList.getRecords();
+        for (MusicianVO vo : records) {
+            List<String> tags = adminMusicianMapper.getTags(Long.parseLong(vo.getId()));
+            vo.setTags(tags);
+        }
         PageResp<MusicianVO> pageResp = new PageResp<>();
-        pageResp.setRecords(musicianList.getRecords());
+        pageResp.setRecords(records);
         pageResp.setTotal(musicianList.getTotal());
         pageResp.setPages(musicianList.getPages());
         pageResp.setCurrent(musicianList.getCurrent());
@@ -188,7 +193,7 @@ public class AdminMusicianServiceImpl implements AdminMusicianService {
             }
             //根据状态封禁音乐人
             //判断音乐人状态
-            Integer status = musician.getStatus();
+            Integer status = musician.getIsDeleted();
             BanUserStatusVO banUserStatusVO = new BanUserStatusVO();
             //如果用户未封禁，则封禁
             if (status == 0) {
@@ -314,20 +319,22 @@ public class AdminMusicianServiceImpl implements AdminMusicianService {
         }
         //查询音乐人完整信息
         DetailMusicianVO detailMusicianVO = adminMusicianMapper.getDteailMusica(musician.getUserId());
+        detailMusicianVO.setTags(adminMusicianMapper.getTags(Long.parseLong(detailMusicianVO.getId())));
         return Result.ok(detailMusicianVO);
     }
     //更新音乐人信息
     @Override
     public Result<String> updateMusicianInfo(UpdateMusicianDTO updateMusicianDTO) {
         LambdaQueryWrapper<Musician> lambdaQueryWrapper = new LambdaQueryWrapper<>();
-        lambdaQueryWrapper.eq(Musician::getId, updateMusicianDTO.getId())
+        Long musicianId=Long.parseLong(updateMusicianDTO.getId());
+        lambdaQueryWrapper.eq(Musician::getId, musicianId)
                 .eq(Musician::getStatus, 1)
                 .in(Musician::getIsDeleted, 0, 1);
         Musician musician = adminMusicianMapper.selectOne(lambdaQueryWrapper);
         if (musician == null) {
             return Result.fail("音乐人不存在");
         }
-        adminMusicianMapper.updateDetail(musician.getId());
+        adminMusicianMapper.updateDetail(musicianId,updateMusicianDTO);
         return Result.ok("更新成功");
     }
 }

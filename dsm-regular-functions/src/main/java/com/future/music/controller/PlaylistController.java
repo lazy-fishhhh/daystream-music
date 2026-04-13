@@ -107,18 +107,20 @@ public class PlaylistController {
     @ApiOperation(value = "分页查询我的歌单(按创建时间降序)")
     @GetMapping("/query-my-playlist-by-time")
     public Result<PageResp<List<PlaylistVO>>> queryMyPlaylistByCreateTime(
+            @RequestParam Long userId,
             @RequestParam(defaultValue = "1") int pageNum,
             @RequestParam(defaultValue = "10") int pageSize) {
-        return playlistService.queryMyPlaylistByCreateTime(pageNum, pageSize);
+        return playlistService.queryMyPlaylistByCreateTime(userId, pageNum, pageSize);
     }
 
 
     @ApiOperation(value = "分页查询我的歌单(按收藏量降序)")
     @GetMapping("/query-my-playlist-by-collect")
     public Result<PageResp<List<PlaylistVO>>> queryMyPlaylistByCollect(
+            @RequestParam Long userId,
             @RequestParam(defaultValue = "1") int pageNum,
             @RequestParam(defaultValue = "10") int pageSize) {
-        return playlistService.queryMyPlaylistByCollect(pageNum, pageSize);
+        return playlistService.queryMyPlaylistByCollect(userId, pageNum, pageSize);
     }
 
 
