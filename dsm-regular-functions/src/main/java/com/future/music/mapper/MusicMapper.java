@@ -124,4 +124,12 @@ public interface MusicMapper extends BaseMapper<Music> {
      */
     @Select("SELECT id, music_name FROM music WHERE id != #{correctMusicId} ORDER BY RAND() LIMIT #{count}")
     List<GameMusicVO> selectRandomOptions(@Param("correctMusicId") Long correctMusicId, @Param("count") Integer count);
+
+    /**
+     * 根据音乐ID查询音频信息
+     * @param musicId 音乐ID
+     * @return 音频信息列表
+     */
+    @Select("SELECT * FROM music_audio_relation WHERE music_id = #{musicId}")
+    List<entity.pojo.music.MusicAudio> selectAudioByMusicId(@Param("musicId") Long musicId);
 }

@@ -243,8 +243,8 @@ public class AlbumServiceImpl implements IAlbumService {
                 }
             }
 
-            // 转换为VO返回
-            return Result.ok(convertToAlbumVO(album));
+            // 转换为VO返回（包含音乐列表）
+            return Result.ok(convertToAlbumVOWithMusic(album));
         } catch (Exception e) {
             return Result.fail("获取专辑详情失败：" + e.getMessage());
         }
@@ -304,6 +304,58 @@ public class AlbumServiceImpl implements IAlbumService {
         albumVO.setStatus(album.getStatus());
         albumVO.setCollectCount(album.getCollectCount());
         albumVO.setCommentCount(album.getCommentCount());
+        return albumVO;
+    }
+
+    /**
+     * 将Album实体转换为AlbumVO（包含音乐列表）
+     */
+    private AlbumVO convertToAlbumVOWithMusic(Album album) {
+        AlbumVO albumVO = convertToAlbumVO(album);
+        if (albumVO == null) {
+            return null;
+        }
+        
+        // 查询专辑中的音乐列表
+        List<Music> musicList = mPlayerMapper.selectList(
+            new LambdaQueryWrapper<Music>()
+                .eq(Music::getAlbumId, album.getId())
+                .eq(Music::getStatus, 1) // 只查询上架的音乐
+                .orderByDesc(Music::getCreateTime)
+        );
+        
+        // 转换为AlbumMusicVO列表
+            if (musicList != null && !musicList.isEmpty()) {
+                List<com.future.player.entity.vo.AlbumMusicVO> musicVOList = musicList.stream()
+                    .map(music -> {
+                        com.future.player.entity.vo.AlbumMusicVO musicVO = new com.future.player.entity.vo.AlbumMusicVO();
+                        musicVO.setId(music.getId());
+                        musicVO.setMusicName(music.getMusicName());
+                        musicVO.setDuration(music.getDuration());
+                        musicVO.setCoverUrl(music.getCoverUrl());
+                        musicVO.setIsVip(music.getIsVip());
+                        musicVO.setPrice(music.getPrice());
+                        musicVO.setPlayCount(music.getPlayCount());
+                        musicVO.setLikeCount(music.getLikeCount());
+                        musicVO.setCreateTime(music.getCreateTime());
+                        // 查询音频列表
+                        try {
+                            List<entity.pojo.music.MusicAudio> audioList = mPlayerMapper.selectAudioByMusicId(music.getId());
+                            if (audioList != null && !audioList.isEmpty()) {
+                                musicVO.setAudioList(audioList);
+                            }
+                        } catch (Exception e) {
+                            log.error("查询音乐音频信息失败，musicId: {}", music.getId(), e);
+                        }
+                        return musicVO;
+                    })
+                    .collect(Collectors.toList());
+                albumVO.setMusicList(musicVOList);
+                albumVO.setMusicCount((long) musicVOList.size());
+            } else {
+                albumVO.setMusicCount(0L);
+            }
+        
         return albumVO;
     }
 

@@ -228,44 +228,53 @@ public class ScheduledTaskManager {
                 .collect(Collectors.toSet());
 
         // 3. 组装热门歌曲推荐结果
-        List<Recommendation> supplementList = new ArrayList<>();
-        for (ZSetOperations.TypedTuple<Object> tuple : hotMusicTuples) {
-            if (supplementList.size() >= needSupplement) {
-                break;
+            List<Recommendation> supplementList = new ArrayList<>();
+            for (ZSetOperations.TypedTuple<Object> tuple : hotMusicTuples) {
+                if (supplementList.size() >= needSupplement) {
+                    break;
+                }
+                String songIdStr = tuple.getValue().toString();
+                Long songId;
+                try {
+                    songId = Long.valueOf(songIdStr);
+                } catch (NumberFormatException e) {
+                    log.warn("【推荐补足】歌曲ID格式错误：{}", songIdStr, e);
+                    continue;
+                }
+                // 已在推荐列表中
+                if (existingRecommendSongIds.contains(songId)) {
+                    continue;
+                }
+                // 从Hash获取歌曲详情
+                String hashKey = REDIS_HASH_PREFIX + songId;
+                HashOperations<String, String, Object> hashOps = redisTemplate.opsForHash();
+                String songName = getHashValue(hashOps, hashKey, SONG_NAME, songId, userId);
+                String singer = getHashValue(hashOps, hashKey, SINGER, songId, userId);
+                String coverUrl = getHashValue(hashOps, hashKey, COVER_URL, songId, userId);
+                if (songName == null || singer == null || coverUrl == null) {
+                    continue;
+                }
+                // 封装热门歌曲推荐结果（得分=热门得分，标记为热门推荐）
+                Recommendation rec = new Recommendation();
+                rec.setItemId(songId);
+                // 非协同过滤推荐得分，置为null
+                rec.setScore(null);
+                // 热门得分 = Redis ZSet中的score值
+                rec.setHotScore(Optional.ofNullable(tuple.getScore()).orElse(0.0));
+                rec.setSongName(songName);
+                rec.setSinger(singer);
+                rec.setCoverUrl(coverUrl);
+                // 添加音频列表
+                try {
+                    List<entity.pojo.music.MusicAudio> audioList = musicMapper.selectAudioByMusicId(songId);
+                    if (!CollectionUtils.isEmpty(audioList)) {
+                        rec.setAudioList(audioList);
+                    }
+                } catch (Exception e) {
+                    log.error("【推荐补足】查询歌曲音频信息失败，songId: {}", songId, e);
+                }
+                supplementList.add(rec);
             }
-            String songIdStr = tuple.getValue().toString();
-            Long songId;
-            try {
-                songId = Long.valueOf(songIdStr);
-            } catch (NumberFormatException e) {
-                log.warn("【推荐补足】歌曲ID格式错误：{}", songIdStr, e);
-                continue;
-            }
-            // 已在推荐列表中
-            if (existingRecommendSongIds.contains(songId)) {
-                continue;
-            }
-            // 从Hash获取歌曲详情
-            String hashKey = REDIS_HASH_PREFIX + songId;
-            HashOperations<String, String, Object> hashOps = redisTemplate.opsForHash();
-            String songName = getHashValue(hashOps, hashKey, SONG_NAME, songId, userId);
-            String singer = getHashValue(hashOps, hashKey, SINGER, songId, userId);
-            String coverUrl = getHashValue(hashOps, hashKey, COVER_URL, songId, userId);
-            if (songName == null || singer == null || coverUrl == null) {
-                continue;
-            }
-            // 封装热门歌曲推荐结果（得分=热门得分，标记为热门推荐）
-            Recommendation rec = new Recommendation();
-            rec.setItemId(songId);
-            // 非协同过滤推荐得分，置为null
-            rec.setScore(null);
-            // 热门得分 = Redis ZSet中的score值
-            rec.setHotScore(Optional.ofNullable(tuple.getScore()).orElse(0.0));
-            rec.setSongName(songName);
-            rec.setSinger(singer);
-            rec.setCoverUrl(coverUrl);
-            supplementList.add(rec);
-        }
 
         // 4. 合并推荐结果（个性化在前，热门在后）
         recommendList.addAll(supplementList);
@@ -348,6 +357,7 @@ public class ScheduledTaskManager {
             // 组装歌曲详情 + 严格赋值：score=相似度，hotScore=null
             List<Long> songIds = recommendList.stream().map(Recommendation::getItemId).collect(Collectors.toList());
             Map<Long, MusicVO> musicVOMap = batchQueryMusicDetail(songIds);
+            Map<Long, List<entity.pojo.music.MusicAudio>> audioMap = batchQueryMusicAudio(songIds);
             for (Recommendation recommendation : recommendList) {
                 Long songId = recommendation.getItemId();
                 MusicVO musicVO = musicVOMap.get(songId);
@@ -355,6 +365,11 @@ public class ScheduledTaskManager {
                     recommendation.setSongName(musicVO.getMusicName());
                     recommendation.setSinger(musicVO.getMusicianName());
                     recommendation.setCoverUrl(musicVO.getCoverUrl());
+                }
+                // 添加音频列表
+                List<entity.pojo.music.MusicAudio> audioList = audioMap.get(songId);
+                if (audioList != null) {
+                    recommendation.setAudioList(audioList);
                 }
                 recommendation.setHotScore(null); // 兴趣相似歌曲hotScore置空
             }
@@ -383,6 +398,29 @@ public class ScheduledTaskManager {
             log.error("【批量查询】查询歌曲详情失败，歌曲ID列表：{}", songIds, e);
         }
         return musicVOMap;
+    }
+
+    /**
+     * 批量查询歌曲音频信息
+     * @param songIds 歌曲ID列表
+     * @return 歌曲ID -> 音频信息列表Map
+     */
+    private Map<Long, List<entity.pojo.music.MusicAudio>> batchQueryMusicAudio(List<Long> songIds) {
+        Map<Long, List<entity.pojo.music.MusicAudio>> audioMap = new HashMap<>();
+        if (CollectionUtils.isEmpty(songIds)) {
+            return audioMap;
+        }
+        try {
+            for (Long songId : songIds) {
+                List<entity.pojo.music.MusicAudio> audioList = musicMapper.selectAudioByMusicId(songId);
+                if (!CollectionUtils.isEmpty(audioList)) {
+                    audioMap.put(songId, audioList);
+                }
+            }
+        } catch (Exception e) {
+            log.error("【批量查询】查询歌曲音频信息失败，歌曲ID列表：{}", songIds, e);
+        }
+        return audioMap;
     }
 
     /**

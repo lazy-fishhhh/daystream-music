@@ -5,6 +5,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 @AllArgsConstructor
@@ -20,4 +21,5 @@ public class AlbumVO {
     private Long collectCount;
     private Long commentCount;
     private Long musicCount;
+    private List<AlbumMusicVO> musicList; // 专辑所含音乐列表
 }

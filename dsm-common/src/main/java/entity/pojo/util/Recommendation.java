@@ -4,6 +4,9 @@ import lombok.Data;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import entity.pojo.music.MusicAudio;
+import java.util.List;
+
 /**
      * CF辅助类：存储推荐物品的ID和对应的推荐得分
      * 作用：封装物品-得分对，便于排序和返回给上层业务
@@ -17,6 +20,7 @@ public class Recommendation {
     private String songName;   // 歌曲名
     private String singer;     // 歌手
     private String coverUrl;   // 封面
+    private List<MusicAudio> audioList; // 音频列表
         /**
          * 构造方法：初始化推荐结果
          * @param itemId 物品ID
