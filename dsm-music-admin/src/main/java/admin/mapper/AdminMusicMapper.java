@@ -49,4 +49,13 @@ public interface AdminMusicMapper extends BaseMapper<Music> {
      */
     @Select("SELECT * FROM music_audio_relation WHERE music_id = #{musicId}")
     List<MusicAudio> selectAudioByMusicId(@Param("musicId") Long musicId);
+    
+    /**
+     * 检查用户是否点赞过音乐
+     * @param userId 用户ID
+     * @param musicId 音乐ID
+     * @return 1-已点赞，0-未点赞
+     */
+    @Select("SELECT COUNT(*) FROM like_record WHERE user_id = #{userId} AND target_id = #{musicId} AND target_type = 1")
+    Integer checkMusicLiked(@Param("userId") Long userId, @Param("musicId") Long musicId);
 }

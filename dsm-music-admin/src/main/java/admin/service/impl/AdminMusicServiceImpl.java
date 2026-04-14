@@ -5,21 +5,25 @@ import admin.domain.dto.MusicListDTO;
 import admin.domain.vo.MusicVO;
 import admin.service.AdminMusicService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.toolkit.CollectionUtils;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.future.login.exception.BusinessException;
+import com.future.login.util.SecurityUtil;
 import admin.mapper.AdminMusicMapper;
 import admin.mapper.AdminMusicianMapper;
 import admin.mapper.AdminAlbumMapper;
 import entity.pojo.music.Album;
 import entity.pojo.music.Music;
 import entity.pojo.music.Musician;
+import entity.pojo.social.LikeRecord;
 import entity.pojo.util.PageResp;
 import entity.pojo.util.Result;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -43,6 +47,8 @@ public class AdminMusicServiceImpl implements AdminMusicService {
 
     @Resource
     private AdminMusicianMapper adminMusicianMapper;
+    @Autowired
+    private BaseMapper<LikeRecord> likeRecordMapper;
 
     @Override
     public Result<MusicVO> getMusicAuditDetail(Long musicId) {
@@ -87,6 +93,20 @@ public class AdminMusicServiceImpl implements AdminMusicService {
             log.error("查询音乐音频信息失败，musicId: {}", musicId, e);
         }
 
+        // 检查是否被当前用户点赞过
+        try {
+            Long userId = SecurityUtil.getCurrentUserId();
+            if (userId != null) {
+                Integer isLiked = musicMusicMapper.checkMusicLiked(userId, musicId);
+                musicVO.setIsLiked(isLiked != null && isLiked > 0 ? 1 : 0);
+            } else {
+                musicVO.setIsLiked(0);
+            }
+        } catch (Exception e) {
+            log.error("检查音乐点赞状态失败，musicId: {}", musicId, e);
+            musicVO.setIsLiked(0);
+        }
+
         return Result.ok(musicVO);
     }
 
@@ -98,10 +118,18 @@ public class AdminMusicServiceImpl implements AdminMusicService {
         // 使用连表查询获取音乐作品审核列表
         IPage<MusicVO> musicVOPage = musicMusicMapper.selectMusicAuditList(page, musicListDTO.getStatus(), musicListDTO.getKeyword());
 
-        // 为每首音乐查询音频列表
+        // 为每首音乐查询音频列表和点赞状态
         List<MusicVO> records = musicVOPage.getRecords();
         if (CollectionUtils.isNotEmpty(records)) {
+            Long userId = null;
+            try {
+                userId = SecurityUtil.getCurrentUserId();
+            } catch (Exception e) {
+                log.error("获取当前用户ID失败", e);
+            }
+
             for (MusicVO musicVO : records) {
+                // 查询音频列表
                 try {
                     List<entity.pojo.music.MusicAudio> audioList = musicMusicMapper.selectAudioByMusicId(musicVO.getId());
                     if (audioList != null && !audioList.isEmpty()) {
@@ -109,6 +137,21 @@ public class AdminMusicServiceImpl implements AdminMusicService {
                     }
                 } catch (Exception e) {
                     log.error("查询音乐音频信息失败，musicId: {}", musicVO.getId(), e);
+                }
+
+                // 检查是否被当前用户点赞过
+                try {
+                    if (userId != null) {
+                        LambdaQueryWrapper<LikeRecord> lqw = new LambdaQueryWrapper<>();
+
+                        Integer isLiked = musicMusicMapper.checkMusicLiked(userId, musicVO.getId());
+                        musicVO.setIsLiked(isLiked != null && isLiked > 0 ? 1 : 0);
+                    } else {
+                        musicVO.setIsLiked(0);
+                    }
+                } catch (Exception e) {
+                    log.error("检查音乐点赞状态失败，musicId: {}", musicVO.getId(), e);
+                    musicVO.setIsLiked(0);
                 }
             }
         }
