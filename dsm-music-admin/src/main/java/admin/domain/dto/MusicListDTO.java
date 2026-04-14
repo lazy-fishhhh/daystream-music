@@ -13,8 +13,7 @@ public class MusicListDTO implements Serializable {
 
     private Integer pageNum = 1;       // 页码，默认1
     private Integer pageSize = 10;     // 每页数量，默认10
-    private String musicName;          // 歌曲名称（模糊查询）
-    private String musicianName;       // 音乐人名称（模糊查询）
+    private String keyword;            // 关键字（模糊查询，匹配歌曲名或音乐人名）
     private Integer status;            // 状态（0-待审核，1-上架，2-下架）
     private Long albumId;              // 所属专辑ID
     private Long musicianId;           // 音乐人ID

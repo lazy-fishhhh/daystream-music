@@ -1,9 +1,11 @@
 package admin.domain.vo;
 
+import entity.pojo.music.MusicAudio;
 import lombok.Data;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * 音乐作品视图对象
@@ -28,4 +30,5 @@ public class MusicVO {
     private Long likeCount;          //点赞量
     private Long commentCount;       //评论量
     private LocalDateTime createTime; // 创建时间
+    private List<MusicAudio> audioList; // 音频类型列表
 }
