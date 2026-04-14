@@ -158,6 +158,9 @@ public class UserBaseServiceImpl implements UserBaseService {
                     if(targetType==LikeEnum.MUSIC.getValue())
                     {
                         LikeMusicVO likeMusicVO = music2Mapper.selectLikeMusicVO(targetId,currentUserId);
+                        List<Integer> integers = music2Mapper.selectQuality(Long.parseLong(likeMusicVO.getId()));
+                        likeMusicVO.setQuality(integers);
+                        log.error(objectMapper.writeValueAsString(likeMusicVO));
                         stringRedisTemplate.opsForZSet().remove(key,objectMapper.writeValueAsString(likeMusicVO));
                     }
                     likeRecord.setIsCanceled(1);
@@ -198,6 +201,8 @@ public class UserBaseServiceImpl implements UserBaseService {
                     {
                         //创建喜欢的音乐视图
                         LikeMusicVO likeMusicVO = music2Mapper.selectLikeMusicVO(targetId,currentUserId);
+                        List<Integer> integers = music2Mapper.selectQuality(Long.parseLong(likeMusicVO.getId()));
+                        likeMusicVO.setQuality(integers);
                         Long epochSecond=likeMusicVO.getUpdatedTime().atZone(ZoneId.systemDefault()).toInstant().getEpochSecond();
                         stringRedisTemplate.expire(key, 7, TimeUnit.DAYS); // 先设过期
                         Boolean addResult = stringRedisTemplate.opsForZSet().add(key, objectMapper.writeValueAsString(likeMusicVO), epochSecond);
