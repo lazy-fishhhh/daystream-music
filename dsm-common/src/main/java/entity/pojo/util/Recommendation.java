@@ -5,6 +5,9 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import entity.pojo.music.MusicAudio;
+
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -20,7 +23,7 @@ public class Recommendation {
     private String songName;   // 歌曲名
     private String singer;     // 歌手
     private String coverUrl;   // 封面
-    private List<MusicAudio> audioList; // 音频列表
+    private List<String> audioList = new ArrayList<>(); // 音频列表
         /**
          * 构造方法：初始化推荐结果
          * @param itemId 物品ID

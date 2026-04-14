@@ -5,6 +5,7 @@ import com.future.login.mapper.UserMapper;
 import com.future.login.util.SecurityUtil;
 import com.future.music.domain.vo.MusicVO;
 import com.future.music.mapper.MusicMapper;
+import entity.pojo.music.MusicAudio;
 import entity.pojo.util.Recommendation;
 import entity.vo.MusicRecommendVO;
 import lombok.RequiredArgsConstructor;
@@ -268,7 +269,17 @@ public class ScheduledTaskManager {
                 try {
                     List<entity.pojo.music.MusicAudio> audioList = musicMapper.selectAudioByMusicId(songId);
                     if (!CollectionUtils.isEmpty(audioList)) {
-                        rec.setAudioList(audioList);
+                        for (MusicAudio musicAudio : audioList) {
+                            if (musicAudio.getQualityType() == 1) {
+                                rec.getAudioList().add("标准");
+                            } else if (musicAudio.getQualityType() == 2) {
+                                rec.getAudioList().add("高清");
+                            } else if (musicAudio.getQualityType() == 3) {
+                                rec.getAudioList().add("无损");
+                            } else if (musicAudio.getQualityType() == 4) {
+                                rec.getAudioList().add("空间音频");
+                            }
+                        }
                     }
                 } catch (Exception e) {
                     log.error("【推荐补足】查询歌曲音频信息失败，songId: {}", songId, e);
@@ -369,7 +380,17 @@ public class ScheduledTaskManager {
                 // 添加音频列表
                 List<entity.pojo.music.MusicAudio> audioList = audioMap.get(songId);
                 if (audioList != null) {
-                    recommendation.setAudioList(audioList);
+                    for (MusicAudio musicAudio : audioList) {
+                        if (musicAudio.getQualityType() == 1) {
+                            recommendation.getAudioList().add("标准");
+                        } else if (musicAudio.getQualityType() == 2) {
+                            recommendation.getAudioList().add("高清");
+                        } else if (musicAudio.getQualityType() == 3) {
+                            recommendation.getAudioList().add("无损");
+                        } else if (musicAudio.getQualityType() == 4) {
+                            recommendation.getAudioList().add("空间音频");
+                        }
+                    }
                 }
                 recommendation.setHotScore(null); // 兴趣相似歌曲hotScore置空
             }
