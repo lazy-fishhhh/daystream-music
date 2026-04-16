@@ -44,7 +44,9 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.disable())
                 .authorizeHttpRequests(auth -> auth
 
-                        .requestMatchers( "/ai/chat",
+                        .requestMatchers(
+                                "/ws/chat/**",
+                                "/ai/chat",
                                 "/ai/music/create",
                                 "/resources/**",
                                 "/login/*",
@@ -52,7 +54,9 @@ public class SecurityConfig {
 
                         // 其他所有请求都必须认证（登录后才能访问）
                         .anyRequest().authenticated()
+
                 )
+                .csrf(csrf -> csrf.disable()) // WebSocket 必须禁用CSRF！
                 // 2. 添加自定义过滤器
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
 
@@ -61,7 +65,9 @@ public class SecurityConfig {
                 .exceptionHandling(exception -> exception
                         .authenticationEntryPoint(authenticationEntryPoint) // 未认证处理器
                         .accessDeniedHandler(accessDeniedHandler) // 权限不足处理器
+
                 );
+
         return http.build();
     }
 }

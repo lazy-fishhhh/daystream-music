@@ -3,7 +3,7 @@ package social.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.future.login.util.SecurityUtil;
-import com.future.common.websocket.ChatEndPoint;
+
 import entity.pojo.social.*;
 import entity.pojo.util.WebSocketMessageUtils;
 import lombok.extern.slf4j.Slf4j;
@@ -20,6 +20,7 @@ import social.mapper.*;
 import social.service.ChatService;
 import social.service.NotificationService;
 import social.service.OnlineUserService;
+import social.websocket.ChatEndPoint;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;

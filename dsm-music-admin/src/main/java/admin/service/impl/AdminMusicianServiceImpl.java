@@ -106,7 +106,7 @@ public class AdminMusicianServiceImpl implements AdminMusicianService {
             log.error("审批失败",e);
             return Result.fail("审批失败");
         }
-        }
+    }
 
     @Override
     public Result<String> batchPass(AdminMusicianApplyDTO musiciansDTO) {
