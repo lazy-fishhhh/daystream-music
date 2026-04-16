@@ -24,18 +24,20 @@ public interface AdminMusicMapper extends BaseMapper<Music> {
             "<script>",
             "SELECT m.id, m.music_name, m.cover_url, m.duration, m.create_time, m.is_vip, ",
             "       m.status, m.musician_id, m.album_id,",
-            "       a.album_name, mu.stage_name AS musician_name",
-            "FROM music m",
+            "       a.album_name, mu.stage_name AS musician_name,",
+            "       wa.audit_status, wa.audit_remark, wa.reject_reason",
+            "FROM work_audit wa",
+            "LEFT JOIN music m ON wa.target_id = m.id",
             "LEFT JOIN album a ON m.album_id = a.id",
             "LEFT JOIN musician mu ON m.musician_id = mu.id",
-            "WHERE 1=1",
+            "WHERE wa.target_type = 1",
             "<if test='status != null'>",
-            "    AND m.status = #{status}",
+            "    AND wa.audit_status = #{status}",
             "</if>",
             "<if test='keyword != null and keyword != \"\"'>",
             "    AND (m.music_name LIKE CONCAT('%', #{keyword}, '%') OR mu.stage_name LIKE CONCAT('%', #{keyword}, '%'))",
             "</if>",
-            "ORDER BY m.create_time DESC",
+            "ORDER BY wa.audit_time DESC",
             "</script>"
     })
     IPage<MusicVO> selectMusicAuditList(IPage<MusicVO> page, 
@@ -58,4 +60,12 @@ public interface AdminMusicMapper extends BaseMapper<Music> {
      */
     @Select("SELECT COUNT(*) FROM like_record WHERE user_id = #{userId} AND target_id = #{musicId} AND target_type = 1")
     Integer checkMusicLiked(@Param("userId") Long userId, @Param("musicId") Long musicId);
+    
+    /**
+     * 查询音乐的驳回原因
+     * @param musicId 音乐ID
+     * @return 驳回原因
+     */
+    @Select("SELECT reject_reason FROM work_audit WHERE work_id = #{musicId} AND work_type = 1")
+    String getMusicRejectReason(@Param("musicId") Long musicId);
 }

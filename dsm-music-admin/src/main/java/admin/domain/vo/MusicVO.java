@@ -32,4 +32,7 @@ public class MusicVO {
     private LocalDateTime createTime; // 创建时间
     private List<MusicAudio> audioList; // 音频类型列表
     private Integer isLiked;         // 是否被当前用户点赞过（0-否，1-是）
+    private Integer auditStatus;
+    private String auditRemark;
+    private String rejectReason;     // 驳回原因
 }

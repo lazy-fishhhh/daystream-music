@@ -107,6 +107,14 @@ public class AdminMusicServiceImpl implements AdminMusicService {
             musicVO.setIsLiked(0);
         }
 
+        // 查询驳回原因
+        try {
+            String rejectReason = musicMusicMapper.getMusicRejectReason(musicId);
+            musicVO.setRejectReason(rejectReason);
+        } catch (Exception e) {
+            log.error("查询音乐驳回原因失败，musicId: {}", musicId, e);
+        }
+
         return Result.ok(musicVO);
     }
 
