@@ -153,6 +153,14 @@ public class UserBaseServiceImpl implements UserBaseService {
                 //如果点赞过了，则取消
                 if (likeRecord.getIsCanceled() == 0) {
                     //取消
+                    if(targetType==LikeEnum.MUSIC.getValue())
+                    {
+                        LikeMusicVO likeMusicVO = music2Mapper.selectLikeMusicVO(targetId,currentUserId);
+                        List<Integer> integers = music2Mapper.selectQuality(Long.parseLong(likeMusicVO.getId()));
+                        likeMusicVO.setQuality(integers);
+                        log.error(objectMapper.writeValueAsString(likeMusicVO));
+                        stringRedisTemplate.opsForZSet().remove(key,objectMapper.writeValueAsString(likeMusicVO));
+                    }
                     likeRecord.setIsCanceled(1);
                     likeRecord.setUpdatedTime(LocalDateTime.now());
                     likeRecordMapper.updateById(likeRecord);
@@ -160,11 +168,6 @@ public class UserBaseServiceImpl implements UserBaseService {
                     likevo.setIslike(false);
                     likevo.setMsg("取消点赞成功");
                     likevo.setLikecount(count);
-                    if(targetType==LikeEnum.MUSIC.getValue())
-                    {
-                        LikeMusicVO likeMusicVO = music2Mapper.selectLikeMusicVO(targetId,currentUserId);
-                        stringRedisTemplate.opsForZSet().remove(key,objectMapper.writeValueAsString(likeMusicVO));
-                    }
                     //  在"我的喜欢"歌单中删除这首歌
                     LambdaQueryWrapper<Playlist> playlistWrapper = new LambdaQueryWrapper<>();
                     playlistWrapper.eq(Playlist::getUserId,currentUserId)
@@ -196,6 +199,8 @@ public class UserBaseServiceImpl implements UserBaseService {
                     {
                         //创建喜欢的音乐视图
                         LikeMusicVO likeMusicVO = music2Mapper.selectLikeMusicVO(targetId,currentUserId);
+                        List<Integer> integers = music2Mapper.selectQuality(Long.parseLong(likeMusicVO.getId()));
+                        likeMusicVO.setQuality(integers);
                         Long epochSecond=likeMusicVO.getUpdatedTime().atZone(ZoneId.systemDefault()).toInstant().getEpochSecond();
                         stringRedisTemplate.expire(key, 7, TimeUnit.DAYS); // 先设过期
                         Boolean addResult = stringRedisTemplate.opsForZSet().add(key, objectMapper.writeValueAsString(likeMusicVO), epochSecond);
