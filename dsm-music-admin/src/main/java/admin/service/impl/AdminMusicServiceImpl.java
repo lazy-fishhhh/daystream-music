@@ -196,6 +196,8 @@ public class AdminMusicServiceImpl implements AdminMusicService {
             music.setStatus(musicAuditDTO.getStatus());
             int updateCount = musicMusicMapper.updateById(music);
             if (updateCount > 0) {
+                // 更新 work_audit 表的审核状态
+                musicMusicMapper.updateMusicAuditStatus(musicAuditDTO.getId(), musicAuditDTO.getStatus(), musicAuditDTO.getReason());
                 return Result.ok("音乐作品审核成功");
             } else {
                 return Result.fail("音乐作品审核失败");
@@ -223,6 +225,8 @@ public class AdminMusicServiceImpl implements AdminMusicService {
             updateMusic.setStatus(1);
             int updateCount = musicMusicMapper.update(updateMusic, queryWrapper);
             if (updateCount > 0) {
+                // 批量更新 work_audit 表的审核状态
+                musicMusicMapper.batchUpdateMusicAuditStatus(musicIds, 1, "审核通过");
                 return Result.ok("批量通过音乐作品审核成功");
             } else {
                 return Result.fail("批量通过音乐作品审核失败");
@@ -250,6 +254,8 @@ public class AdminMusicServiceImpl implements AdminMusicService {
             updateMusic.setStatus(2);
             int updateCount = musicMusicMapper.update(updateMusic, queryWrapper);
             if (updateCount > 0) {
+                // 批量更新 work_audit 表的审核状态
+                musicMusicMapper.batchUpdateMusicAuditStatus(musicIds, 2, musicAuditDTO.getReason());
                 return Result.ok("批量驳回音乐作品审核成功");
             } else {
                 return Result.fail("批量驳回音乐作品审核失败");

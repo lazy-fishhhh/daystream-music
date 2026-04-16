@@ -8,6 +8,7 @@ import entity.pojo.music.MusicAudio;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
+import org.apache.ibatis.annotations.Update;
 
 import java.util.List;
 
@@ -66,6 +67,36 @@ public interface AdminMusicMapper extends BaseMapper<Music> {
      * @param musicId 音乐ID
      * @return 驳回原因
      */
-    @Select("SELECT reject_reason FROM work_audit WHERE work_id = #{musicId} AND work_type = 1")
+    @Select("SELECT reject_reason FROM work_audit WHERE target_id = #{musicId} AND target_type = 1")
     String getMusicRejectReason(@Param("musicId") Long musicId);
+    
+    /**
+     * 更新音乐审核状态
+     * @param musicId 音乐ID
+     * @param auditStatus 审核状态
+     * @param rejectReason 驳回原因
+     * @return 更新结果
+     */
+    @Update({
+            "<script>",
+            "UPDATE work_audit SET audit_status = #{auditStatus}, audit_remark = #{rejectReason}, reject_reason = #{rejectReason}, audit_time = NOW() ",
+            "WHERE target_id = #{musicId} AND target_type = 1",
+            "</script>"
+    })
+    int updateMusicAuditStatus(@Param("musicId") Long musicId, @Param("auditStatus") Integer auditStatus, @Param("rejectReason") String rejectReason);
+    
+    /**
+     * 批量更新音乐审核状态
+     * @param musicIds 音乐ID列表
+     * @param auditStatus 审核状态
+     * @param rejectReason 驳回原因
+     * @return 更新结果
+     */
+    @Update({
+            "<script>",
+            "UPDATE work_audit SET audit_status = #{auditStatus}, audit_remark = #{rejectReason}, reject_reason = #{rejectReason}, audit_time = NOW() ",
+            "WHERE target_id IN <foreach collection='musicIds' item='musicId' open='(' separator=',' close=')'>#{musicId}</foreach> AND target_type = 1",
+            "</script>"
+    })
+    int batchUpdateMusicAuditStatus(@Param("musicIds") List<Long> musicIds, @Param("auditStatus") Integer auditStatus, @Param("rejectReason") String rejectReason);
 }
