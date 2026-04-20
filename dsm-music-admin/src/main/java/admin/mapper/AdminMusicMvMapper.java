@@ -8,6 +8,9 @@ import entity.vo.MusicMvVO;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
+import org.apache.ibatis.annotations.Update;
+
+import java.util.List;
 
 /**
  * MV审核Mapper接口
@@ -53,4 +56,30 @@ public interface AdminMusicMvMapper extends BaseMapper<MusicMv> {
             "WHERE mm.id = #{mvId} " +
             "</script>")
     MusicMvVO selectMvAuditDetail(@Param("mvId") Long mvId);
+    
+    /**
+     * 更新MV审核状态
+     * @param mvId MV ID
+     * @param auditStatus 审核状态
+     * @param rejectReason 驳回原因
+     * @return 更新结果
+     */
+    @Update("<script>" +
+            "UPDATE work_audit SET audit_status = #{auditStatus}, audit_remark = #{rejectReason}, reject_reason = #{rejectReason}, audit_time = NOW() " +
+            "WHERE target_id = #{mvId} AND target_type = 2 " +
+            "</script>")
+    int updateMvAuditStatus(@Param("mvId") Long mvId, @Param("auditStatus") Integer auditStatus, @Param("rejectReason") String rejectReason);
+    
+    /**
+     * 批量更新MV审核状态
+     * @param mvIds MV ID列表
+     * @param auditStatus 审核状态
+     * @param rejectReason 驳回原因
+     * @return 更新结果
+     */
+    @Update("<script>" +
+            "UPDATE work_audit SET audit_status = #{auditStatus}, audit_remark = #{rejectReason}, reject_reason = #{rejectReason}, audit_time = NOW() " +
+            "WHERE target_id IN <foreach collection='mvIds' item='mvId' open='(' separator=',' close=')'>#{mvId}</foreach> AND target_type = 2 " +
+            "</script>")
+    int batchUpdateMvAuditStatus(@Param("mvIds") List<Long> mvIds, @Param("auditStatus") Integer auditStatus, @Param("rejectReason") String rejectReason);
 }
