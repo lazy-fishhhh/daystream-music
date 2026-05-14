@@ -104,6 +104,21 @@ public class MusicMvVO {
     private Date updateTime;
 
     /**
+     * 审核状态
+     */
+    private Integer auditStatus;
+
+    /**
+     * 审核备注
+     */
+    private String auditRemark;
+
+    /**
+     * 驳回原因
+     */
+    private String rejectReason;
+
+    /**
      * MV画质VO类
      */
     @Data

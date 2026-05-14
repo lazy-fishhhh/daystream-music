@@ -1,21 +1,18 @@
-package com.future.common.websocket;
+package social.websocket;
 
 import com.alibaba.fastjson2.JSON;
 import entity.pojo.util.WebSocketMessage;
 import entity.pojo.util.WebSocketMessageUtils;
 import io.jsonwebtoken.Claims;
-import jakarta.websocket.*;
-import jakarta.websocket.server.HandshakeRequest;
-import jakarta.websocket.server.ServerEndpoint;
-import jakarta.websocket.server.ServerEndpointConfig;
+import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.ApplicationContext;
-import org.springframework.context.ApplicationContextAware;
-import org.springframework.context.event.ContextRefreshedEvent;
-import org.springframework.context.event.EventListener;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
+import org.springframework.web.socket.CloseStatus;
+import org.springframework.web.socket.TextMessage;
+import org.springframework.web.socket.WebSocketSession;
+import org.springframework.web.socket.handler.TextWebSocketHandler;
 import util.JwtUtil;
 
 import java.io.IOException;
@@ -29,67 +26,28 @@ import java.util.concurrent.TimeUnit;
 
 import static constants.RedisCacheConstants.TOKEN_USER_PREFIX;
 
-@ServerEndpoint(value = "/chat", configurator = ChatEndPoint.CustomConfigurator.class)
-@Component
-
-// WebSocket 是多实例，不能用构造器注入 Spring Bean，会导致空指针
-// @RequiredArgsConstructor 会导致每个实例都有自己的依赖，而不是共享的
+/**
+ * Spring 原生 WebSocketHandler 实现
+ * 处理 WebSocket 连接、消息和断开
+ */
 @Slf4j
-public class ChatEndPoint implements ApplicationContextAware {
-
-    // ====================== Spring上下文静态变量 ======================
-    private static ApplicationContext applicationContext;
-    private static boolean initialized = false;
-    
-    @Override
-    public void setApplicationContext(ApplicationContext applicationContext) {
-        ChatEndPoint.applicationContext = applicationContext;
-        log.info("Spring 应用上下文注入成功");
-    }
-    
-    public static ApplicationContext getApplicationContext() {
-        if (applicationContext == null) {
-            log.error("Spring 应用上下文未初始化");
-            throw new IllegalStateException("Spring 应用上下文未初始化");
-        }
-        return applicationContext;
-    }
-    
-    // 监听 Spring 容器初始化完成事件
-    @EventListener(ContextRefreshedEvent.class)
-    public void onContextRefreshed(ContextRefreshedEvent event) {
-        if (applicationContext != null) {
-            initialized = true;
-            log.info("WebSocket 服务初始化完成，Spring 容器就绪");
-        } else {
-            log.warn("WebSocket 服务初始化失败：Spring 应用上下文未注入");
-        }
-    }
-    
-    public static boolean isInitialized() {
-        return initialized;
-    }
-    // ==============================================================
-
-    // 自定义配置器：修复 Spring Boot3 + Tomcat10 握手BUG
-    public static class CustomConfigurator extends ServerEndpointConfig.Configurator {
-        @Override
-        public <T> T getEndpointInstance(Class<T> clazz) throws InstantiationException {
-            return getApplicationContext().getBean(clazz);
-        }
-    }
+@Component
+public class ChatWebSocketHandler extends TextWebSocketHandler {
 
     private static final String PING = "ping";
     private static final String PONG = "pong";
 
     // 存储在线用户：用户ID -> Session
-    private static final Map<Long, Session> onlineUsers = new ConcurrentHashMap<>();
+    private static final Map<Long, WebSocketSession> onlineUsers = new ConcurrentHashMap<>();
     // 存储用户最后心跳时间：用户ID -> 最后心跳时间戳(ms)
     private static final Map<Long, Long> userLastHeartbeat = new ConcurrentHashMap<>();
     // 心跳超时时间（30秒）
     private static final long HEARTBEAT_TIMEOUT = 30 * 1000;
     // 心跳检测定时任务
     private static final ScheduledExecutorService heartbeatChecker = Executors.newSingleThreadScheduledExecutor();
+
+    @Resource
+    private StringRedisTemplate stringRedisTemplate;
 
     // 静态初始化：启动心跳检测定时任务（每10秒扫描一次）
     static {
@@ -112,32 +70,23 @@ public class ChatEndPoint implements ApplicationContextAware {
         }, 10, 10, TimeUnit.SECONDS);
     }
 
-    /**
-     * 建立websocket连接后调用
-     */
-    @OnOpen
-    public void onOpen(Session session, EndpointConfig config) throws IOException {
+    @Override
+    public void afterConnectionEstablished(WebSocketSession session) throws Exception {
         // ====================== 【关键日志】连接刚到达服务器，第一行打印 ======================
         log.info("=== WebSocket 连接刚到达服务器，SessionID：{} ===", session.getId());
 
-        // 检查服务是否初始化完成
-        if (!initialized) {
-            session.close(new CloseReason(CloseReason.CloseCodes.SERVICE_RESTART, "服务初始化中，暂不支持连接"));
-            log.warn("WebSocket 服务未初始化完成，拒绝连接");
-            return;
-        }
-
         String token = null;
-        Map<String, List<String>> params = session.getRequestParameterMap();
-        if (params.containsKey("token")) {
-            token = params.get("token").get(0);
+        // 从 URI 查询参数中获取 token
+        String query = session.getUri().getQuery();
+        if (query != null && query.contains("token=")) {
+            token = query.split("token=")[1].split("&")[0];
         }
         // 打印获取到的token，方便排查
         log.info("WebSocket 连接解析到token：{}", token);
 
         // 鉴权校验
         if (token == null) {
-            session.close(new CloseReason(CloseReason.CloseCodes.VIOLATED_POLICY, "token无效/未登录"));
+            session.close(CloseStatus.NOT_ACCEPTABLE.withReason("token无效/未登录"));
             log.warn("未提供token,无法建立WebSocket连接");
             return;
         }
@@ -147,17 +96,15 @@ public class ChatEndPoint implements ApplicationContextAware {
             Long userId = claims.getSubject() != null ? Long.parseLong(claims.getSubject()) : null;
 
             if (userId == null) {
-                session.close(new CloseReason(CloseReason.CloseCodes.VIOLATED_POLICY, "token无效/未登录"));
+                session.close(CloseStatus.NOT_ACCEPTABLE.withReason("token无效/未登录"));
                 log.warn("token中的userId为null,无法建立WebSocket连接");
                 return;
             }
 
             String redisTokenKey = TOKEN_USER_PREFIX + userId;
-            // 从Spring上下文获取StringRedisTemplate
-            StringRedisTemplate stringRedisTemplate = applicationContext.getBean(StringRedisTemplate.class);
             
             if (stringRedisTemplate == null) {
-                session.close(new CloseReason(CloseReason.CloseCodes.SERVICE_RESTART, "服务依赖未就绪"));
+                session.close(CloseStatus.SERVER_ERROR.withReason("服务依赖未就绪"));
                 log.error("StringRedisTemplate 未初始化，拒绝 WebSocket 连接");
                 return;
             }
@@ -165,13 +112,13 @@ public class ChatEndPoint implements ApplicationContextAware {
             String redisToken = stringRedisTemplate.opsForValue().get(redisTokenKey);
 
             if (!StringUtils.hasText(redisToken) || !redisToken.equals(token)) {
-                session.close(new CloseReason(CloseReason.CloseCodes.VIOLATED_POLICY, "token无效/已过期"));
+                session.close(CloseStatus.NOT_ACCEPTABLE.withReason("token无效/已过期"));
                 log.warn("未查询到redis中该token的缓存信息,无法建立WebSocket连接");
                 return;
             }
 
             // 存储用户ID到Session
-            session.getUserProperties().put("userId", userId);
+            session.getAttributes().put("userId", userId);
             // 存储Session和初始心跳时间
             onlineUsers.put(userId, session);
             userLastHeartbeat.put(userId, System.currentTimeMillis());
@@ -181,65 +128,60 @@ public class ChatEndPoint implements ApplicationContextAware {
             log.info("WebSocket 连接成功 → userId:{}", userId);
 
         } catch (Exception e) {
-            session.close(new CloseReason(CloseReason.CloseCodes.VIOLATED_POLICY, "token解析失败"));
+            session.close(CloseStatus.NOT_ACCEPTABLE.withReason("token解析失败"));
             log.error("WebSocket token 解析异常", e);
         }
     }
 
-    /**
-     * 从Session中获取用户ID
-     */
-    private Long getUserIdFromSession(Session session) {
-        return (Long) session.getUserProperties().get("userId");
-    }
-
-    /**
-     * 接收客户端消息（包含心跳包）
-     */
-    @OnMessage
-    public void onMessage(Session session, String message) throws IOException {
+    @Override
+    protected void handleTextMessage(WebSocketSession session, TextMessage message) throws Exception {
         Long userId = getUserIdFromSession(session);
+        if (userId == null) {
+            return;
+        }
+        
         // 解析消息
-        WebSocketMessage msg = JSON.parseObject(message, WebSocketMessage.class);
+        WebSocketMessage msg = JSON.parseObject(message.getPayload(), WebSocketMessage.class);
 
         // 1. 心跳包处理（约定：message为"ping"表示心跳）
         if (PING.equals(msg.getMessage())) {
             userLastHeartbeat.put(userId, System.currentTimeMillis());
             // 回复心跳响应
             String pong = WebSocketMessageUtils.getMessage(true, null, "pong");
-            session.getBasicRemote().sendText(pong);
+            session.sendMessage(new TextMessage(pong));
             return;
         }
 
         // 2. 普通消息处理
         Long toUser = msg.getToUser();
         String mess = msg.getMessage().toString();
-        Session toSession = onlineUsers.get(toUser);
+        WebSocketSession toSession = onlineUsers.get(toUser);
         if (toSession != null && toSession.isOpen()) {
             String result = WebSocketMessageUtils.getMessage(false, userId, mess);
-            toSession.getBasicRemote().sendText(result);
+            toSession.sendMessage(new TextMessage(result));
         }
     }
 
-    /**
-     * 连接关闭时调用
-     */
-    @OnClose
-    public void onClose(Session session) throws IOException {
+    @Override
+    public void afterConnectionClosed(WebSocketSession session, CloseStatus status) throws Exception {
         Long userId = getUserIdFromSession(session);
         offlineProcess(userId);
     }
 
-    /**
-     * 连接异常时调用
-     */
-    @OnError
-    public void onError(Session session, Throwable throwable) throws IOException {
+    @Override
+    public void handleTransportError(WebSocketSession session, Throwable exception) throws Exception {
         Long userId = getUserIdFromSession(session);
         // 打印异常日志
-        throwable.printStackTrace();
+        exception.printStackTrace();
         // 异常断开处理
         offlineProcess(userId);
+    }
+
+    /**
+     * 从Session中获取用户ID
+     */
+    private Long getUserIdFromSession(WebSocketSession session) {
+        return (Long) session.getAttributes().get("userId");
     }
 
     // 对外提供判断用户是否在线的静态方法
@@ -250,15 +192,18 @@ public class ChatEndPoint implements ApplicationContextAware {
         return onlineUsers.containsKey(userId);
     }
 
-    // ————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————
     /**
      * 离线处理统一逻辑
      */
     private static void offlineProcess(Long userId) throws IOException {
         if (userId == null) return;
         // 清理存储
-        onlineUsers.remove(userId);
+        WebSocketSession session = onlineUsers.remove(userId);
         userLastHeartbeat.remove(userId);
+        // 关闭会话
+        if (session != null && session.isOpen()) {
+            session.close();
+        }
         // 广播离线状态
         broadcastOnlineStatus();
     }
@@ -276,9 +221,9 @@ public class ChatEndPoint implements ApplicationContextAware {
      * 广播消息给所有在线用户
      */
     private static void broadcastToAllUsers(String message) throws IOException {
-        for (Session session : onlineUsers.values()) {
+        for (WebSocketSession session : onlineUsers.values()) {
             if (session.isOpen()) {
-                session.getBasicRemote().sendText(message);
+                session.sendMessage(new TextMessage(message));
             }
         }
     }
@@ -289,10 +234,10 @@ public class ChatEndPoint implements ApplicationContextAware {
      * @param message 消息内容
      */
     public static void sendMessageToUser(Long userId, String message) {
-        Session session = onlineUsers.get(userId);
+        WebSocketSession session = onlineUsers.get(userId);
         if (session != null && session.isOpen()) {
             try {
-                session.getBasicRemote().sendText(message);
+                session.sendMessage(new TextMessage(message));
                 log.debug("向用户发送消息成功，userId: {}", userId);
             } catch (IOException e) {
                 log.error("向用户发送消息失败，userId: {}", userId, e);

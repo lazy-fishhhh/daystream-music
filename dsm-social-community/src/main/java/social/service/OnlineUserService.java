@@ -1,21 +1,17 @@
 package social.service;
 
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import org.springframework.context.annotation.Lazy;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
-import com.future.common.websocket.ChatEndPoint;
+
 import entity.pojo.util.WebSocketMessageUtils;
-import entity.pojo.social.GroupMessage;
-import entity.pojo.social.PrivateMessage;
 import social.domain.vo.OfflineMessageSummaryVO;
 import social.domain.vo.OnlineStatusVO;
 import social.domain.vo.UnreadNotificationCountVO;
-import social.service.ChatService;
-import social.service.NotificationService;
+import social.websocket.ChatEndPoint;
 
 import java.util.List;
 import java.util.Set;

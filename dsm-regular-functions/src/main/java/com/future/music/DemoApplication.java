@@ -26,7 +26,6 @@ import org.springframework.web.bind.annotation.*;
 
 @ComponentScan(basePackages = {
         "com.future.common",
-        "websocket",
         "com.future.login",
         "com.future.ai" ,
         "com.future.music",

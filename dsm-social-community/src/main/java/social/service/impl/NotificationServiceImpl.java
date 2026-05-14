@@ -1,6 +1,6 @@
 package social.service.impl;
 
-import com.future.common.websocket.ChatEndPoint;
+
 import entity.pojo.social.Notification;
 import entity.pojo.util.WebSocketMessageUtils;
 import lombok.extern.slf4j.Slf4j;
@@ -16,6 +16,7 @@ import social.mapper.NotificationMapper;
 import social.mapper.User2Mapper;
 import social.service.NotificationService;
 import social.service.OnlineUserService;
+import social.websocket.ChatEndPoint;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
