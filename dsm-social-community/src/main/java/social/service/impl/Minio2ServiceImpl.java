@@ -21,7 +21,7 @@ import java.security.NoSuchAlgorithmException;
 public class Minio2ServiceImpl implements Minio2Service {
     @Resource
     private MinioClient minioClient;
-    @Value("${minio.bucketName}")
+    @Value("${minio.bucket-name}")
     private String bucketName;
 
     //上传照片
