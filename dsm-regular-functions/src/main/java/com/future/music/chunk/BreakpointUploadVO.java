@@ -2,6 +2,7 @@ package com.future.music.chunk;
 
 import lombok.Data;
 
+import java.util.HashSet;
 import java.util.Set;
 
 /**
@@ -19,7 +20,7 @@ public class BreakpointUploadVO {
     private String objectName;
 
     // 已上传的分片序号
-    private Set<Integer> uploadedChunks;
+    private Set<Integer> uploadedChunks = new HashSet<>();
 
     // 文件地址（exist=true 时返回）
     private String fileUrl;

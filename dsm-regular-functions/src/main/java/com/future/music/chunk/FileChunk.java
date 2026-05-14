@@ -17,11 +17,14 @@ public class FileChunk {
     @TableId(type = IdType.AUTO)
     private Long id;
 
-    // 文件唯一标识（MD5）
-    private String fileMd5;
+    // 上传标识
+    private String uploadId;
 
     // 分片序号
     private Integer chunkIndex;
+
+    // 文件原始名字
+    private String objectName;
 
     // 上传时间
     private LocalDateTime createTime;

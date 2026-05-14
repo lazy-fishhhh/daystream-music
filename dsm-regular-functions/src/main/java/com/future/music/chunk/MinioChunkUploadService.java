@@ -63,17 +63,21 @@ public class MinioChunkUploadService {
 
         // 2. 断点续传：查询该文件已上传成功的分片序号
         LambdaQueryWrapper<FileChunk> chunkWrapper = Wrappers.lambdaQuery();
-        chunkWrapper.eq(FileChunk::getFileMd5, fileMd5);
+        chunkWrapper.eq(FileChunk::getUploadId, fileMd5);
         List<FileChunk> chunks = fileChunkMapper.selectList(chunkWrapper);
 
-        // 把已上传分片序号存入集合，返回给前端跳过上传
-        Set<Integer> uploadedChunks = new HashSet<>();
-        for (FileChunk chunk : chunks) {
-            uploadedChunks.add(chunk.getChunkIndex());
-        }
+        if (chunks != null && !chunks.isEmpty()) {
+            // 把已上传分片序号存入集合，返回给前端跳过上传
+            Set<Integer> uploadedChunks = new HashSet<>();
+            for (FileChunk chunk : chunks) {
+                uploadedChunks.add(chunk.getChunkIndex());
+                vo.setUploadId(fileMd5);
+                vo.setObjectName(chunk.getObjectName());
+            }
 
+            vo.setUploadedChunks(uploadedChunks);
+        }
         vo.setExist(false);
-        vo.setUploadedChunks(uploadedChunks);
         return vo;
     }
 
@@ -111,6 +115,7 @@ public class MinioChunkUploadService {
     public void uploadChunk(
             String uploadId,
             Integer chunkIndex,
+            String objectName,
             MultipartFile file
     ) throws Exception {
 
@@ -124,7 +129,7 @@ public class MinioChunkUploadService {
 
         // 1. 先查数据库：该分片是否已经上传过
         LambdaQueryWrapper<FileChunk> wrapper = Wrappers.lambdaQuery();
-        wrapper.eq(FileChunk::getFileMd5, uploadId)
+        wrapper.eq(FileChunk::getUploadId, uploadId)
                 .eq(FileChunk::getChunkIndex, chunkIndex);
 
         FileChunk existChunk = fileChunkMapper.selectOne(wrapper);
@@ -149,8 +154,9 @@ public class MinioChunkUploadService {
 
         // 4. 记录分片信息（断点续传核心依据）
         FileChunk chunk = new FileChunk();
-        chunk.setFileMd5(uploadId);
+        chunk.setUploadId(uploadId);
         chunk.setChunkIndex(chunkIndex);
+        chunk.setObjectName(objectName);
         chunk.setCreateTime(LocalDateTime.now());
         fileChunkMapper.insert(chunk);
     }
@@ -208,7 +214,7 @@ public class MinioChunkUploadService {
 
         // 4. 删除数据库中的分片记录
         LambdaQueryWrapper<FileChunk> wrapper = Wrappers.lambdaQuery();
-        wrapper.eq(FileChunk::getFileMd5, uploadId);
+        wrapper.eq(FileChunk::getUploadId, uploadId);
         fileChunkMapper.delete(wrapper);
 
         // 5. 记录完整文件信息，标记上传完成

@@ -60,11 +60,14 @@ public class MinioChunkUploadController {
             @ApiParam(value = "分片序号（从0开始）", required = true)
             @RequestParam("chunkIndex") Integer chunkIndex,
 
+            @ApiParam(value = "文件存储路径objectName", required = true)
+            @RequestParam("objectName") String objectName,
+
             @ApiParam(value = "分片文件流", required = true)
             @RequestParam("file") MultipartFile file
     ) throws Exception {
 
-        uploadService.uploadChunk(uploadId, chunkIndex, file);
+        uploadService.uploadChunk(uploadId, chunkIndex, objectName, file);
 
         return Map.of(
                 "success", true,
