@@ -30,6 +30,10 @@ public class QQAuthServiceImpl implements QQAuthService {
     @Value("${qq.auth.app-key}")
     private String appKey;
 
+    /** 前端站点地址，登录成功后跳回这里 */
+    @Value("${app.frontend-url:http://localhost:5173}")
+    private String frontendUrl;
+
     @Value("${qq.auth.redirect-uri}")
     private String redirectUri;
 
@@ -118,12 +122,12 @@ public class QQAuthServiceImpl implements QQAuthService {
                  TimeUnit.SECONDS
          );
          // 7. 重定向
-         response.sendRedirect("https://www.histweilai.top/?tempCode=" + tempCode);
+         response.sendRedirect(frontendUrl + "/?tempCode=" + tempCode);
      } catch (Exception e) {
          // 捕获所有异常，返回失败结果
          log.error("QQ登录回调处理失败：" + e.getMessage());
          try {
-             response.sendRedirect("https://www.histweilai.top/UserAuth");
+             response.sendRedirect(frontendUrl + "/UserAuth");
          } catch (IOException ex) {
              throw new RuntimeException(ex);
          }

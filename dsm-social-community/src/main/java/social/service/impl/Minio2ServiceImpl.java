@@ -23,6 +23,8 @@ public class Minio2ServiceImpl implements Minio2Service {
     private MinioClient minioClient;
     @Value("${minio.bucket-name}")
     private String bucketName;
+    @Value("${minio.proxy-host}")
+    private String proxyHost;
 
     //上传照片
     @Override
@@ -56,7 +58,7 @@ public class Minio2ServiceImpl implements Minio2Service {
                             .method(Method.GET)
                             .build()
             ));*/
-            return Result.ok("https://www.histweilai.top/minio/"+bucketName+"/"+fileName);
+            return Result.ok(proxyHost + "/" + bucketName + "/" + fileName);
         } catch (Exception e) {
             log.error("文件上传到 MinIO 失败: {}", e.getMessage(), e);
             return Result.fail("文件上传失败");
@@ -65,7 +67,7 @@ public class Minio2ServiceImpl implements Minio2Service {
     //删除文件
     @Override
     public Result deleteFile(String fileUrl) {
-        String minioEndpoint = "http://39.96.214.163:9000";
+        String minioEndpoint = proxyHost;
         if(!fileUrl.startsWith(minioEndpoint)){
             return Result.fail("无效的url");
         }

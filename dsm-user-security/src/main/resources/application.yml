@@ -1,23 +1,27 @@
 spring:
   mail:
-    host: smtp.qq.com         # 如果是163邮箱，则为 smtp.163.com
-    port: 465
-    username: 3363261602@qq.com # 发件邮箱
-    password: azglgtnkogdpdcag # 这里是QQ邮箱的授权码
-    protocol: smtps             # QQ邮箱必须用 smtps（即SSL加密）
+    host: ${MAIL_HOST:smtp.qq.com}   # 如果是163邮箱，则为 smtp.163.com
+    port: ${MAIL_PORT:465}
+    username: ${MAIL_USERNAME:}      # 发件邮箱
+    password: ${MAIL_PASSWORD:}      # 邮箱授权码（不是登录密码）
+    protocol: smtps                  # QQ邮箱必须用 smtps（即SSL加密）
     properties:
       mail:
         smtp:
           ssl:
-            enable: true        # 启用SS
+            enable: true             # 启用SSL
 ---
 qq:
   auth:
-    app-id: 102818237
-    app-key: 4CGDLQPH90nU4fIp
-    redirect-uri: https://www.histweilai.top/api/login/callback
+    app-id: ${QQ_APP_ID:}
+    app-key: ${QQ_APP_KEY:}
+    redirect-uri: ${QQ_REDIRECT_URI:http://localhost:8080/api/login/callback}
     # 其余QQ API地址保持默认即可
     authorize-url: https://graph.qq.com/oauth2.0/authorize
     access-token-url: https://graph.qq.com/oauth2.0/token
     openid-url: https://graph.qq.com/oauth2.0/me
     user-info-url: https://graph.qq.com/user/get_user_info
+---
+app:
+  # 前端站点地址，QQ 登录成功后跳回这里
+  frontend-url: ${APP_FRONTEND_URL:http://localhost:5173}

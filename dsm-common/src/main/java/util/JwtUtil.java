@@ -2,11 +2,6 @@ package util;
 
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
-import jakarta.annotation.Resource;
-import lombok.RequiredArgsConstructor;
-import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.security.crypto.password.PasswordEncoder;
 
 import javax.crypto.SecretKey;
 import java.util.Base64;
@@ -21,8 +16,20 @@ public class JwtUtil {
     // 有效期为
     public static final Long JWT_TTL = 60 * 60 * 1000*7L; // 1小时
 
-    // 使用 generateKey() 方法生成的密钥
-    public static final String JWT_KEY = "tO9rN+5QZ8e7wF3pL2mK5jR8sT1vU4xY7iH0kG3fJ6h";
+    /**
+     * JWT 签名密钥（Base64 编码，HS256 要求解码后至少 32 字节）。
+     * 由 jwt.secret 配置项注入，未配置时启动会自动生成临时密钥。
+     */
+    private static volatile String jwtKey;
+
+    /**
+     * 由 {@link JwtKeyInitializer} 在容器启动时调用
+     */
+    public static void setJwtKey(String key) {
+        if (key != null && !key.isBlank()) {
+            jwtKey = key;
+        }
+    }
 
     public static String getUUID() {
         String token = UUID.randomUUID().toString().replaceAll("-", "");
@@ -106,8 +113,30 @@ public class JwtUtil {
      * @return 密钥对象
      */
     public static SecretKey generalKey() {
-        byte[] encodedKey = Base64.getDecoder().decode(JWT_KEY);
+        byte[] encodedKey = Base64.getDecoder().decode(resolveKey());
         return Keys.hmacShaKeyFor(encodedKey);
+    }
+
+    /**
+     * 解析密钥：优先使用 Spring 注入的 jwt.secret，
+     * 其次读取 JWT_SECRET 环境变量 / 系统属性，
+     * 都没有时生成一个临时密钥（仅用于本地开发，重启后已签发的 token 会全部失效）。
+     */
+    private static String resolveKey() {
+        String key = jwtKey;
+        if (key == null || key.isBlank()) {
+            key = System.getProperty("jwt.secret");
+        }
+        if (key == null || key.isBlank()) {
+            key = System.getenv("JWT_SECRET");
+        }
+        if (key == null || key.isBlank()) {
+            key = generateKey();
+            System.err.println("[JwtUtil] 未配置 jwt.secret（环境变量 JWT_SECRET），"
+                    + "已自动生成临时密钥，应用重启后所有已签发的 token 将失效。");
+        }
+        jwtKey = key;
+        return key;
     }
 
     /**
@@ -122,8 +151,7 @@ public class JwtUtil {
     /*
        public static void main(String[] args) {
             BCryptPasswordEncoder b = new BCryptPasswordEncoder();
-            System.out.println(b.encode("123456Aa@"));
-            // $2a$10$MrfwYY2cFGg/tM5qefy9ROEzFPksUReBLYXB3ML.MhqwnKm9ssDQu
+            System.out.println(b.encode("your-password"));
         }
     */
 

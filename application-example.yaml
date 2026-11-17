@@ -1,0 +1,77 @@
+# ============================================================================
+# 配置模板 —— 不要直接提交真实凭据
+#
+# 用法（二选一）：
+#   1) 环境变量：按下面注释里的变量名设置系统环境变量 / IDEA 启动配置的 Environment variables
+#   2) 本地覆盖文件：把本文件复制为 application-local.yaml 放到对应模块的
+#      src/main/resources/ 下填真实值，启动时加 --spring.profiles.active=local
+#      （application-local.yaml 已被 .gitignore 忽略，不会进仓库）
+#
+# 本项目多个模块有同名 application.yaml，打包后会互相覆盖，实际生效的以
+# dsm-regular-functions 的为准；本地开发时按需在各自模块下覆盖即可。
+# ============================================================================
+
+# ---------- 大模型（阿里云百炼 DashScope） ----------
+# 控制台：https://bailian.console.aliyun.com/
+langchain4j:
+  open-ai:
+    chat-model:
+      api-key: ${AI_API_KEY:}          # 环境变量 AI_API_KEY
+    streaming-chat-model:
+      api-key: ${AI_API_KEY:}
+    embedding-model:
+      api-key: ${AI_API_KEY:}
+
+# ---------- MySQL ----------
+spring:
+  datasource:
+    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:music}
+    username: ${DB_USERNAME:root}       # DB_HOST / DB_PORT / DB_NAME / DB_USERNAME
+    password: ${DB_PASSWORD:}           # DB_PASSWORD
+
+  # ---------- Redis ----------
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}      # REDIS_HOST / REDIS_PORT / REDIS_PASSWORD
+
+  # ---------- RabbitMQ ----------
+  rabbitmq:
+    host: ${MQ_HOST:localhost}
+    port: ${MQ_PORT:5672}
+    username: ${MQ_USERNAME:guest}
+    password: ${MQ_PASSWORD:guest}
+    virtual-host: ${MQ_VHOST:/}         # MQ_HOST / MQ_PORT / MQ_USERNAME / MQ_PASSWORD / MQ_VHOST
+
+# ---------- MinIO 对象存储 ----------
+minio:
+  endpoint: ${MINIO_ENDPOINT:http://localhost:9000}
+  proxy-host: ${MINIO_PROXY_HOST:http://localhost:9000/minio}   # 返回给前端的访问地址
+  access-key: ${MINIO_ACCESS_KEY:}
+  secret-key: ${MINIO_SECRET_KEY:}
+  bucket-name: ${MINIO_BUCKET:file}
+
+# ---------- JWT ----------
+# Base64 编码，HS256 要求解码后至少 32 字节。
+# 生成方式：openssl rand -base64 32
+# 不配置时会自动生成临时密钥，重启后所有 token 失效。
+jwt:
+  secret: ${JWT_SECRET:}
+
+# ---------- 邮件（QQ 邮箱 SMTP） ----------
+spring-mail-placeholder: 便于阅读，实际位置见上方 spring.mail
+#   username: ${MAIL_USERNAME:}      # 发件邮箱
+#   password: ${MAIL_PASSWORD:}      # 邮箱「授权码」，不是登录密码
+
+# ---------- QQ 互联登录 ----------
+# 开放平台：https://connect.qq.com/
+qq:
+  auth:
+    app-id: ${QQ_APP_ID:}
+    app-key: ${QQ_APP_KEY:}
+    redirect-uri: ${QQ_REDIRECT_URI:http://localhost:8080/api/login/callback}
+
+# ---------- 前端站点 ----------
+app:
+  frontend-url: ${APP_FRONTEND_URL:http://localhost:5173}

@@ -68,3 +68,26 @@ Thumbs.db
 
 ### VS Code ###
 .vscode/
+
+### 本地敏感配置 ###
+# 主配置文件只保留占位符（形如 ${DB_PASSWORD:}），真实凭据请写在下面这些本地覆盖文件里，
+# 它们已被忽略，不会被提交。例如新建 application-local.yaml 放真实密码，启动时加 --spring.profiles.active=local
+**/src/main/resources/application-local.*
+**/src/main/resources/application-dev.*
+**/src/main/resources/application-prod.*
+**/src/main/resources/application-test.*
+**/src/main/resources/application-secret.*
+**/src/main/resources/*.pem
+**/src/main/resources/*.p12
+**/src/main/resources/*.jks
+**/src/main/resources/*.key
+
+# 环境变量文件
+.env
+.env.*
+!.env.example
+
+# 数据库备份 / 导出（建表脚本请放在 docs/ 或 sql/ 下）
+*.dump
+*.sql.gz
+*.bak.sql

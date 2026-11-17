@@ -49,7 +49,6 @@ public class GameServiceImpl implements IGameService {
 
         // 生成唯一会话ID
         String sessionId = UUID.randomUUID().toString().replace("-", "");
-//        String sessionId ="123456";
 
         // 创建游戏会话
         GameSession session = new GameSession();

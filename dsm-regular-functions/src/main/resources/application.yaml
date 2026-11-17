@@ -1,7 +1,7 @@
 langchain4j:
   open-ai:
     chat-model:
-      api-key: ${API-KEY:sk-576746ec85384deea25770688e439042}
+      api-key: ${AI_API_KEY:}
       base-url: https://dashscope.aliyuncs.com/compatible-mode/v1
       model-name: qwen3.5-flash
       reasoning-effort: none  # 禁用推理
@@ -9,7 +9,7 @@ langchain4j:
       log-requests: true
     # 流式输出
     streaming-chat-model:
-      api-key: ${API-KEY:sk-576746ec85384deea25770688e439042}
+      api-key: ${AI_API_KEY:}
       base-url: https://dashscope.aliyuncs.com/compatible-mode/v1
       model-name: qwen3.5-flash
       reasoning-effort: none  # 禁用推理
@@ -17,7 +17,7 @@ langchain4j:
       log-responses: true   # 日志
     # 向量模型
     embedding-model:
-      api-key: ${API-KEY:sk-576746ec85384deea25770688e439042}
+      api-key: ${AI_API_KEY:}
       base-url: https://dashscope.aliyuncs.com/compatible-mode/v1
       model-name: text-embedding-v4
 logging:
@@ -30,15 +30,15 @@ spring:
   #数据库
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://39.96.214.163:3306/music
-    username: admin
-    password: PDbsBSMrye75eck7
+    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:music}
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:}
   # redis
   data:
     redis:
-      host: 39.96.214.163
-      port: 6379
-      password: AL1234@
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
   servlet:
     multipart:
       enabled: true
@@ -51,8 +51,8 @@ redisson:
     enabled: false
     # 单独配置 Redisson 的 Redis 连接（和上面的 Spring Redis 可以用同一个 Redis 实例，只是连接池独立）
   singleServerConfig:
-    address: redis://39.96.214.163:6379
-    password: AL1234@
+    address: redis://${REDIS_HOST:localhost}:${REDIS_PORT:6379}
+    password: ${REDIS_PASSWORD:}
 server:
   tomcat:
     max-http-form-post-size: -1
@@ -67,20 +67,20 @@ mybatis-plus:
     mapper-locations: classpath:mapper/*.xml
 ---
 minio:
-  endpoint: http://39.96.214.163:9000
-  proxy-host: https://www.histweilai.top/minio # 新增：用于返回给前端的地址
-  access-key: asdfghjkl
-  secret-key: Lz112112!
-  bucket-name: file
+  endpoint: ${MINIO_ENDPOINT:http://localhost:9000}
+  proxy-host: ${MINIO_PROXY_HOST:http://localhost:9000/minio} # 用于返回给前端的地址
+  access-key: ${MINIO_ACCESS_KEY:}
+  secret-key: ${MINIO_SECRET_KEY:}
+  bucket-name: ${MINIO_BUCKET:file}
 
 
 spring:
   rabbitmq:
-    host: 39.96.214.163
-    port: 5672
-    username: DayStreamMusic
-    password: 123456
-    virtual-host: /DayStreamMusic
+    host: ${MQ_HOST:localhost}
+    port: ${MQ_PORT:5672}
+    username: ${MQ_USERNAME:guest}
+    password: ${MQ_PASSWORD:guest}
+    virtual-host: ${MQ_VHOST:/}
     listener:
       simple:
        prefetch: 1
@@ -105,6 +105,7 @@ spring:
     publisher-confirm-type: correlated # 开启确认模式
     publisher-returns: true # 开启返回模式
 
-
-
-
+# JWT 签名密钥（Base64 编码，HS256 至少 32 字节）
+# 不配置时启动会随机生成一个，重启后已签发的 token 全部失效
+jwt:
+  secret: ${JWT_SECRET:}

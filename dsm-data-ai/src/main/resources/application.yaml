@@ -2,7 +2,7 @@ langchain4j:
   open-ai:
     # 流式输出
     streaming-chat-model:
-      api-key: ${API-KEY:sk-576746ec85384deea25770688e439042}
+      api-key: ${AI_API_KEY:}
       base-url: https://dashscope.aliyuncs.com/compatible-mode/v1
       model-name: qwen3.5-flash
       reasoning-effort: none  # 禁用推理
@@ -10,7 +10,7 @@ langchain4j:
       log-responses: true   # 日志
     # 向量模型
     embedding-model:
-      api-key: ${API-KEY:sk-576746ec85384deea25770688e439042}
+      api-key: ${AI_API_KEY:}
       base-url: https://dashscope.aliyuncs.com/compatible-mode/v1
       model-name: text-embedding-v4
 logging:
@@ -20,20 +20,20 @@ logging:
 spring:
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://39.96.214.163:3306/music
-    username: admin
-    password: PDbsBSMrye75eck7
+    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:music}
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:}
   data:
     redis:
-      host: 39.96.214.163
-      port: 6379
-      password: AL1234@
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
   rabbitmq:
-    host: 39.96.214.163
-    port: 5672
-    username: DayStreamMusic
-    password: 123456
-    virtual-host: /DayStreamMusic
+    host: ${MQ_HOST:localhost}
+    port: ${MQ_PORT:5672}
+    username: ${MQ_USERNAME:guest}
+    password: ${MQ_PASSWORD:guest}
+    virtual-host: ${MQ_VHOST:/}
     listener:
       simple:
         prefetch: 1
@@ -67,12 +67,11 @@ mybatis-plus:
     mapper-locations: classpath:mapper/*.xml
 
 minio:
-  endpoint: http://39.96.214.163:9000
-  accessKey: asdfghjkl
-  secretKey: Lz112112!
-  bucketName: file
+  endpoint: ${MINIO_ENDPOINT:http://localhost:9000}
+  access-key: ${MINIO_ACCESS_KEY:}
+  secret-key: ${MINIO_SECRET_KEY:}
+  bucket-name: ${MINIO_BUCKET:file}
 servlet:
   multipart:
     max-file-size: 5GB
     max-request-size: 5GB
-
